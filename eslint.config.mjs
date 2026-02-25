@@ -1,13 +1,12 @@
+import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-plugin-prettier';
 import nextTs from 'eslint-config-next/typescript';
 import perfectionist from 'eslint-plugin-perfectionist';
+import typescriptParser from '@typescript-eslint/parser';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
-
-import js from '@eslint/js';
-import typescriptParser from '@typescript-eslint/parser';
 
 const eslintConfig = defineConfig([
   js.configs.recommended,
@@ -71,9 +70,12 @@ const eslintConfig = defineConfig([
         {
           order: 'asc',
           type: 'line-length',
-          newlinesBetween: 'always',
-          groups: [['builtin', 'external'], ['internal', 'parent', 'sibling', 'index', 'object'], 'unknown'],
-          internalPattern: ['@/*'],
+          newlinesBetween: 1,
+          groups: [
+            ['value-builtin', 'value-external'],
+            ['value-internal', 'value-parent', 'value-sibling', 'value-index'],
+            'unknown',
+          ],
         },
       ],
     },
