@@ -71,11 +71,7 @@ const eslintConfig = defineConfig([
           order: 'asc',
           type: 'line-length',
           newlinesBetween: 1,
-          groups: [
-            ['value-builtin', 'value-external'],
-            ['value-internal', 'value-parent', 'value-sibling', 'value-index'],
-            'unknown',
-          ],
+          groups: [['builtin', 'external'], ['internal', 'parent', 'sibling', 'index'], 'unknown'],
         },
       ],
     },
