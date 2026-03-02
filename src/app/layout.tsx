@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import './globals.css';
+import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import ChatWidget from '@/modules/ai-chat/ui/components/floating-chat';
 
@@ -20,6 +21,7 @@ const RootLayout = ({
         <ThemeProvider attribute='class' defaultTheme='system' enableSystem disableTransitionOnChange>
           {children}
           <ChatWidget />
+          <Toaster richColors position='top-right' />
         </ThemeProvider>
       </body>
     </html>

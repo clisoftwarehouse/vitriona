@@ -1,0 +1,87 @@
+import type { AdapterAccountType } from 'next-auth/adapters';
+import { text, boolean, integer, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
+  email: text('email').unique().notNull(),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  image: text('image'),
+  password: text('password'),
+  role: text('role', { enum: ['user', 'admin'] })
+    .notNull()
+    .default('user'),
+  resetPasswordToken: text('reset_password_token'),
+  resetPasswordTokenExpiry: timestamp('reset_password_token_expiry', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').$type<AdapterAccountType>().notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: text('token_type'),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (account) => [primaryKey({ columns: [account.provider, account.providerAccountId] })]
+);
+
+export const sessions = pgTable('sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expires: timestamp('expires', { mode: 'date' }).notNull(),
+});
+
+export const verificationTokens = pgTable(
+  'verification_tokens',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: timestamp('expires', { mode: 'date' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })]
+);
+
+export const authenticators = pgTable(
+  'authenticators',
+  {
+    credentialID: text('credential_id').notNull().unique(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    providerAccountId: text('provider_account_id').notNull(),
+    credentialPublicKey: text('credential_public_key').notNull(),
+    counter: integer('counter').notNull(),
+    credentialDeviceType: text('credential_device_type').notNull(),
+    credentialBackedUp: boolean('credential_backed_up').notNull(),
+    transports: text('transports'),
+  },
+  (authenticator) => [primaryKey({ columns: [authenticator.userId, authenticator.credentialID] })]
+);
+
+export const otpTokens = pgTable('otp_tokens', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  email: text('email').notNull(),
+  otp: text('otp').notNull(),
+  purpose: text('purpose', { enum: ['email_verification', 'password_reset'] }).notNull(),
+  expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+  usedAt: timestamp('used_at', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
