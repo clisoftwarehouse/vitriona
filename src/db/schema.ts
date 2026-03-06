@@ -1,5 +1,5 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
-import { text, jsonb, boolean, integer, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { text, jsonb, integer, boolean, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id')
@@ -160,4 +160,21 @@ export const catalogSettings = pgTable('catalog_settings', {
   contactInfo: jsonb('contact_info'),
   seoTitle: text('seo_title'),
   seoDescription: text('seo_description'),
+});
+
+export const categories = pgTable('categories', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  catalogId: text('catalog_id')
+    .notNull()
+    .references(() => catalogs.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  description: text('description'),
+  imageUrl: text('image_url'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
