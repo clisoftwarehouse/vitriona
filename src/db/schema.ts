@@ -1,5 +1,5 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
-import { text, jsonb, integer, boolean, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { text, jsonb, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id')
@@ -177,4 +177,41 @@ export const categories = pgTable('categories', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const products = pgTable('products', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  catalogId: text('catalog_id')
+    .notNull()
+    .references(() => catalogs.id, { onDelete: 'cascade' }),
+  categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  description: text('description'),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
+  compareAtPrice: numeric('compare_at_price', { precision: 10, scale: 2 }),
+  sku: text('sku'),
+  stock: integer('stock').default(0),
+  status: text('status', { enum: ['active', 'inactive', 'out_of_stock'] })
+    .notNull()
+    .default('active'),
+  isFeatured: boolean('is_featured').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const productImages = pgTable('product_images', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
+  alt: text('alt'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });

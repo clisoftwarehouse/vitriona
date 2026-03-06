@@ -1,0 +1,52 @@
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { notFound } from 'next/navigation';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
+import { CreateProductWrapper } from '@/modules/products/ui/components/create-product-wrapper';
+import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
+import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+
+interface NewProductPageProps {
+  params: Promise<{ id: string; catalogId: string }>;
+}
+
+export default async function NewProductPage({ params }: NewProductPageProps) {
+  const { id, catalogId } = await params;
+  const [business, catalog, categories] = await Promise.all([
+    getBusinessByIdAction(id),
+    getCatalogByIdAction(catalogId),
+    getCategoriesAction(catalogId),
+  ]);
+
+  if (!business || !catalog) notFound();
+
+  return (
+    <div className='flex flex-col gap-6'>
+      <div className='flex items-center gap-3'>
+        <Button variant='ghost' size='icon-sm' asChild>
+          <Link href={`/dashboard/businesses/${id}/catalogs/${catalogId}/products`}>
+            <ArrowLeft className='size-4' />
+          </Link>
+        </Button>
+        <div>
+          <h2 className='text-xl font-semibold tracking-tight'>Nuevo producto</h2>
+          <p className='text-muted-foreground mt-0.5 text-sm'>
+            {business.name} — {catalog.name}
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <h3 className='font-semibold'>Información del producto</h3>
+        </CardHeader>
+        <CardContent>
+          <CreateProductWrapper catalogId={catalogId} businessId={id} categories={categories} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

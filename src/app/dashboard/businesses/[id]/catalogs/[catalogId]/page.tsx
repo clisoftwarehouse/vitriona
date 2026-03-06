@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Tags, ArrowLeft } from 'lucide-react';
+import { Tags, Package, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -65,6 +65,23 @@ export default async function EditCatalogPage({ params }: EditCatalogPageProps) 
           </div>
           <Button variant='outline' asChild>
             <Link href={`/dashboard/businesses/${id}/catalogs/${catalog.id}/categories`}>Ver categorías</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className='flex items-center justify-between p-5'>
+          <div className='flex items-center gap-3'>
+            <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
+              <Package className='text-primary size-5' />
+            </div>
+            <div>
+              <h3 className='font-semibold'>Productos</h3>
+              <p className='text-muted-foreground text-sm'>Gestiona los productos de este catálogo.</p>
+            </div>
+          </div>
+          <Button variant='outline' asChild>
+            <Link href={`/dashboard/businesses/${id}/catalogs/${catalog.id}/products`}>Ver productos</Link>
           </Button>
         </CardContent>
       </Card>
