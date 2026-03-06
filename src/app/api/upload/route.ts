@@ -1,34 +1,37 @@
-import { NextResponse } from 'next/server';
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { put } from '@vercel/blob';
 
 import { auth } from '@/auth';
 
-export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
-
+export async function POST(request: Request) {
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => {
-        const session = await auth();
-        if (!session?.user?.id) {
-          throw new Error('No autorizado');
-        }
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: 'No autorizado' }, { status: 401 });
+    }
 
-        return {
-          allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'],
-          maximumSizeInBytes: 5 * 1024 * 1024, // 5MB
-          tokenPayload: JSON.stringify({ userId: session.user.id }),
-        };
-      },
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+
+    if (!file) {
+      return Response.json({ error: 'No se proporcionó archivo' }, { status: 400 });
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return Response.json({ error: 'El archivo excede 5MB' }, { status: 400 });
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+    if (!allowedTypes.includes(file.type)) {
+      return Response.json({ error: 'Tipo de archivo no permitido' }, { status: 400 });
+    }
+
+    const blob = await put(file.name, file, {
+      access: 'public',
+      addRandomSuffix: true,
     });
 
-    return NextResponse.json(jsonResponse);
+    return Response.json(blob);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al subir archivo' },
-      { status: 400 }
-    );
+    return Response.json({ error: error instanceof Error ? error.message : 'Error al subir archivo' }, { status: 500 });
   }
 }

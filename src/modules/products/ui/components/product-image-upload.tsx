@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { CSS } from '@dnd-kit/utilities';
-import { upload } from '@vercel/blob/client';
 import { useState, useCallback, useTransition } from 'react';
 import { X, Upload, Loader2, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
@@ -90,10 +89,21 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
             continue;
           }
 
-          const blob = await upload(file.name, file, {
-            access: 'public',
-            handleUploadUrl: '/api/upload',
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
           });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            setError(errorData.error || 'Error al subir archivo');
+            continue;
+          }
+
+          const blob = await response.json();
 
           const result = await addProductImageAction(productId, blob.url, file.name);
           if (result.error) {
