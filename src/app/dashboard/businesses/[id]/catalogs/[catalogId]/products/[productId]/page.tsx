@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
+import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
 import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
 import { getProductByIdAction } from '@/modules/products/server/actions/get-products.action';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
+import { getProductImagesAction } from '@/modules/products/server/actions/product-images.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
 
 interface EditProductPageProps {
@@ -18,11 +20,12 @@ interface EditProductPageProps {
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { id, catalogId, productId } = await params;
-  const [business, catalog, categories, product] = await Promise.all([
+  const [business, catalog, categories, product, images] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(catalogId),
     getProductByIdAction(productId),
+    getProductImagesAction(productId),
   ]);
 
   if (!business || !catalog || !product) notFound();
@@ -65,6 +68,15 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               isFeatured: product.isFeatured,
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h3 className='font-semibold'>Imágenes</h3>
+        </CardHeader>
+        <CardContent>
+          <ProductImageUpload productId={product.id} initialImages={images} />
         </CardContent>
       </Card>
 
