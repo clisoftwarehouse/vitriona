@@ -2,21 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { X, Paintbrush, ChevronRight, ExternalLink, LayoutDashboard } from 'lucide-react';
+import { X, Store, Paintbrush, ChevronRight, ExternalLink, LayoutDashboard } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { BusinessSelector } from '@/modules/businesses/ui/components/business-selector';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Negocios', href: '/dashboard/businesses', icon: Store },
   { label: 'Configuración de tema', href: '/dashboard/theme', icon: Paintbrush },
 ];
 
-interface AppSidebarProps {
-  onClose?: () => void;
+interface SidebarBusiness {
+  id: string;
+  name: string;
+  slug: string;
 }
 
-export function AppSidebar({ onClose }: AppSidebarProps) {
+interface AppSidebarProps {
+  onClose?: () => void;
+  businesses: SidebarBusiness[];
+  activeBusinessId: string | null;
+}
+
+export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -36,6 +46,12 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
           <X className='size-4' />
         </button>
       </div>
+
+      {businesses.length > 0 && (
+        <div className='border-sidebar-border border-b px-3 py-3'>
+          <BusinessSelector businesses={businesses} activeBusinessId={activeBusinessId} />
+        </div>
+      )}
 
       <nav className='flex-1 overflow-y-auto px-3 py-4'>
         <p className='text-muted-foreground mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>Manage</p>

@@ -1,9 +1,11 @@
+import { redirect } from 'next/navigation';
 import { Eye, DollarSign, TrendingUp, ArrowUpRight, ShoppingCart } from 'lucide-react';
 
 import { auth } from '@/auth';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DashboardGreeting } from '@/modules/dashboard/ui/components/dashboard-greeting';
+import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from '@/components/ui/table';
 
 const STATS = [
@@ -55,7 +57,10 @@ const STATUS_CLASSES: Record<OrderStatus, string> = {
 };
 
 const DashboardPage = async () => {
-  const session = await auth();
+  const [session, businesses] = await Promise.all([auth(), getBusinessesAction()]);
+
+  if (businesses.length === 0) redirect('/dashboard/businesses/new');
+
   const firstName = session?.user?.name?.split(' ')[0] ?? 'usuario';
 
   return (

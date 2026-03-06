@@ -6,6 +6,12 @@ import { cn } from '@/lib/utils';
 import { AppSidebar } from './app-sidebar';
 import { DashboardTopbar } from './dashboard-topbar';
 
+interface SidebarBusiness {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface ShellUser {
   name?: string | null;
   email?: string | null;
@@ -14,10 +20,12 @@ interface ShellUser {
 
 interface DashboardShellProps {
   user: ShellUser;
+  businesses: SidebarBusiness[];
+  activeBusinessId: string | null;
   children: React.ReactNode;
 }
 
-export function AdminLayout({ user, children }: DashboardShellProps) {
+export function AdminLayout({ user, businesses, activeBusinessId, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -31,7 +39,7 @@ export function AdminLayout({ user, children }: DashboardShellProps) {
 
       {/* Sidebar wrapper — fixed drawer on mobile, relative on desktop */}
       <div className={cn('md:relative md:flex', sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden md:flex')}>
-        <AppSidebar onClose={closeSidebar} />
+        <AppSidebar onClose={closeSidebar} businesses={businesses} activeBusinessId={activeBusinessId} />
       </div>
 
       {/* Main area */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Paintbrush, LayoutDashboard } from 'lucide-react';
+import { Store, Search, Paintbrush, LayoutDashboard } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +19,7 @@ const COMMANDS = [
     group: 'Navegación',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+      { icon: Store, label: 'Negocios', href: '/dashboard/businesses' },
       { icon: Paintbrush, label: 'Configuración de tema', href: '/dashboard/theme' },
     ],
   },

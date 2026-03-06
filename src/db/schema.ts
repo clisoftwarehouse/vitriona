@@ -85,3 +85,42 @@ export const otpTokens = pgTable('otp_tokens', {
   usedAt: timestamp('used_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
+
+export const businesses = pgTable('businesses', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  slug: text('slug').unique().notNull(),
+  description: text('description'),
+  logoUrl: text('logo_url'),
+  bannerUrl: text('banner_url'),
+  category: text('category', {
+    enum: [
+      'food',
+      'jewelry',
+      'clothing',
+      'electronics',
+      'beauty',
+      'home',
+      'sports',
+      'toys',
+      'books',
+      'services',
+      'other',
+    ],
+  }),
+  phone: text('phone'),
+  email: text('email'),
+  address: text('address'),
+  whatsappNumber: text('whatsapp_number'),
+  isActive: boolean('is_active').notNull().default(true),
+  plan: text('plan', { enum: ['free', 'pro', 'business'] })
+    .notNull()
+    .default('free'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
