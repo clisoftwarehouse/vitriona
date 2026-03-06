@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { businesses } from '@/db/schema';
 import { ensureUniqueSlug } from '@/modules/businesses/server/lib/slug';
+import { createDefaultCatalog } from '@/modules/catalogs/server/actions/create-catalog.action';
 import type { CreateBusinessFormValues } from '@/modules/businesses/ui/schemas/business.schemas';
 
 export async function createBusinessAction(values: CreateBusinessFormValues) {
@@ -27,6 +28,8 @@ export async function createBusinessAction(values: CreateBusinessFormValues) {
         whatsappNumber: values.whatsappNumber || null,
       })
       .returning({ id: businesses.id });
+
+    await createDefaultCatalog(business.id);
 
     return { success: true, businessId: business.id };
   } catch {

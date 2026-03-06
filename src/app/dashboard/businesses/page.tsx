@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Plus, Store, ExternalLink } from 'lucide-react';
+import { Plus, Store } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { CatalogLink } from '@/modules/businesses/ui/components/catalog-link';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
 
 export default async function BusinessesPage() {
@@ -71,10 +72,7 @@ export default async function BusinessesPage() {
                     <Badge variant='outline' className='text-xs capitalize'>
                       {business.plan}
                     </Badge>
-                    <span className='text-muted-foreground flex items-center gap-1 text-xs'>
-                      <ExternalLink className='size-3' />
-                      Ver catálogo
-                    </span>
+                    <CatalogLink slug={business.slug} />
                   </div>
                 </CardContent>
               </Card>

@@ -1,5 +1,5 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
-import { text, boolean, integer, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { text, jsonb, boolean, integer, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id')
@@ -123,4 +123,41 @@ export const businesses = pgTable('businesses', {
     .default('free'),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const catalogs = pgTable('catalogs', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  isDefault: boolean('is_default').notNull().default(false),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const catalogSettings = pgTable('catalog_settings', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  catalogId: text('catalog_id')
+    .notNull()
+    .unique()
+    .references(() => catalogs.id, { onDelete: 'cascade' }),
+  primaryColor: text('primary_color').default('#000000'),
+  accentColor: text('accent_color').default('#6366f1'),
+  font: text('font', { enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto'] }).default('inter'),
+  layout: text('layout', { enum: ['grid', 'list', 'magazine'] }).default('grid'),
+  showPrices: boolean('show_prices').notNull().default(true),
+  showStock: boolean('show_stock').notNull().default(false),
+  heroTitle: text('hero_title'),
+  heroSubtitle: text('hero_subtitle'),
+  aboutText: text('about_text'),
+  contactInfo: jsonb('contact_info'),
+  seoTitle: text('seo_title'),
+  seoDescription: text('seo_description'),
 });
