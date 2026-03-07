@@ -1,15 +1,16 @@
-import { FAQS } from '../../modules/ai-chat/ui/constants';
-
 interface FaqSectionProps {
+  faqs: string[];
   onFaqClick: (question: string) => void;
 }
 
-export const FaqSection = ({ onFaqClick }: FaqSectionProps) => {
+export const FaqSection = ({ faqs, onFaqClick }: FaqSectionProps) => {
+  if (!faqs.length) return null;
+
   return (
     <div className='border-b border-zinc-700 bg-zinc-800 px-4 py-3'>
       <div className='mb-2 text-sm font-semibold text-zinc-300'>Preguntas Frecuentes</div>
       <div className='flex flex-wrap gap-2'>
-        {FAQS.map((question, index) => (
+        {faqs.map((question, index) => (
           <button
             key={index}
             type='button'

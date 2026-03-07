@@ -1,21 +1,21 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AiChat02Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 
-import { CHAT_CONFIG } from '../../modules/ai-chat/ui/constants';
-
 interface ChatHeaderProps {
+  botName: string;
+  botSubtitle: string | null;
   onClose: () => void;
 }
 
-export const ChatHeader = ({ onClose }: ChatHeaderProps) => {
+export const ChatHeader = ({ botName, botSubtitle, onClose }: ChatHeaderProps) => {
   return (
     <div className='relative flex items-center gap-3 px-4 py-3'>
       <div className='flex h-10 w-10 items-center justify-center rounded-full border border-zinc-600 bg-zinc-800 p-2'>
         <HugeiconsIcon icon={AiChat02Icon} className='h-full w-full text-zinc-300' />
       </div>
       <div className='flex-1'>
-        <h3 className='text-base font-bold text-white'>{CHAT_CONFIG.TITLE}</h3>
-        <p className='text-xs text-zinc-400'>{CHAT_CONFIG.SUBTITLE}</p>
+        <h3 className='text-base font-bold text-white'>{botName}</h3>
+        {botSubtitle && <p className='text-xs text-zinc-400'>{botSubtitle}</p>}
       </div>
       <button
         type='button'
