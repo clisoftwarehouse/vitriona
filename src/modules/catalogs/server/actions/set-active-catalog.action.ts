@@ -88,7 +88,7 @@ export async function getAllCatalogsForSidebar() {
   if (!session?.user?.id) return [];
 
   const userBusinesses = await db
-    .select({ id: businesses.id, name: businesses.name })
+    .select({ id: businesses.id, name: businesses.name, slug: businesses.slug })
     .from(businesses)
     .where(eq(businesses.userId, session.user.id));
 
@@ -108,6 +108,7 @@ export async function getAllCatalogsForSidebar() {
         name: catalog.name,
         businessId: business.id,
         businessName: business.name,
+        businessSlug: business.slug,
       });
     }
   }

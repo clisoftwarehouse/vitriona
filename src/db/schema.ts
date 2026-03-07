@@ -232,6 +232,49 @@ export const chatbotConfigs = pgTable('chatbot_configs', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+export const orders = pgTable('orders', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  catalogId: text('catalog_id')
+    .notNull()
+    .references(() => catalogs.id, { onDelete: 'cascade' }),
+  orderNumber: text('order_number').notNull(),
+  customerName: text('customer_name').notNull(),
+  customerPhone: text('customer_phone'),
+  customerEmail: text('customer_email'),
+  customerNotes: text('customer_notes'),
+  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
+  status: text('status', {
+    enum: ['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'],
+  })
+    .notNull()
+    .default('pending'),
+  checkoutType: text('checkout_type', { enum: ['whatsapp', 'internal'] })
+    .notNull()
+    .default('whatsapp'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const orderItems = pgTable('order_items', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  orderId: text('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  productId: text('product_id').references(() => products.id, { onDelete: 'set null' }),
+  productName: text('product_name').notNull(),
+  unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+  quantity: integer('quantity').notNull().default(1),
+  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+});
+
 export const productImages = pgTable('product_images', {
   id: text('id')
     .primaryKey()

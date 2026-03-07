@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Mail, Phone, Store, MapPin } from 'lucide-react';
 
+import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
 import { getBusinessBySlug, getDefaultCatalog } from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface StorefrontLayoutProps {
@@ -44,17 +45,20 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
             </div>
           </Link>
 
-          {business.whatsappNumber && (
-            <a
-              href={`https://wa.me/${business.whatsappNumber.replace(/\D/g, '')}`}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700'
-            >
-              <Phone className='size-3.5' />
-              <span className='hidden sm:inline'>WhatsApp</span>
-            </a>
-          )}
+          <div className='flex items-center gap-2'>
+            {business.whatsappNumber && (
+              <a
+                href={`https://wa.me/${business.whatsappNumber.replace(/\D/g, '')}`}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700'
+              >
+                <Phone className='size-3.5' />
+                <span className='hidden sm:inline'>WhatsApp</span>
+              </a>
+            )}
+            <CartSheet slug={slug} />
+          </div>
         </div>
       </header>
 

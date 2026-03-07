@@ -22,6 +22,7 @@ export interface SidebarCatalog {
   name: string;
   businessId: string;
   businessName: string;
+  businessSlug: string;
 }
 
 interface CatalogSelectorProps {

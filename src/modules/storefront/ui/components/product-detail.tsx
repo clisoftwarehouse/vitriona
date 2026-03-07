@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'sonner';
 import { useState } from 'react';
-import { Tag, ImageOff, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Tag, ImageOff, ArrowLeft, ShoppingBag, MessageCircle } from 'lucide-react';
+
+import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
 interface ProductImage {
   id: string;
@@ -56,6 +59,22 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
   const whatsappUrl = whatsappNumber
     ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${whatsappMessage}`
     : null;
+
+  const addItem = useCartStore((s) => s.addItem);
+
+  const handleAddToCart = () => {
+    addItem(
+      {
+        productId: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        imageUrl: product.images[0]?.url ?? null,
+      },
+      slug
+    );
+    toast.success('Producto agregado al carrito');
+  };
 
   return (
     <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
@@ -138,17 +157,26 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
             </div>
           )}
 
-          {whatsappUrl && (
-            <a
-              href={whatsappUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-green-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-green-700'
+          <div className='mt-8 flex flex-col gap-3'>
+            <button
+              onClick={handleAddToCart}
+              className='inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-gray-800'
             >
-              <MessageCircle className='size-5' />
-              Consultar por WhatsApp
-            </a>
-          )}
+              <ShoppingBag className='size-5' />
+              Agregar al carrito
+            </button>
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center justify-center gap-2 rounded-full border border-green-600 px-6 py-3 text-base font-semibold text-green-600 transition-colors hover:bg-green-50'
+              >
+                <MessageCircle className='size-5' />
+                Consultar por WhatsApp
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>

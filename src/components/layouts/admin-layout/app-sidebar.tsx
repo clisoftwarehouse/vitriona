@@ -9,6 +9,7 @@ import {
   Package,
   BookOpen,
   Paintbrush,
+  ShoppingCart,
   ChevronRight,
   ExternalLink,
   LayoutDashboard,
@@ -51,6 +52,11 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
           label: 'Productos',
           href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}/products`,
           icon: Package,
+        },
+        {
+          label: 'Pedidos',
+          href: `/dashboard/businesses/${activeCatalog.businessId}/orders`,
+          icon: ShoppingCart,
         },
       ]
     : [];
@@ -122,14 +128,16 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
         )}
       </nav>
 
-      <div className='border-sidebar-border border-t p-3'>
-        <Button variant='default' size='sm' className='w-full gap-2' asChild>
-          <Link href='#' target='_blank' rel='noopener noreferrer'>
-            <ExternalLink className='size-3.5' />
-            Ver tienda
-          </Link>
-        </Button>
-      </div>
+      {activeCatalog && (
+        <div className='border-sidebar-border border-t p-3'>
+          <Button variant='default' size='sm' className='w-full gap-2' asChild>
+            <Link href={`/${activeCatalog.businessSlug}`} target='_blank' rel='noopener noreferrer'>
+              <ExternalLink className='size-3.5' />
+              Ver tienda
+            </Link>
+          </Button>
+        </div>
+      )}
     </aside>
   );
 }
