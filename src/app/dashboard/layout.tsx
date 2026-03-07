@@ -1,13 +1,15 @@
 import { auth } from '@/auth';
 import { AdminLayout } from '@/components/layouts/admin-layout';
-import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
-import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-active-business.action';
+import {
+  getActiveCatalogId,
+  getAllCatalogsForSidebar,
+} from '@/modules/catalogs/server/actions/set-active-catalog.action';
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
-  const [session, businesses, activeBusinessId] = await Promise.all([
+  const [session, catalogs, activeCatalogId] = await Promise.all([
     auth(),
-    getBusinessesAction(),
-    getActiveBusinessId(),
+    getAllCatalogsForSidebar(),
+    getActiveCatalogId(),
   ]);
 
   const user = {
@@ -16,10 +18,8 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
     image: session?.user?.image ?? null,
   };
 
-  const sidebarBusinesses = businesses.map((b) => ({ id: b.id, name: b.name, slug: b.slug }));
-
   return (
-    <AdminLayout user={user} businesses={sidebarBusinesses} activeBusinessId={activeBusinessId}>
+    <AdminLayout user={user} catalogs={catalogs} activeCatalogId={activeCatalogId}>
       {children}
     </AdminLayout>
   );
