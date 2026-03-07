@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Phone, Store, MapPin, MessageCircle } from 'lucide-react';
+import { Mail, Phone, Store, MapPin, Upload, Trash2, Loader2, MessageCircle } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
       email: '',
       address: '',
       whatsappNumber: '',
+      logoUrl: '',
       ...defaultValues,
     },
   });
@@ -72,6 +74,21 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+          {/* Logo Upload */}
+          <FormField
+            control={form.control}
+            name='logoUrl'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Logo del negocio</FormLabel>
+                <FormControl>
+                  <LogoUpload value={field.value ?? ''} onChange={field.onChange} disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className='grid gap-6 sm:grid-cols-2'>
             <FormField
               control={form.control}
@@ -256,5 +273,56 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
         </form>
       </Form>
     </div>
+  );
+}
+
+/* ─── Logo Upload ─── */
+
+function LogoUpload({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  disabled?: boolean;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.url) onChange(data.url);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (value) {
+    return (
+      <div className='flex items-center gap-4'>
+        <div className='relative size-16 overflow-hidden rounded-xl border'>
+          <Image src={value} alt='Logo' fill className='object-cover' />
+        </div>
+        <Button type='button' variant='outline' size='sm' onClick={() => onChange('')} disabled={disabled}>
+          <Trash2 className='mr-1.5 size-3.5' />
+          Eliminar
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <label className='hover:bg-accent/50 flex w-fit cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-sm transition-colors'>
+      {uploading ? <Loader2 className='size-4 animate-spin' /> : <Upload className='size-4' />}
+      {uploading ? 'Subiendo...' : 'Subir logo'}
+      <input type='file' accept='image/*' className='hidden' onChange={handleUpload} disabled={disabled || uploading} />
+    </label>
   );
 }

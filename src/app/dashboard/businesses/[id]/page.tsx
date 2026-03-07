@@ -60,6 +60,7 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
               email: business.email ?? '',
               address: business.address ?? '',
               whatsappNumber: business.whatsappNumber ?? '',
+              logoUrl: business.logoUrl ?? '',
             }}
           />
         </CardContent>

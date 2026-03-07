@@ -80,7 +80,7 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
     <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
       <Link
         href={`/${slug}`}
-        className='mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-900'
+        className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
       >
         <ArrowLeft className='size-4' />
         Volver al catálogo
@@ -89,7 +89,10 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
       <div className='grid gap-8 md:grid-cols-2'>
         {/* Image gallery */}
         <div className='space-y-3'>
-          <div className='relative aspect-square overflow-hidden rounded-xl bg-gray-50'>
+          <div
+            className='relative aspect-square overflow-hidden'
+            style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+          >
             {product.images[selectedImage] ? (
               <Image
                 src={product.images[selectedImage].url}
@@ -117,9 +120,13 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
                 <button
                   key={img.id}
                   onClick={() => setSelectedImage(idx)}
-                  className={`relative size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors sm:size-20 ${
-                    idx === selectedImage ? 'border-gray-900' : 'border-transparent hover:border-gray-300'
+                  className={`relative size-16 shrink-0 overflow-hidden border-2 transition-colors sm:size-20 ${
+                    idx === selectedImage ? 'border-transparent' : 'border-transparent hover:opacity-70'
                   }`}
+                  style={{
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    borderColor: idx === selectedImage ? 'var(--sf-primary, #000)' : 'transparent',
+                  }}
                 >
                   <Image src={img.url} alt={img.alt || product.name} fill sizes='80px' className='object-cover' />
                 </button>
@@ -131,18 +138,24 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
         {/* Product info */}
         <div className='flex flex-col'>
           {product.category && (
-            <span className='mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600'>
+            <span
+              className='mb-2 inline-flex w-fit items-center gap-1 px-3 py-1 text-xs font-medium'
+              style={{
+                borderRadius: 'var(--sf-radius-full, 9999px)',
+                backgroundColor: 'var(--sf-surface, #f9fafb)',
+              }}
+            >
               <Tag className='size-3' />
               {product.category.name}
             </span>
           )}
 
-          <h1 className='text-2xl font-bold text-gray-900 sm:text-3xl'>{product.name}</h1>
+          <h1 className='text-2xl font-bold sm:text-3xl'>{product.name}</h1>
 
           <div className='mt-3 flex items-baseline gap-3'>
-            <span className='text-2xl font-bold text-gray-900'>{formatPrice(product.price)}</span>
+            <span className='text-2xl font-bold'>{formatPrice(product.price)}</span>
             {hasDiscount && (
-              <span className='text-lg text-gray-400 line-through'>{formatPrice(product.compareAtPrice!)}</span>
+              <span className='text-lg line-through opacity-40'>{formatPrice(product.compareAtPrice!)}</span>
             )}
           </div>
 
@@ -151,16 +164,20 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
           )}
 
           {product.description && (
-            <div className='mt-6 border-t border-gray-100 pt-6'>
-              <h2 className='mb-2 text-sm font-semibold tracking-wide text-gray-500 uppercase'>Descripción</h2>
-              <p className='leading-relaxed whitespace-pre-line text-gray-600'>{product.description}</p>
+            <div className='mt-6 pt-6' style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}>
+              <h2 className='mb-2 text-sm font-semibold tracking-wide uppercase opacity-50'>Descripción</h2>
+              <p className='leading-relaxed whitespace-pre-line opacity-70'>{product.description}</p>
             </div>
           )}
 
           <div className='mt-8 flex flex-col gap-3'>
             <button
               onClick={handleAddToCart}
-              className='inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-gray-800'
+              className='inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90'
+              style={{
+                backgroundColor: 'var(--sf-primary, #000)',
+                borderRadius: 'var(--sf-radius-full, 9999px)',
+              }}
             >
               <ShoppingBag className='size-5' />
               Agregar al carrito
@@ -170,7 +187,8 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
                 href={whatsappUrl}
                 target='_blank'
                 rel='noopener noreferrer'
-                className='inline-flex items-center justify-center gap-2 rounded-full border border-green-600 px-6 py-3 text-base font-semibold text-green-600 transition-colors hover:bg-green-50'
+                className='inline-flex items-center justify-center gap-2 border border-green-600 px-6 py-3 text-base font-semibold text-green-600 transition-colors hover:bg-green-50'
+                style={{ borderRadius: 'var(--sf-radius-full, 9999px)' }}
               >
                 <MessageCircle className='size-5' />
                 Consultar por WhatsApp

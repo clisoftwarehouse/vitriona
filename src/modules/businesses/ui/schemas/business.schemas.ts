@@ -30,6 +30,7 @@ export const createBusinessSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().max(200).optional().or(z.literal('')),
   whatsappNumber: z.string().max(20).optional().or(z.literal('')),
+  logoUrl: z.string().url().optional().or(z.literal('')),
 });
 
 export const updateBusinessSchema = createBusinessSchema;

@@ -148,18 +148,71 @@ export const catalogSettings = pgTable('catalog_settings', {
     .notNull()
     .unique()
     .references(() => catalogs.id, { onDelete: 'cascade' }),
+
+  // ── Theme ──
   primaryColor: text('primary_color').default('#000000'),
   accentColor: text('accent_color').default('#6366f1'),
-  font: text('font', { enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto'] }).default('inter'),
+  backgroundColor: text('background_color').default('#ffffff'),
+  surfaceColor: text('surface_color').default('#f9fafb'),
+  textColor: text('text_color').default('#111827'),
+  font: text('font', {
+    enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto', 'space-grotesk', 'outfit'],
+  }).default('inter'),
+  roundedCorners: boolean('rounded_corners').notNull().default(true),
+  cardStyle: text('card_style', { enum: ['default', 'minimal', 'bordered', 'shadow'] }).default('default'),
+
+  borderColor: text('border_color').default('#e5e7eb'),
+
+  // ── Layout ──
   layout: text('layout', { enum: ['grid', 'list', 'magazine'] }).default('grid'),
+  gridColumns: integer('grid_columns').default(4),
   showPrices: boolean('show_prices').notNull().default(true),
   showStock: boolean('show_stock').notNull().default(false),
+
+  // ── Announcement Bar ──
+  announcementEnabled: boolean('announcement_enabled').notNull().default(false),
+  announcementText: text('announcement_text'),
+  announcementBgColor: text('announcement_bg_color').default('#000000'),
+  announcementTextColor: text('announcement_text_color').default('#ffffff'),
+
+  // ── Hero Section ──
+  heroEnabled: boolean('hero_enabled').notNull().default(true),
   heroTitle: text('hero_title'),
   heroSubtitle: text('hero_subtitle'),
+  heroImageUrl: text('hero_image_url'),
+  heroBadgeText: text('hero_badge_text'),
+  heroCtaPrimaryText: text('hero_cta_primary_text').default('Ver productos'),
+  heroCtaPrimaryLink: text('hero_cta_primary_link'),
+  heroCtaSecondaryText: text('hero_cta_secondary_text'),
+  heroCtaSecondaryLink: text('hero_cta_secondary_link'),
+  heroStyle: text('hero_style', { enum: ['centered', 'split', 'banner', 'minimal'] }).default('centered'),
+
+  // ── Featured Section ──
+  featuredEnabled: boolean('featured_enabled').notNull().default(true),
+  featuredTitle: text('featured_title').default('Productos destacados'),
+
+  // ── Categories Section ──
+  categoriesStyle: text('categories_style', { enum: ['tabs', 'pills', 'cards'] }).default('tabs'),
+
+  // ── About Section ──
+  aboutEnabled: boolean('about_enabled').notNull().default(false),
   aboutText: text('about_text'),
+  aboutImageUrl: text('about_image_url'),
+
+  // ── Social & Contact ──
   contactInfo: jsonb('contact_info'),
+  socialLinks: jsonb('social_links').$type<{
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    tiktok?: string;
+    youtube?: string;
+  }>(),
+
+  // ── SEO ──
   seoTitle: text('seo_title'),
   seoDescription: text('seo_description'),
+  ogImageUrl: text('og_image_url'),
 });
 
 export const categories = pgTable('categories', {

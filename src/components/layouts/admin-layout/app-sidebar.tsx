@@ -58,6 +58,11 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
           href: `/dashboard/businesses/${activeCatalog.businessId}/orders`,
           icon: ShoppingCart,
         },
+        {
+          label: 'Site Builder',
+          href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}/builder`,
+          icon: Paintbrush,
+        },
       ]
     : [];
 

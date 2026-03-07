@@ -34,6 +34,7 @@ export async function updateBusinessAction(businessId: string, values: UpdateBus
         email: values.email || null,
         address: values.address || null,
         whatsappNumber: values.whatsappNumber || null,
+        logoUrl: values.logoUrl || null,
         updatedAt: new Date(),
       })
       .where(eq(businesses.id, businessId));

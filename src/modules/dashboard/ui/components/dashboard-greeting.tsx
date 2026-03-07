@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useSyncExternalStore } from 'react';
 
 interface DashboardGreetingProps {
   firstName: string;
@@ -13,8 +13,10 @@ function getGreeting(): string {
   return 'Buenas noches';
 }
 
+const emptySubscribe = () => () => {};
+
 export function DashboardGreeting({ firstName }: DashboardGreetingProps) {
-  const greeting = useMemo(() => getGreeting(), []);
+  const greeting = useSyncExternalStore(emptySubscribe, getGreeting, () => 'Hola');
 
   return (
     <div>

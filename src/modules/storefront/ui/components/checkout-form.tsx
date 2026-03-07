@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useSyncExternalStore } from 'react';
 import { Loader2, ImageOff, ArrowLeft, MessageCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,19 @@ interface CheckoutFormProps {
   whatsappNumber: string | null;
 }
 
+const emptySubscribe = () => () => {};
+
+function useHydrated() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
 export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsappNumber }: CheckoutFormProps) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const items = useCartStore((s) => s.items);
   const getTotal = useCartStore((s) => s.getTotal);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -31,7 +42,7 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
 
-  const total = getTotal();
+  const total = hydrated ? getTotal() : 0;
 
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(amount);
@@ -112,7 +123,7 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
     <div className='mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8'>
       <Link
         href={`/${slug}`}
-        className='mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-900'
+        className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
       >
         <ArrowLeft className='size-4' />
         Seguir comprando
@@ -123,11 +134,14 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
       <div className='grid gap-8 lg:grid-cols-5'>
         {/* Order summary */}
         <div className='lg:col-span-2'>
-          <h2 className='mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase'>Resumen</h2>
+          <h2 className='mb-4 text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
           <div className='space-y-3'>
             {items.map((item) => (
               <div key={item.productId} className='flex items-center gap-3'>
-                <div className='relative size-12 shrink-0 overflow-hidden rounded-lg bg-gray-50'>
+                <div
+                  className='relative size-12 shrink-0 overflow-hidden'
+                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                >
                   {item.imageUrl ? (
                     <Image src={item.imageUrl} alt={item.name} fill sizes='48px' className='object-cover' />
                   ) : (
@@ -138,13 +152,16 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
                 </div>
                 <div className='min-w-0 flex-1'>
                   <p className='truncate text-sm font-medium'>{item.name}</p>
-                  <p className='text-xs text-gray-500'>x{item.quantity}</p>
+                  <p className='text-xs opacity-50'>x{item.quantity}</p>
                 </div>
                 <span className='text-sm font-medium'>{formatPrice(parseFloat(item.price) * item.quantity)}</span>
               </div>
             ))}
           </div>
-          <div className='mt-4 flex items-center justify-between border-t pt-4'>
+          <div
+            className='mt-4 flex items-center justify-between pt-4'
+            style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}
+          >
             <span className='font-medium'>Total</span>
             <span className='text-lg font-bold'>{formatPrice(total)}</span>
           </div>
@@ -152,10 +169,10 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
 
         {/* Customer form */}
         <form onSubmit={handleSubmit} className='space-y-4 lg:col-span-3'>
-          <h2 className='mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase'>Tus datos</h2>
+          <h2 className='mb-4 text-sm font-semibold tracking-wide uppercase opacity-50'>Tus datos</h2>
 
           <div>
-            <label htmlFor='name' className='mb-1 block text-sm font-medium text-gray-700'>
+            <label htmlFor='name' className='mb-1 block text-sm font-medium opacity-70'>
               Nombre *
             </label>
             <input
@@ -165,12 +182,13 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
               onChange={(e) => setName(e.target.value)}
               placeholder='Tu nombre completo'
               required
-              className='w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm transition-colors outline-none focus:border-gray-400'
+              className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
+              style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
             />
           </div>
 
           <div>
-            <label htmlFor='phone' className='mb-1 block text-sm font-medium text-gray-700'>
+            <label htmlFor='phone' className='mb-1 block text-sm font-medium opacity-70'>
               Teléfono
             </label>
             <input
@@ -179,12 +197,13 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder='+1 809 000 0000'
-              className='w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm transition-colors outline-none focus:border-gray-400'
+              className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
+              style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
             />
           </div>
 
           <div>
-            <label htmlFor='email' className='mb-1 block text-sm font-medium text-gray-700'>
+            <label htmlFor='email' className='mb-1 block text-sm font-medium opacity-70'>
               Email
             </label>
             <input
@@ -193,12 +212,13 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder='tu@email.com'
-              className='w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm transition-colors outline-none focus:border-gray-400'
+              className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
+              style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
             />
           </div>
 
           <div>
-            <label htmlFor='notes' className='mb-1 block text-sm font-medium text-gray-700'>
+            <label htmlFor='notes' className='mb-1 block text-sm font-medium opacity-70'>
               Notas adicionales
             </label>
             <textarea
@@ -207,7 +227,8 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
               onChange={(e) => setNotes(e.target.value)}
               placeholder='Instrucciones especiales, dirección de entrega, etc.'
               rows={3}
-              className='w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm transition-colors outline-none focus:border-gray-400'
+              className='w-full resize-none px-3 py-2.5 text-sm transition-colors outline-none'
+              style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
             />
           </div>
 

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSyncExternalStore } from 'react';
 import { Plus, Minus, Trash2, ImageOff, ShoppingBag } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,19 @@ interface CartSheetProps {
   slug: string;
 }
 
+const emptySubscribe = () => () => {};
+
+function useHydrated() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
 export function CartSheet({ slug }: CartSheetProps) {
+  const hydrated = useHydrated();
+
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
@@ -29,8 +42,8 @@ export function CartSheet({ slug }: CartSheetProps) {
   const getItemCount = useCartStore((s) => s.getItemCount);
   const getTotal = useCartStore((s) => s.getTotal);
 
-  const itemCount = getItemCount();
-  const total = getTotal();
+  const itemCount = hydrated ? getItemCount() : 0;
+  const total = hydrated ? getTotal() : 0;
 
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(amount);
@@ -48,7 +61,7 @@ export function CartSheet({ slug }: CartSheetProps) {
         </button>
       </SheetTrigger>
 
-      <SheetContent className='flex w-full flex-col bg-gray-300 p-0 sm:max-w-md'>
+      <SheetContent className='flex w-full flex-col bg-white p-0 sm:max-w-md'>
         {/* Header */}
         <SheetHeader className='border-b px-5 py-4'>
           <SheetTitle className='text-base'>Carrito ({itemCount})</SheetTitle>

@@ -15,8 +15,8 @@ export default async function OrderConfirmationPage({ params }: ConfirmationPage
       <div className='mb-6 flex size-16 items-center justify-center rounded-full bg-green-100'>
         <CheckCircle className='size-8 text-green-600' />
       </div>
-      <h1 className='mb-2 text-2xl font-bold text-gray-900'>¡Pedido enviado!</h1>
-      <p className='mb-8 text-gray-500'>
+      <h1 className='mb-2 text-2xl font-bold'>¡Pedido enviado!</h1>
+      <p className='mb-8 opacity-60'>
         Tu pedido ha sido registrado exitosamente. El negocio se pondrá en contacto contigo pronto.
       </p>
       <Button asChild className='rounded-full' size='lg'>

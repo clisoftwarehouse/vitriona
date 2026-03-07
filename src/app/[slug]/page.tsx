@@ -6,6 +6,7 @@ import {
   getBusinessBySlug,
   getDefaultCatalog,
   getPublicProducts,
+  getCatalogSettings,
   getPublicCategories,
 } from '@/modules/storefront/server/queries/get-storefront-data';
 
@@ -19,13 +20,20 @@ export async function generateMetadata({ params }: CatalogPageProps): Promise<Me
   const business = await getBusinessBySlug(slug);
   if (!business) return {};
 
+  const catalog = await getDefaultCatalog(business.id);
+  const settings = catalog ? await getCatalogSettings(catalog.id) : null;
+
+  const title = settings?.seoTitle || `${business.name} — Catálogo`;
+  const description = settings?.seoDescription || business.description || `Explora el catálogo de ${business.name}`;
+
   return {
-    title: `${business.name} — Catálogo`,
-    description: business.description || `Explora el catálogo de ${business.name}`,
+    title,
+    description,
     openGraph: {
-      title: business.name,
-      description: business.description || `Catálogo de ${business.name}`,
+      title,
+      description,
       type: 'website',
+      ...(settings?.ogImageUrl ? { images: [{ url: settings.ogImageUrl }] } : {}),
     },
   };
 }
@@ -40,27 +48,29 @@ export default async function CatalogPage({ params, searchParams }: CatalogPageP
   const catalog = await getDefaultCatalog(business.id);
   if (!catalog) notFound();
 
-  const [categories, products] = await Promise.all([
+  const [categoriesList, productsList, settings] = await Promise.all([
     getPublicCategories(catalog.id),
     getPublicProducts(catalog.id, categoria || undefined),
+    getCatalogSettings(catalog.id),
   ]);
 
   const filteredProducts = buscar
-    ? products.filter(
+    ? productsList.filter(
         (p) =>
           p.name.toLowerCase().includes(buscar.toLowerCase()) ||
           p.description?.toLowerCase().includes(buscar.toLowerCase())
       )
-    : products;
+    : productsList;
 
   return (
     <StorefrontCatalog
       slug={slug}
       business={business}
-      categories={categories}
+      categories={categoriesList}
       products={filteredProducts}
       activeCategory={categoria}
       searchQuery={buscar}
+      settings={settings}
     />
   );
 }

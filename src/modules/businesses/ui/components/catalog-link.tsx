@@ -8,15 +8,17 @@ interface CatalogLinkProps {
 
 export function CatalogLink({ slug }: CatalogLinkProps) {
   return (
-    <a
-      href={`https://${slug}.vitriona.app`}
-      target='_blank'
-      rel='noopener noreferrer'
-      onClick={(e) => e.stopPropagation()}
+    <button
+      type='button'
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(`https://${slug}.vitriona.app`, '_blank', 'noopener,noreferrer');
+      }}
       className='text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors'
     >
       <ExternalLink className='size-3' />
       Ver catálogo
-    </a>
+    </button>
   );
 }

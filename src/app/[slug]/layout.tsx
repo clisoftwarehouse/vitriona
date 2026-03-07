@@ -4,7 +4,13 @@ import { notFound } from 'next/navigation';
 import { Mail, Phone, Store, MapPin } from 'lucide-react';
 
 import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
-import { getBusinessBySlug, getDefaultCatalog } from '@/modules/storefront/server/queries/get-storefront-data';
+import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
+import { StorefrontThemeStyle } from '@/modules/storefront/ui/components/storefront-theme';
+import {
+  getBusinessBySlug,
+  getDefaultCatalog,
+  getCatalogSettings,
+} from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface StorefrontLayoutProps {
   children: React.ReactNode;
@@ -19,87 +25,262 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
   const catalog = await getDefaultCatalog(business.id);
   if (!catalog) notFound();
 
+  const settings = await getCatalogSettings(catalog.id);
+
+  const theme = {
+    primaryColor: settings?.primaryColor ?? '#000000',
+    accentColor: settings?.accentColor ?? '#6366f1',
+    backgroundColor: settings?.backgroundColor ?? '#ffffff',
+    surfaceColor: settings?.surfaceColor ?? '#f9fafb',
+    textColor: settings?.textColor ?? '#111827',
+    borderColor: settings?.borderColor ?? '#e5e7eb',
+    font: settings?.font ?? 'inter',
+    roundedCorners: settings?.roundedCorners ?? true,
+  };
+
+  const currentYear = new Date().getFullYear();
+
+  const socialLinks = settings?.socialLinks as {
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    tiktok?: string;
+    youtube?: string;
+  } | null;
+  const hasSocials = socialLinks && Object.values(socialLinks).some(Boolean);
+
   return (
-    <div className='flex min-h-dvh flex-col bg-white text-gray-900'>
-      <header className='sticky top-0 z-30 border-b border-gray-100 bg-white/80 backdrop-blur-md'>
-        <div className='mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6'>
-          <Link href={`/${slug}`} className='flex items-center gap-2.5'>
-            {business.logoUrl ? (
-              <Image
-                src={business.logoUrl}
-                alt={business.name}
-                width={36}
-                height={36}
-                className='size-9 rounded-lg object-cover'
-              />
-            ) : (
-              <div className='flex size-9 items-center justify-center rounded-lg bg-gray-900'>
-                <Store className='size-4.5 text-white' />
-              </div>
-            )}
-            <div>
-              <span className='text-base font-semibold'>{business.name}</span>
-              {catalog.name !== 'Catálogo Principal' && (
-                <span className='ml-2 text-xs text-gray-500'>{catalog.name}</span>
-              )}
-            </div>
-          </Link>
-
-          <div className='flex items-center gap-2'>
-            {business.whatsappNumber && (
-              <a
-                href={`https://wa.me/${business.whatsappNumber.replace(/\D/g, '')}`}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700'
-              >
-                <Phone className='size-3.5' />
-                <span className='hidden sm:inline'>WhatsApp</span>
-              </a>
-            )}
-            <CartSheet slug={slug} />
+    <>
+      <StorefrontThemeStyle theme={theme} />
+      <div
+        className='flex min-h-dvh flex-col'
+        style={{
+          backgroundColor: 'var(--sf-bg, #fff)',
+          color: 'var(--sf-text, #111827)',
+          fontFamily: 'var(--sf-font, "Inter", sans-serif)',
+        }}
+      >
+        {/* Announcement Bar */}
+        {settings?.announcementEnabled && settings.announcementText && (
+          <div
+            className='px-4 py-2 text-center text-xs font-medium sm:text-sm'
+            style={{
+              backgroundColor: settings.announcementBgColor ?? '#000',
+              color: settings.announcementTextColor ?? '#fff',
+            }}
+          >
+            {settings.announcementText}
           </div>
-        </div>
-      </header>
+        )}
 
-      <main className='flex-1'>{children}</main>
-
-      <footer className='border-t border-gray-100 bg-gray-50'>
-        <div className='mx-auto max-w-6xl px-4 py-8 sm:px-6'>
-          <div className='flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left'>
-            <div>
-              <p className='font-semibold'>{business.name}</p>
-              {business.description && <p className='mt-1 text-sm text-gray-500'>{business.description}</p>}
-            </div>
-            <div className='flex flex-col gap-1.5 text-sm text-gray-500'>
-              {business.phone && (
-                <span className='flex items-center gap-1.5'>
-                  <Phone className='size-3.5' />
-                  {business.phone}
-                </span>
+        {/* Header */}
+        <header
+          className='sticky top-0 z-30 backdrop-blur-xl'
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--sf-bg, #fff) 85%, transparent)',
+            borderBottom: '1px solid var(--sf-border, #e5e7eb)',
+          }}
+        >
+          <div className='mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8'>
+            <Link href={`/${slug}`} className='flex items-center gap-3'>
+              {business.logoUrl ? (
+                <Image
+                  src={business.logoUrl}
+                  alt={business.name}
+                  width={36}
+                  height={36}
+                  className='size-9 object-cover'
+                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                />
+              ) : (
+                <div
+                  className='flex size-9 items-center justify-center'
+                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-primary, #000)' }}
+                >
+                  <Store className='size-4.5 text-white' />
+                </div>
               )}
-              {business.email && (
-                <span className='flex items-center gap-1.5'>
-                  <Mail className='size-3.5' />
-                  {business.email}
-                </span>
-              )}
-              {business.address && (
-                <span className='flex items-center gap-1.5'>
-                  <MapPin className='size-3.5' />
-                  {business.address}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className='mt-6 border-t border-gray-200 pt-4 text-center text-xs text-gray-400'>
-            Creado con{' '}
-            <Link href='/' className='font-medium text-gray-500 hover:text-gray-700'>
-              Vitriona
+              <span className='text-base font-bold tracking-tight'>{business.name}</span>
             </Link>
+
+            <div className='flex items-center gap-3'>
+              {business.whatsappNumber && (
+                <a
+                  href={`https://wa.me/${business.whatsappNumber.replace(/\D/g, '')}`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='hidden items-center gap-1.5 px-4 py-2 text-sm font-medium text-white transition-colors sm:inline-flex'
+                  style={{
+                    backgroundColor: '#25D366',
+                    borderRadius: 'var(--sf-radius-full, 9999px)',
+                  }}
+                >
+                  <Phone className='size-3.5' />
+                  WhatsApp
+                </a>
+              )}
+              <CartSheet slug={slug} />
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </header>
+
+        <main className='flex-1'>{children}</main>
+
+        {/* Footer */}
+        <footer
+          style={{ backgroundColor: 'var(--sf-surface, #f9fafb)', borderTop: '1px solid var(--sf-border, #e5e7eb)' }}
+        >
+          <div className='mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8'>
+            <div className='grid gap-8 sm:grid-cols-2 lg:grid-cols-4'>
+              {/* Brand column */}
+              <div className='sm:col-span-2 lg:col-span-1'>
+                <div className='flex items-center gap-2.5'>
+                  {business.logoUrl ? (
+                    <Image
+                      src={business.logoUrl}
+                      alt={business.name}
+                      width={32}
+                      height={32}
+                      className='size-8 object-cover'
+                      style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                    />
+                  ) : (
+                    <div
+                      className='flex size-8 items-center justify-center'
+                      style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-primary, #000)' }}
+                    >
+                      <Store className='size-4 text-white' />
+                    </div>
+                  )}
+                  <span className='font-bold'>{business.name}</span>
+                </div>
+                {business.description && (
+                  <p className='mt-3 text-sm leading-relaxed opacity-60'>{business.description}</p>
+                )}
+              </div>
+
+              {/* Contact column */}
+              <div>
+                <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Contacto</h4>
+                <div className='flex flex-col gap-2.5 text-sm opacity-70'>
+                  {business.phone && (
+                    <span className='flex items-center gap-2'>
+                      <Phone className='size-3.5 shrink-0' />
+                      {business.phone}
+                    </span>
+                  )}
+                  {business.email && (
+                    <a href={`mailto:${business.email}`} className='flex items-center gap-2 hover:opacity-100'>
+                      <Mail className='size-3.5 shrink-0' />
+                      {business.email}
+                    </a>
+                  )}
+                  {business.address && (
+                    <span className='flex items-center gap-2'>
+                      <MapPin className='size-3.5 shrink-0' />
+                      {business.address}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick links */}
+              <div>
+                <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Tienda</h4>
+                <div className='flex flex-col gap-2 text-sm opacity-70'>
+                  <Link href={`/${slug}`} className='hover:opacity-100'>
+                    Todos los productos
+                  </Link>
+                  <Link href={`/${slug}/checkout`} className='hover:opacity-100'>
+                    Carrito
+                  </Link>
+                  {business.whatsappNumber && (
+                    <a
+                      href={`https://wa.me/${business.whatsappNumber.replace(/\D/g, '')}`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='hover:opacity-100'
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Social links */}
+              {hasSocials && (
+                <div>
+                  <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Redes sociales</h4>
+                  <div className='flex flex-col gap-2 text-sm opacity-70'>
+                    {socialLinks?.instagram && (
+                      <a
+                        href={socialLinks.instagram}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        Instagram
+                      </a>
+                    )}
+                    {socialLinks?.facebook && (
+                      <a
+                        href={socialLinks.facebook}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        Facebook
+                      </a>
+                    )}
+                    {socialLinks?.tiktok && (
+                      <a
+                        href={socialLinks.tiktok}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        TikTok
+                      </a>
+                    )}
+                    {socialLinks?.twitter && (
+                      <a
+                        href={socialLinks.twitter}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        Twitter / X
+                      </a>
+                    )}
+                    {socialLinks?.youtube && (
+                      <a
+                        href={socialLinks.youtube}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        YouTube
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              className='mt-10 pt-6 text-center text-xs opacity-40'
+              style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}
+            >
+              © {currentYear} {business.name}. Creado con{' '}
+              <Link href='/' className='font-medium underline underline-offset-2 hover:opacity-80'>
+                Vitriona
+              </Link>
+            </div>
+          </div>
+        </footer>
+
+        <ChatWidgetLoader businessId={business.id} />
+      </div>
+    </>
   );
 }
