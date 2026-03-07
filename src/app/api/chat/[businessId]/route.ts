@@ -50,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ bus
     const aiResponse = await generateChatResponse(chatInput, history, {
       systemPrompt: config.systemPrompt,
       businessInfo: config.businessInfo as Record<string, unknown> | null,
-      calendarEnabled: config.calendarEnabled,
+      calendarEnabled: config.calendarEnabled && !!config.googleCalendarId,
       googleCalendarId: config.googleCalendarId,
       calendarTimezone: config.calendarTimezone,
       slotDurationMode: config.slotDurationMode,
