@@ -7,13 +7,14 @@ interface MessagesListProps {
   messages: Message[];
   isTyping: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  welcomeMessage: string;
 }
 
-export const MessagesList = ({ isTyping, messages, messagesEndRef }: MessagesListProps) => {
+export const MessagesList = ({ isTyping, messages, messagesEndRef, welcomeMessage }: MessagesListProps) => {
   return (
     <div className='flex-1 space-y-3 overflow-y-auto bg-zinc-900 px-4 py-3'>
       {messages.length === 0 ? (
-        <EmptyState />
+        <EmptyState welcomeMessage={welcomeMessage} />
       ) : (
         messages.map((message, index) => <MessageBubble key={index} message={message} />)
       )}

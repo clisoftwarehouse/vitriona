@@ -1,14 +1,20 @@
 import { useState, useCallback } from 'react';
 
-import { CHAT_CONFIG } from '../constants';
-import type { Message, ChatRequest, ChatResponse } from '../types';
+import { DEFAULT_CONFIG } from '../constants';
+import type { Message, ChatRequest, ChatResponse, ChatbotConfig } from '../types';
 
-export function useChatApi(sessionIdRef: React.MutableRefObject<string | null>) {
+export function useChatApi(
+  sessionIdRef: React.MutableRefObject<string | null>,
+  businessId: string | undefined,
+  config: ChatbotConfig | null
+) {
   const [isTyping, setIsTyping] = useState(false);
+
+  const errorMessage = config?.errorMessage ?? DEFAULT_CONFIG.ERROR_MESSAGE;
 
   const sendMessage = useCallback(
     async (message: string): Promise<Message | null> => {
-      if (!sessionIdRef.current) return null;
+      if (!sessionIdRef.current || !businessId) return null;
 
       setIsTyping(true);
 
@@ -18,7 +24,7 @@ export function useChatApi(sessionIdRef: React.MutableRefObject<string | null>) 
           sessionId: sessionIdRef.current,
         };
 
-        const response = await fetch(CHAT_CONFIG.API_ENDPOINT, {
+        const response = await fetch(`/api/chat/${businessId}`, {
           body: JSON.stringify(requestBody),
           headers: {
             'Content-Type': 'application/json',
@@ -40,12 +46,12 @@ export function useChatApi(sessionIdRef: React.MutableRefObject<string | null>) 
         return null;
       } catch (error) {
         console.error('Error sending message:', error);
-        return { from: 'bot', text: CHAT_CONFIG.ERROR_MESSAGE };
+        return { from: 'bot', text: errorMessage };
       } finally {
         setIsTyping(false);
       }
     },
-    [sessionIdRef]
+    [sessionIdRef, businessId, errorMessage]
   );
 
   return { isTyping, sendMessage };

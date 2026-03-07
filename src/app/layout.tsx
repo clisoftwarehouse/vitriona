@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
-import ChatWidget from '@/modules/ai-chat/ui/components/floating-chat';
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -17,10 +16,9 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang='en' suppressHydrationWarning>
-      <body className='antialiased'>
+      <body className='overflow-hidden antialiased'>
         <ThemeProvider attribute='class' defaultTheme='system' enableSystem disableTransitionOnChange>
           {children}
-          <ChatWidget />
           <Toaster richColors position='top-right' />
         </ThemeProvider>
       </body>

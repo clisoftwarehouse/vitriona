@@ -203,6 +203,35 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+export const chatbotConfigs = pgTable('chatbot_configs', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .unique()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  botName: text('bot_name').notNull().default('Asistente Virtual'),
+  botSubtitle: text('bot_subtitle'),
+  welcomeMessage: text('welcome_message').default('¡Hola! ¿En qué puedo ayudarte?'),
+  errorMessage: text('error_message').default(
+    'Lo siento, hubo un problema de conexión. Por favor, intenta de nuevo en unos momentos.'
+  ),
+  systemPrompt: text('system_prompt'),
+  businessInfo: jsonb('business_info'),
+  faqs: jsonb('faqs').$type<string[]>().default([]),
+  isEnabled: boolean('is_enabled').notNull().default(false),
+  calendarEnabled: boolean('calendar_enabled').notNull().default(false),
+  googleCalendarId: text('google_calendar_id'),
+  calendarTimezone: text('calendar_timezone').notNull().default('America/Santo_Domingo'),
+  slotDurationMode: text('slot_duration_mode', { enum: ['fixed', 'per_service'] })
+    .notNull()
+    .default('fixed'),
+  slotDurationMinutes: integer('slot_duration_minutes').notNull().default(60),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 export const productImages = pgTable('product_images', {
   id: text('id')
     .primaryKey()

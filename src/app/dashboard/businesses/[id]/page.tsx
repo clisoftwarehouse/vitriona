@@ -5,9 +5,13 @@ import { BookOpen, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
+import { ChatbotConfigForm } from '@/modules/ai-chat/ui/components/chatbot-config-form';
 import { EditBusinessWrapper } from '@/modules/businesses/ui/components/edit-business-wrapper';
 import { DeleteBusinessButton } from '@/modules/businesses/ui/components/delete-business-button';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getChatbotConfigByBusinessId } from '@/modules/ai-chat/server/actions/get-full-chatbot-config.action';
+import { getServiceAccountEmailAction } from '@/modules/ai-chat/server/actions/get-service-account-email.action';
 
 interface EditBusinessPageProps {
   params: Promise<{ id: string }>;
@@ -18,6 +22,11 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
   const business = await getBusinessByIdAction(id);
 
   if (!business) notFound();
+
+  const [chatbotConfig, serviceAccountEmail] = await Promise.all([
+    getChatbotConfigByBusinessId(id),
+    getServiceAccountEmailAction(),
+  ]);
 
   return (
     <div className='flex flex-col gap-6'>
@@ -73,6 +82,40 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
         </CardContent>
       </Card>
 
+      <Separator />
+
+      <div>
+        <h2 className='text-xl font-semibold tracking-tight'>Chatbot de atención al cliente</h2>
+        <p className='text-muted-foreground mt-0.5 text-sm'>
+          Configura el chatbot con IA para que atienda a tus clientes automáticamente.
+        </p>
+      </div>
+
+      <ChatbotConfigForm
+        businessId={business.id}
+        businessName={business.name}
+        serviceAccountEmail={serviceAccountEmail}
+        initialConfig={
+          chatbotConfig
+            ? {
+                botName: chatbotConfig.botName,
+                botSubtitle: chatbotConfig.botSubtitle,
+                welcomeMessage: chatbotConfig.welcomeMessage,
+                errorMessage: chatbotConfig.errorMessage,
+                systemPrompt: chatbotConfig.systemPrompt,
+                businessInfo: chatbotConfig.businessInfo,
+                faqs: chatbotConfig.faqs,
+                isEnabled: chatbotConfig.isEnabled,
+                calendarEnabled: chatbotConfig.calendarEnabled,
+                googleCalendarId: chatbotConfig.googleCalendarId,
+                calendarTimezone: chatbotConfig.calendarTimezone,
+                slotDurationMode: chatbotConfig.slotDurationMode,
+                slotDurationMinutes: chatbotConfig.slotDurationMinutes,
+              }
+            : null
+        }
+      />
+
       <Card className='border-destructive/50'>
         <CardHeader>
           <h3 className='text-destructive font-semibold'>Zona de peligro</h3>
@@ -85,6 +128,7 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
           <DeleteBusinessButton businessId={business.id} businessName={business.name} />
         </CardContent>
       </Card>
+      <ChatWidgetLoader businessId={business.id} />
     </div>
   );
 }

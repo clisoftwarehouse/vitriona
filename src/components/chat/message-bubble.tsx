@@ -38,8 +38,8 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
       <div
         className={
           isUser
-            ? 'max-w-[85%] rounded-2xl rounded-tr-sm bg-zinc-600 px-4 py-2 font-semibold text-white shadow-md'
-            : 'markdown-content max-w-[85%] rounded-2xl rounded-tl-sm border border-zinc-700 bg-zinc-800 px-4 py-2 text-zinc-200'
+            ? 'max-w-[85%] overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-600 px-4 py-2 font-semibold wrap-break-word text-white shadow-md'
+            : 'markdown-content max-w-[85%] overflow-hidden rounded-2xl rounded-tl-sm border border-zinc-700 bg-zinc-800 px-4 py-2 wrap-break-word text-zinc-200'
         }
       >
         {isUser ? (
