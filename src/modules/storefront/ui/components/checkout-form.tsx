@@ -17,6 +17,7 @@ interface CheckoutFormProps {
   catalogId: string;
   businessName: string;
   whatsappNumber: string | null;
+  currency: string;
 }
 
 const emptySubscribe = () => () => {};
@@ -29,7 +30,14 @@ function useHydrated() {
   );
 }
 
-export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsappNumber }: CheckoutFormProps) {
+export function CheckoutForm({
+  slug,
+  businessId,
+  catalogId,
+  businessName,
+  whatsappNumber,
+  currency,
+}: CheckoutFormProps) {
   const router = useRouter();
   const hydrated = useHydrated();
   const items = useCartStore((s) => s.items);
@@ -44,8 +52,7 @@ export function CheckoutForm({ slug, businessId, catalogId, businessName, whatsa
 
   const total = hydrated ? getTotal() : 0;
 
-  const formatPrice = (amount: number) =>
-    new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
   const buildWhatsAppMessage = () => {
     let msg = `🛒 *Nuevo pedido — ${businessName}*\n\n`;

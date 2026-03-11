@@ -16,6 +16,12 @@ interface UpsertChatbotConfigValues {
   businessInfo?: Record<string, unknown> | null;
   faqs?: string[];
   isEnabled?: boolean;
+  personality?: string | null;
+  tone?: 'professional' | 'friendly' | 'casual' | 'formal';
+  language?: string;
+  autoAccessCatalog?: boolean;
+  orderEnabled?: boolean;
+  maxTokens?: number;
   calendarEnabled?: boolean;
   googleCalendarId?: string | null;
   calendarTimezone?: string;
@@ -54,6 +60,12 @@ export async function upsertChatbotConfigAction(values: UpsertChatbotConfigValue
           businessInfo: values.businessInfo,
           faqs: values.faqs,
           isEnabled: values.isEnabled,
+          personality: values.personality,
+          tone: values.tone,
+          language: values.language,
+          autoAccessCatalog: values.autoAccessCatalog,
+          orderEnabled: values.orderEnabled,
+          maxTokens: values.maxTokens,
           calendarEnabled: values.calendarEnabled,
           googleCalendarId: values.googleCalendarId,
           calendarTimezone: values.calendarTimezone,
@@ -73,6 +85,12 @@ export async function upsertChatbotConfigAction(values: UpsertChatbotConfigValue
         businessInfo: values.businessInfo,
         faqs: values.faqs ?? [],
         isEnabled: values.isEnabled ?? false,
+        personality: values.personality,
+        tone: values.tone ?? 'professional',
+        language: values.language ?? 'es',
+        autoAccessCatalog: values.autoAccessCatalog ?? true,
+        orderEnabled: values.orderEnabled ?? false,
+        maxTokens: values.maxTokens ?? 1024,
         calendarEnabled: values.calendarEnabled ?? false,
         googleCalendarId: values.googleCalendarId,
         calendarTimezone: values.calendarTimezone ?? 'America/Santo_Domingo',

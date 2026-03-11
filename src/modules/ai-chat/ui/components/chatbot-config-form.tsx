@@ -1,8 +1,8 @@
 'use client';
 
 import { toast } from 'sonner';
-import { useState, useTransition } from 'react';
-import { Bot, Plus, Save, Trash2, Loader2, Calendar } from 'lucide-react';
+import { useState, useEffect, useTransition } from 'react';
+import { Bot, Plus, Save, Brain, Trash2, Loader2, Calendar, Database, ShoppingCart, MessageSquare } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { KnowledgeFilesUpload } from './knowledge-files-upload';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getKnowledgeFilesAction } from '../../server/actions/knowledge-files.action';
+import { type KnowledgeEntry, KnowledgeEntriesEditor } from './knowledge-entries-editor';
 import { upsertChatbotConfigAction } from '../../server/actions/upsert-chatbot-config.action';
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
+import { getKnowledgeEntriesAction, saveKnowledgeEntriesAction } from '../../server/actions/knowledge-entries.action';
 
 interface ChatbotConfigFormProps {
   businessId: string;
@@ -26,6 +31,12 @@ interface ChatbotConfigFormProps {
     businessInfo: unknown;
     faqs: string[] | null;
     isEnabled: boolean;
+    personality: string | null;
+    tone: string;
+    language: string;
+    autoAccessCatalog: boolean;
+    orderEnabled: boolean;
+    maxTokens: number;
     calendarEnabled: boolean;
     googleCalendarId: string | null;
     calendarTimezone: string;
@@ -42,6 +53,7 @@ export function ChatbotConfigForm({
 }: ChatbotConfigFormProps) {
   const [isPending, startTransition] = useTransition();
 
+  // Appearance
   const [isEnabled, setIsEnabled] = useState(initialConfig?.isEnabled ?? false);
   const [botName, setBotName] = useState(initialConfig?.botName ?? 'Asistente Virtual');
   const [botSubtitle, setBotSubtitle] = useState(initialConfig?.botSubtitle ?? businessName ?? '');
@@ -52,17 +64,67 @@ export function ChatbotConfigForm({
     initialConfig?.errorMessage ??
       'Lo siento, hubo un problema de conexión. Por favor, intenta de nuevo en unos momentos.'
   );
+
+  // Personality
+  const [personality, setPersonality] = useState(initialConfig?.personality ?? '');
+  const [tone, setTone] = useState(initialConfig?.tone ?? 'professional');
+  const [language, setLanguage] = useState(initialConfig?.language ?? 'es');
   const [systemPrompt, setSystemPrompt] = useState(initialConfig?.systemPrompt ?? '');
+
+  // Business Info (legacy JSON)
   const [businessInfo, setBusinessInfo] = useState(
     initialConfig?.businessInfo ? JSON.stringify(initialConfig.businessInfo, null, 2) : ''
   );
+
+  // Knowledge
+  const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<
+    { id: string; fileName: string; fileUrl: string; status: 'processing' | 'ready' | 'error' }[]
+  >([]);
+
+  // Capabilities
+  const [autoAccessCatalog, setAutoAccessCatalog] = useState(initialConfig?.autoAccessCatalog ?? true);
+  const [orderEnabled, setOrderEnabled] = useState(initialConfig?.orderEnabled ?? false);
+  const [maxTokens, setMaxTokens] = useState(initialConfig?.maxTokens ?? 1024);
+
+  // FAQs
   const [faqs, setFaqs] = useState<string[]>((initialConfig?.faqs as string[]) ?? []);
   const [newFaq, setNewFaq] = useState('');
+
+  // Calendar
   const [calendarEnabled, setCalendarEnabled] = useState(initialConfig?.calendarEnabled ?? false);
   const [googleCalendarId, setGoogleCalendarId] = useState(initialConfig?.googleCalendarId ?? '');
   const [calendarTimezone, setCalendarTimezone] = useState(initialConfig?.calendarTimezone ?? 'America/Santo_Domingo');
   const [slotDurationMode, setSlotDurationMode] = useState(initialConfig?.slotDurationMode ?? 'fixed');
   const [slotDurationMinutes, setSlotDurationMinutes] = useState(initialConfig?.slotDurationMinutes ?? 60);
+
+  // Load knowledge entries and files
+  useEffect(() => {
+    getKnowledgeEntriesAction(businessId).then((res) => {
+      if (res.data) {
+        setKnowledgeEntries(
+          res.data.map((e) => ({
+            id: e.id,
+            key: e.key,
+            value: e.value,
+            category: (e.category as KnowledgeEntry['category']) ?? 'general',
+          }))
+        );
+      }
+    });
+    getKnowledgeFilesAction(businessId).then((res) => {
+      if (res.data) {
+        setKnowledgeFiles(
+          res.data.map((f) => ({
+            id: f.id,
+            fileName: f.fileName,
+            fileUrl: f.fileUrl,
+            status: f.status as 'processing' | 'ready' | 'error',
+          }))
+        );
+      }
+    });
+  }, [businessId]);
 
   const handleAddFaq = () => {
     const trimmed = newFaq.trim();
@@ -89,6 +151,19 @@ export function ChatbotConfigForm({
     }
 
     startTransition(async () => {
+      // Save knowledge entries
+      const entriesResult = await saveKnowledgeEntriesAction(
+        businessId,
+        knowledgeEntries
+          .filter((e) => e.key.trim() && e.value.trim())
+          .map((e) => ({ key: e.key, value: e.value, category: e.category }))
+      );
+      if (entriesResult.error) {
+        toast.error(entriesResult.error);
+        return;
+      }
+
+      // Save config
       const result = await upsertChatbotConfigAction({
         businessId,
         isEnabled,
@@ -99,6 +174,12 @@ export function ChatbotConfigForm({
         systemPrompt: systemPrompt || null,
         businessInfo: parsedBusinessInfo,
         faqs,
+        personality: personality || null,
+        tone: tone as 'professional' | 'friendly' | 'casual' | 'formal',
+        language,
+        autoAccessCatalog,
+        orderEnabled,
+        maxTokens,
         calendarEnabled: calendarEnabled && !!googleCalendarId.trim(),
         googleCalendarId: googleCalendarId.trim() || null,
         calendarTimezone,
@@ -137,8 +218,15 @@ export function ChatbotConfigForm({
       {/* Appearance */}
       <Card>
         <CardHeader>
-          <h3 className='font-semibold'>Apariencia</h3>
-          <p className='text-muted-foreground text-sm'>Personaliza cómo se ve el chat para tus clientes.</p>
+          <div className='flex items-center gap-3'>
+            <div className='flex size-10 items-center justify-center rounded-lg bg-violet-500/10'>
+              <MessageSquare className='size-5 text-violet-500' />
+            </div>
+            <div>
+              <h3 className='font-semibold'>Apariencia</h3>
+              <p className='text-muted-foreground text-sm'>Personaliza cómo se ve el chat para tus clientes.</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid gap-4 sm:grid-cols-2'>
@@ -171,25 +259,57 @@ export function ChatbotConfigForm({
         </CardContent>
       </Card>
 
-      {/* Business Info */}
+      {/* Personality & Tone */}
       <Card>
         <CardHeader>
-          <h3 className='font-semibold'>Información del negocio</h3>
-          <p className='text-muted-foreground text-sm'>
-            Esta información será utilizada por la IA para responder preguntas de tus clientes. Escribe un JSON con los
-            datos relevantes (horarios, precios, servicios, dirección, etc.).
-          </p>
+          <div className='flex items-center gap-3'>
+            <div className='flex size-10 items-center justify-center rounded-lg bg-pink-500/10'>
+              <Brain className='size-5 text-pink-500' />
+            </div>
+            <div>
+              <h3 className='font-semibold'>Personalidad e idioma</h3>
+              <p className='text-muted-foreground text-sm'>Define el estilo de comunicación del chatbot.</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className='space-y-4'>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <div className='space-y-2'>
+              <Label>Tono</Label>
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='professional'>Profesional</SelectItem>
+                  <SelectItem value='friendly'>Amigable</SelectItem>
+                  <SelectItem value='casual'>Casual</SelectItem>
+                  <SelectItem value='formal'>Formal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='space-y-2'>
+              <Label>Idioma principal</Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='es'>Español</SelectItem>
+                  <SelectItem value='en'>Inglés</SelectItem>
+                  <SelectItem value='pt'>Portugués</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className='space-y-2'>
-            <Label htmlFor='businessInfo'>Datos del negocio (JSON)</Label>
+            <Label htmlFor='personality'>Personalidad del bot</Label>
             <Textarea
-              id='businessInfo'
-              value={businessInfo}
-              onChange={(e) => setBusinessInfo(e.target.value)}
-              rows={10}
-              className='font-mono text-sm'
-              placeholder={'{\n  "horarios": "Lun-Vie 9:00-18:00",\n  "direccion": "...",\n  "servicios": [...]\n}'}
+              id='personality'
+              value={personality}
+              onChange={(e) => setPersonality(e.target.value)}
+              rows={3}
+              placeholder='Ej: Eres amable, entusiasta y siempre ofreces ayuda extra. Usas emojis ocasionalmente.'
             />
           </div>
           <div className='space-y-2'>
@@ -198,9 +318,111 @@ export function ChatbotConfigForm({
               id='systemPrompt'
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              rows={4}
+              rows={3}
               placeholder='Ej: Siempre responde en español. Si preguntan por precios, menciona que pueden variar...'
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Knowledge Base */}
+      <Card>
+        <CardHeader>
+          <div className='flex items-center gap-3'>
+            <div className='flex size-10 items-center justify-center rounded-lg bg-amber-500/10'>
+              <Database className='size-5 text-amber-500' />
+            </div>
+            <div>
+              <h3 className='font-semibold'>Base de conocimiento</h3>
+              <p className='text-muted-foreground text-sm'>
+                Agrega información que la IA usará para responder preguntas. Puedes usar entradas clave-valor o subir
+                PDFs.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className='space-y-6'>
+          <div className='space-y-2'>
+            <Label className='text-sm font-medium'>Entradas de conocimiento</Label>
+            <KnowledgeEntriesEditor entries={knowledgeEntries} onChange={setKnowledgeEntries} />
+          </div>
+
+          <Separator />
+
+          <div className='space-y-2'>
+            <Label className='text-sm font-medium'>Documentos PDF</Label>
+            <KnowledgeFilesUpload businessId={businessId} files={knowledgeFiles} onFilesChange={setKnowledgeFiles} />
+          </div>
+
+          <Separator />
+
+          <div className='space-y-2'>
+            <Label htmlFor='businessInfo'>Datos del negocio (JSON legacy)</Label>
+            <Textarea
+              id='businessInfo'
+              value={businessInfo}
+              onChange={(e) => setBusinessInfo(e.target.value)}
+              rows={6}
+              className='font-mono text-sm'
+              placeholder={'{\n  "horarios": "Lun-Vie 9:00-18:00",\n  "direccion": "...",\n  "servicios": [...]\n}'}
+            />
+            <p className='text-muted-foreground text-xs'>
+              Si ya tienes datos en formato JSON, puedes mantenerlos aquí. Recomendamos migrar a las entradas de
+              conocimiento arriba.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Capabilities */}
+      <Card>
+        <CardHeader>
+          <div className='flex items-center gap-3'>
+            <div className='flex size-10 items-center justify-center rounded-lg bg-emerald-500/10'>
+              <ShoppingCart className='size-5 text-emerald-500' />
+            </div>
+            <div>
+              <h3 className='font-semibold'>Capacidades</h3>
+              <p className='text-muted-foreground text-sm'>
+                Controla qué puede hacer el chatbot con los datos de tu negocio.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <p className='text-sm font-medium'>Acceso al catálogo</p>
+              <p className='text-muted-foreground text-xs'>
+                El bot puede buscar productos, ver precios y categorías de tu catálogo.
+              </p>
+            </div>
+            <Switch checked={autoAccessCatalog} onCheckedChange={setAutoAccessCatalog} />
+          </div>
+          <Separator />
+          <div className='flex items-center justify-between'>
+            <div>
+              <p className='text-sm font-medium'>Crear pedidos por chat</p>
+              <p className='text-muted-foreground text-xs'>
+                Permite que el bot cree pedidos cuando el cliente confirme lo que quiere comprar.
+              </p>
+            </div>
+            <Switch checked={orderEnabled} onCheckedChange={setOrderEnabled} />
+          </div>
+          <Separator />
+          <div className='space-y-2'>
+            <Label>Tokens máximos por respuesta</Label>
+            <Select value={String(maxTokens)} onValueChange={(v) => setMaxTokens(Number(v))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='512'>512 (respuestas cortas)</SelectItem>
+                <SelectItem value='1024'>1024 (por defecto)</SelectItem>
+                <SelectItem value='2048'>2048 (respuestas largas)</SelectItem>
+                <SelectItem value='4096'>4096 (respuestas muy detalladas)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

@@ -48,5 +48,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductBySlug(catalog.id, productSlug);
   if (!product) notFound();
 
-  return <ProductDetail slug={slug} product={product} whatsappNumber={business.whatsappNumber} />;
+  return (
+    <ProductDetail
+      slug={slug}
+      product={product}
+      whatsappNumber={business.whatsappNumber}
+      currency={business.currency}
+    />
+  );
 }

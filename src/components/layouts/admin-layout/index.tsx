@@ -26,7 +26,7 @@ export function AdminLayout({ user, catalogs, activeCatalogId, children }: Dashb
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className='flex h-dvh overflow-hidden'>
+    <div className='fixed inset-0 flex overflow-hidden'>
       {sidebarOpen && (
         <div className='fixed inset-0 z-40 bg-black/50 md:hidden' onClick={closeSidebar} aria-hidden='true' />
       )}

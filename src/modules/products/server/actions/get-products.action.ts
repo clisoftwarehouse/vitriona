@@ -4,7 +4,7 @@ import { eq, and, desc, ilike } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses } from '@/db/schema';
+import { catalogs, products, businesses, productAttributeValues } from '@/db/schema';
 
 interface GetProductsOptions {
   categoryId?: string;
@@ -63,4 +63,17 @@ export async function getProductByIdAction(productId: string) {
   if (!business) return null;
 
   return product;
+}
+
+export async function getProductAttributeValuesAction(productId: string) {
+  const rows = await db
+    .select({ attributeId: productAttributeValues.attributeId, value: productAttributeValues.value })
+    .from(productAttributeValues)
+    .where(eq(productAttributeValues.productId, productId));
+
+  const record: Record<string, string> = {};
+  for (const row of rows) {
+    record[row.attributeId] = row.value;
+  }
+  return record;
 }

@@ -6,11 +6,13 @@ import { useState, useTransition } from 'react';
 import { Eye, Clock, Truck, Package, XCircle, CheckCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { getOrderDetailAction } from '@/modules/orders/server/actions/get-orders.action';
-import { updateOrderStatusAction } from '@/modules/orders/server/actions/update-order-status.action';
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from '@/components/ui/dialog';
+import { cancelOrderAction, updateOrderStatusAction } from '@/modules/orders/server/actions/update-order-status.action';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -32,6 +34,14 @@ interface OrderItem {
   unitPrice: string;
   quantity: number;
   subtotal: string;
+}
+
+interface StatusHistoryEntry {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  note: string | null;
+  createdAt: Date;
 }
 
 interface OrdersTableProps {
@@ -66,6 +76,9 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const formatPrice = (price: string) =>
     new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(parseFloat(price));
@@ -77,9 +90,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
     setSelectedOrder(order);
     setDetailOpen(true);
     const result = await getOrderDetailAction(order.id);
-    if (result.items) {
-      setOrderItems(result.items as OrderItem[]);
-    }
+    if (result.items) setOrderItems(result.items as OrderItem[]);
+    if (result.statusHistory) setStatusHistory(result.statusHistory as StatusHistoryEntry[]);
   };
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
@@ -222,29 +234,112 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 </div>
               </div>
 
-              {STATUS_TRANSITIONS[selectedOrder.status]?.length > 0 && (
+              {/* Status History Timeline */}
+              {statusHistory.length > 0 && (
                 <div>
-                  <h4 className='mb-2 text-sm font-semibold'>Cambiar estado</h4>
-                  <div className='flex flex-wrap gap-2'>
-                    {STATUS_TRANSITIONS[selectedOrder.status].map((newStatus) => {
-                      const cfg = STATUS_CONFIG[newStatus];
+                  <h4 className='mb-2 text-sm font-semibold'>Historial</h4>
+                  <div className='relative space-y-3 pl-4'>
+                    <div className='bg-border absolute top-1 bottom-1 left-[7px] w-px' />
+                    {statusHistory.map((entry) => {
+                      const cfg = STATUS_CONFIG[entry.toStatus] ?? STATUS_CONFIG.pending;
                       return (
-                        <Button
-                          key={newStatus}
-                          variant='outline'
-                          size='sm'
-                          disabled={isPending}
-                          onClick={() => handleStatusChange(selectedOrder.id, newStatus)}
-                        >
-                          {cfg.label}
-                        </Button>
+                        <div key={entry.id} className='relative flex items-start gap-2'>
+                          <div
+                            className='bg-background absolute top-1 -left-4 size-3 rounded-full border-2'
+                            style={{ borderColor: entry.toStatus === 'cancelled' ? '#ef4444' : 'var(--primary)' }}
+                          />
+                          <div className='min-w-0 flex-1'>
+                            <div className='flex items-center gap-1.5'>
+                              <span className='text-xs font-medium'>{cfg.label}</span>
+                              <span className='text-muted-foreground text-[10px]'>{formatDate(entry.createdAt)}</span>
+                            </div>
+                            {entry.note && <p className='text-muted-foreground text-xs'>{entry.note}</p>}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
               )}
+
+              <Separator />
+
+              {STATUS_TRANSITIONS[selectedOrder.status]?.length > 0 && (
+                <div>
+                  <h4 className='mb-2 text-sm font-semibold'>Cambiar estado</h4>
+                  <div className='flex flex-wrap gap-2'>
+                    {STATUS_TRANSITIONS[selectedOrder.status]
+                      .filter((s) => s !== 'cancelled')
+                      .map((newStatus) => {
+                        const cfg = STATUS_CONFIG[newStatus];
+                        return (
+                          <Button
+                            key={newStatus}
+                            variant='outline'
+                            size='sm'
+                            disabled={isPending}
+                            onClick={() => handleStatusChange(selectedOrder.id, newStatus)}
+                          >
+                            {cfg.label}
+                          </Button>
+                        );
+                      })}
+                    {STATUS_TRANSITIONS[selectedOrder.status].includes('cancelled') && (
+                      <Button variant='destructive' size='sm' disabled={isPending} onClick={() => setCancelOpen(true)}>
+                        <XCircle className='mr-1 size-3.5' />
+                        Cancelar pedido
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel confirmation dialog */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar pedido</DialogTitle>
+            <DialogDescription>¿Estás seguro? El inventario será restaurado automáticamente.</DialogDescription>
+          </DialogHeader>
+          <div className='space-y-3'>
+            <Input
+              placeholder='Razón de cancelación (opcional)'
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              disabled={isPending}
+            />
+            <div className='flex justify-end gap-2'>
+              <Button variant='outline' size='sm' onClick={() => setCancelOpen(false)} disabled={isPending}>
+                Volver
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                disabled={isPending}
+                onClick={() => {
+                  if (!selectedOrder) return;
+                  startTransition(async () => {
+                    const result = await cancelOrderAction(selectedOrder.id, cancelReason || undefined);
+                    if (result.error) {
+                      toast.error(result.error);
+                      return;
+                    }
+                    toast.success('Pedido cancelado. Inventario restaurado.');
+                    setCancelOpen(false);
+                    setDetailOpen(false);
+                    setCancelReason('');
+                    router.refresh();
+                  });
+                }}
+              >
+                {isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -38,6 +38,8 @@ interface Product {
 interface Business {
   name: string;
   description: string | null;
+  currency: string;
+  whatsappNumber: string | null;
 }
 
 interface CatalogSettings {
@@ -48,8 +50,10 @@ interface CatalogSettings {
   heroBadgeText: string | null;
   heroCtaPrimaryText: string | null;
   heroCtaPrimaryLink: string | null;
+  heroCtaPrimaryAction: string | null;
   heroCtaSecondaryText: string | null;
   heroCtaSecondaryLink: string | null;
+  heroCtaSecondaryAction: string | null;
   heroStyle: string | null;
   featuredEnabled: boolean | null;
   featuredTitle: string | null;
@@ -65,6 +69,15 @@ interface CatalogSettings {
   showStock: boolean | null;
 }
 
+interface CatalogPreview {
+  id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  products: Product[];
+  totalProducts: number;
+}
+
 interface StorefrontCatalogProps {
   slug: string;
   business: Business;
@@ -73,12 +86,13 @@ interface StorefrontCatalogProps {
   activeCategory?: string;
   searchQuery?: string;
   settings: CatalogSettings | null;
+  catalogSections?: CatalogPreview[];
 }
 
 /* ─── Helpers ─── */
 
-function formatPrice(price: string) {
-  return new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(parseFloat(price));
+function formatPrice(price: string, currency = 'USD') {
+  return new Intl.NumberFormat('es', { style: 'currency', currency }).format(parseFloat(price));
 }
 
 function hasDiscount(p: Product) {
@@ -99,6 +113,7 @@ export function StorefrontCatalog({
   activeCategory,
   searchQuery,
   settings,
+  catalogSections,
 }: StorefrontCatalogProps) {
   const router = useRouter();
   const [search, setSearch] = useState(searchQuery ?? '');
@@ -181,9 +196,12 @@ export function StorefrontCatalog({
           imageUrl={heroImage}
           ctaPrimaryText={ctaPrimary}
           ctaPrimaryLink={settings?.heroCtaPrimaryLink ?? null}
+          ctaPrimaryAction={settings?.heroCtaPrimaryAction ?? 'scroll'}
           ctaSecondaryText={ctaSecondary}
           ctaSecondaryLink={settings?.heroCtaSecondaryLink ?? null}
+          ctaSecondaryAction={settings?.heroCtaSecondaryAction ?? 'link'}
           slug={slug}
+          whatsappNumber={business.whatsappNumber}
           search={search}
           onSearch={handleSearch}
         />
@@ -223,6 +241,7 @@ export function StorefrontCatalog({
                   key={product.id}
                   product={product}
                   slug={slug}
+                  currency={business.currency}
                   onAddToCart={handleAddToCart}
                   cardStyle={cardStyle}
                   showPrices={showPrices}
@@ -233,27 +252,84 @@ export function StorefrontCatalog({
           </section>
         )}
 
-        {/* ── All Products ── */}
-        <section>
-          <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
+        {/* ── Catalog Sections or All Products ── */}
+        {catalogSections && catalogSections.length > 0 && !isFiltering ? (
+          catalogSections.map((cat) => {
+            if (cat.products.length === 0) return null;
+            const hasMore = cat.totalProducts > cat.products.length;
+            const catHref = `/${slug}/${cat.slug ?? cat.id}`;
+            return (
+              <section key={cat.id} className='mb-8'>
+                <div className='mb-5 flex items-center justify-between'>
+                  <div>
+                    <h2 className='text-xl font-bold tracking-tight'>{cat.name}</h2>
+                    {cat.description && <p className='mt-0.5 text-sm opacity-50'>{cat.description}</p>}
+                  </div>
+                  {hasMore && (
+                    <Link
+                      href={catHref}
+                      className='flex shrink-0 items-center gap-1 text-sm font-medium opacity-60 transition-opacity hover:opacity-100'
+                    >
+                      Ver más
+                      <ArrowRight className='size-3.5' />
+                    </Link>
+                  )}
+                </div>
+                <div className={gridClass}>
+                  {cat.products.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      slug={slug}
+                      currency={business.currency}
+                      onAddToCart={handleAddToCart}
+                      cardStyle={cardStyle}
+                      showPrices={showPrices}
+                    />
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className='mt-4 text-center'>
+                    <Link
+                      href={catHref}
+                      className='inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-medium transition-colors'
+                      style={{
+                        borderRadius: 'var(--sf-radius, 0.75rem)',
+                        borderColor: 'var(--sf-border, #e5e7eb)',
+                        color: 'var(--sf-primary, #000)',
+                      }}
+                    >
+                      Ver todos de {cat.name}
+                      <ArrowRight className='size-3.5' />
+                    </Link>
+                  </div>
+                )}
+              </section>
+            );
+          })
+        ) : (
+          <section>
+            <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
 
-          {products.length === 0 ? (
-            <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
-          ) : (
-            <div className={gridClass}>
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  slug={slug}
-                  onAddToCart={handleAddToCart}
-                  cardStyle={cardStyle}
-                  showPrices={showPrices}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            {products.length === 0 ? (
+              <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
+            ) : (
+              <div className={gridClass}>
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    slug={slug}
+                    currency={business.currency}
+                    onAddToCart={handleAddToCart}
+                    cardStyle={cardStyle}
+                    showPrices={showPrices}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── About Section ── */}
         {!isFiltering && aboutEnabled && aboutText && (
@@ -266,6 +342,25 @@ export function StorefrontCatalog({
 
 /* ─── Hero Section ─── */
 
+function resolveCtaHref(
+  action: string | null | undefined,
+  link: string | null | undefined,
+  slug: string,
+  whatsapp?: string | null
+): string {
+  switch (action) {
+    case 'link':
+      return link || `/${slug}`;
+    case 'whatsapp':
+      return whatsapp ? `https://wa.me/${whatsapp.replace(/\D/g, '')}` : `/${slug}`;
+    case 'catalog':
+      return `/${slug}`;
+    case 'scroll':
+    default:
+      return `/${slug}#products`;
+  }
+}
+
 interface HeroProps {
   title: string;
   subtitle: string | null;
@@ -274,9 +369,12 @@ interface HeroProps {
   imageUrl: string | null;
   ctaPrimaryText: string;
   ctaPrimaryLink: string | null | undefined;
+  ctaPrimaryAction: string | null | undefined;
   ctaSecondaryText: string | null;
   ctaSecondaryLink: string | null | undefined;
+  ctaSecondaryAction: string | null | undefined;
   slug: string;
+  whatsappNumber: string | null | undefined;
   search: string;
   onSearch: (value: string) => void;
 }
@@ -289,12 +387,17 @@ function HeroSection({
   imageUrl,
   ctaPrimaryText,
   ctaPrimaryLink,
+  ctaPrimaryAction,
   ctaSecondaryText,
   ctaSecondaryLink,
+  ctaSecondaryAction,
   slug,
+  whatsappNumber,
   search,
   onSearch,
 }: HeroProps) {
+  const primaryHref = resolveCtaHref(ctaPrimaryAction, ctaPrimaryLink, slug, whatsappNumber);
+  const secondaryHref = resolveCtaHref(ctaSecondaryAction, ctaSecondaryLink, slug, whatsappNumber);
   const isSplit = style === 'split' && imageUrl;
   const isBanner = style === 'banner' && imageUrl;
   const isMinimal = style === 'minimal';
@@ -342,7 +445,7 @@ function HeroSection({
           {subtitle && <p className='mx-auto mt-4 max-w-2xl text-base text-white/80 sm:text-lg'>{subtitle}</p>}
           <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
             <Link
-              href={ctaPrimaryLink || `/${slug}#products`}
+              href={primaryHref}
               className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-black transition-transform hover:scale-105'
               style={{ backgroundColor: '#fff', borderRadius: 'var(--sf-radius-full, 9999px)' }}
             >
@@ -350,7 +453,7 @@ function HeroSection({
             </Link>
             {ctaSecondaryText && (
               <Link
-                href={ctaSecondaryLink || `/${slug}`}
+                href={secondaryHref}
                 className='inline-flex items-center gap-2 border border-white/30 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10'
                 style={{ borderRadius: 'var(--sf-radius-full, 9999px)' }}
               >
@@ -390,7 +493,7 @@ function HeroSection({
             {subtitle && <p className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'>{subtitle}</p>}
             <div className='mt-8 flex flex-wrap gap-3'>
               <Link
-                href={ctaPrimaryLink || `/${slug}#products`}
+                href={primaryHref}
                 className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-105'
                 style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius-full, 9999px)' }}
               >
@@ -398,7 +501,7 @@ function HeroSection({
               </Link>
               {ctaSecondaryText && (
                 <Link
-                  href={ctaSecondaryLink || `/${slug}`}
+                  href={secondaryHref}
                   className='inline-flex items-center gap-2 border px-6 py-3 text-sm font-semibold opacity-70 transition-colors hover:opacity-100'
                   style={{ borderColor: 'currentColor', borderRadius: 'var(--sf-radius-full, 9999px)' }}
                 >
@@ -473,7 +576,7 @@ function HeroSection({
         )}
         <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <Link
-            href={ctaPrimaryLink || `/${slug}#products`}
+            href={primaryHref}
             className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-transform hover:scale-105'
             style={
               hasCenteredImage
@@ -489,7 +592,7 @@ function HeroSection({
           </Link>
           {ctaSecondaryText && (
             <Link
-              href={ctaSecondaryLink || `/${slug}`}
+              href={secondaryHref}
               className='inline-flex items-center gap-2 border px-6 py-3 text-sm font-semibold transition-colors hover:opacity-100'
               style={
                 hasCenteredImage
@@ -732,13 +835,22 @@ function EmptyState({ query, onClear }: { query?: string; onClear: () => void })
 interface ProductCardProps {
   product: Product;
   slug: string;
+  currency: string;
   featured?: boolean;
   cardStyle: string;
   showPrices?: boolean;
   onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }
 
-function ProductCard({ product, slug, featured, cardStyle, showPrices = true, onAddToCart }: ProductCardProps) {
+function ProductCard({
+  product,
+  slug,
+  currency,
+  featured,
+  cardStyle,
+  showPrices = true,
+  onAddToCart,
+}: ProductCardProps) {
   const isBordered = cardStyle === 'bordered';
   const isMinimal = cardStyle === 'minimal';
   const isShadow = cardStyle === 'shadow';
@@ -830,9 +942,9 @@ function ProductCard({ product, slug, featured, cardStyle, showPrices = true, on
         )}
         {showPrices && (
           <div className='mt-auto flex items-baseline gap-2 pt-2'>
-            <span className='text-base font-bold'>{formatPrice(product.price)}</span>
+            <span className='text-base font-bold'>{formatPrice(product.price, currency)}</span>
             {hasDiscount(product) && (
-              <span className='text-xs line-through opacity-40'>{formatPrice(product.compareAtPrice!)}</span>
+              <span className='text-xs line-through opacity-40'>{formatPrice(product.compareAtPrice!, currency)}</span>
             )}
           </div>
         )}

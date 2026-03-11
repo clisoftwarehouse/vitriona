@@ -38,7 +38,11 @@ type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
 type LayoutOption = 'grid' | 'list' | 'magazine';
 
+type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
+type CtaAction = 'scroll' | 'link' | 'whatsapp' | 'catalog';
+
 interface Settings {
+  themePreset: ThemePreset;
   primaryColor: string;
   accentColor: string;
   backgroundColor: string;
@@ -47,15 +51,21 @@ interface Settings {
   borderColor: string;
   font: FontOption;
   roundedCorners: boolean;
+  borderRadius: number;
   cardStyle: CardStyleOption;
   heroEnabled: boolean;
   heroTitle: string;
   heroSubtitle: string;
   heroBadgeText: string;
+  heroBadgeIcon: string;
   heroStyle: HeroStyleOption;
   heroImageUrl: string;
   heroCtaPrimaryText: string;
+  heroCtaPrimaryAction: CtaAction;
+  heroCtaPrimaryLink: string;
   heroCtaSecondaryText: string;
+  heroCtaSecondaryAction: CtaAction;
+  heroCtaSecondaryLink: string;
   featuredEnabled: boolean;
   featuredTitle: string;
   categoriesStyle: CategoriesStyleOption;
@@ -69,15 +79,24 @@ interface Settings {
   seoTitle: string;
   seoDescription: string;
   ogImageUrl: string;
+  seoCanonicalUrl: string;
+  seoKeywords: string;
+  faviconUrl: string;
   socialInstagram: string;
   socialFacebook: string;
   socialTwitter: string;
   socialTiktok: string;
   socialYoutube: string;
+  socialWhatsapp: string;
+  socialEmail: string;
+  socialPhone: string;
   announcementEnabled: boolean;
   announcementText: string;
   announcementBgColor: string;
   announcementTextColor: string;
+  announcementLink: string;
+  announcementDismissable: boolean;
+  announcementIcon: string;
 }
 
 interface PreviewProduct {
@@ -163,8 +182,82 @@ const GRID_COLUMNS: { value: string; label: string }[] = [
   { value: '4', label: '4 columnas' },
 ];
 
+const THEME_PRESETS: {
+  value: ThemePreset;
+  label: string;
+  colors: Pick<Settings, 'primaryColor' | 'backgroundColor' | 'surfaceColor' | 'textColor' | 'borderColor'>;
+}[] = [
+  {
+    value: 'light',
+    label: 'Claro',
+    colors: {
+      primaryColor: '#000000',
+      backgroundColor: '#ffffff',
+      surfaceColor: '#f9fafb',
+      textColor: '#111827',
+      borderColor: '#e5e7eb',
+    },
+  },
+  {
+    value: 'dark',
+    label: 'Oscuro',
+    colors: {
+      primaryColor: '#ffffff',
+      backgroundColor: '#0a0a0a',
+      surfaceColor: '#171717',
+      textColor: '#fafafa',
+      borderColor: '#262626',
+    },
+  },
+  {
+    value: 'elegant',
+    label: 'Elegante',
+    colors: {
+      primaryColor: '#1a1a2e',
+      backgroundColor: '#fefefe',
+      surfaceColor: '#f0f0f5',
+      textColor: '#1a1a2e',
+      borderColor: '#d4d4e0',
+    },
+  },
+  {
+    value: 'vibrant',
+    label: 'Vibrante',
+    colors: {
+      primaryColor: '#7c3aed',
+      backgroundColor: '#ffffff',
+      surfaceColor: '#f5f3ff',
+      textColor: '#1e1b4b',
+      borderColor: '#e0e0ff',
+    },
+  },
+  {
+    value: 'ocean',
+    label: 'Océano',
+    colors: {
+      primaryColor: '#0ea5e9',
+      backgroundColor: '#ffffff',
+      surfaceColor: '#f0f9ff',
+      textColor: '#0c4a6e',
+      borderColor: '#bae6fd',
+    },
+  },
+];
+
+const RADIUS_STEPS = [0, 4, 8, 12, 16, 20, 24];
+
+const CTA_ACTIONS: { value: CtaAction; label: string }[] = [
+  { value: 'scroll', label: 'Scroll a productos' },
+  { value: 'link', label: 'Enlace externo' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'catalog', label: 'Catálogo' },
+];
+
 function toSettings(raw: Record<string, unknown> | null): Settings {
+  // Support legacy socialLinks jsonb fallback
+  const legacySocial = raw?.socialLinks as Record<string, string> | null;
   return {
+    themePreset: (raw?.themePreset as ThemePreset) ?? 'custom',
     primaryColor: (raw?.primaryColor as string) ?? '#000000',
     accentColor: (raw?.accentColor as string) ?? '#6366f1',
     backgroundColor: (raw?.backgroundColor as string) ?? '#ffffff',
@@ -173,15 +266,21 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     borderColor: (raw?.borderColor as string) ?? '#e5e7eb',
     font: (raw?.font as FontOption) ?? 'inter',
     roundedCorners: (raw?.roundedCorners as boolean) ?? true,
+    borderRadius: (raw?.borderRadius as number) ?? 12,
     cardStyle: (raw?.cardStyle as CardStyleOption) ?? 'default',
     heroEnabled: (raw?.heroEnabled as boolean) ?? true,
     heroTitle: (raw?.heroTitle as string) ?? '',
     heroSubtitle: (raw?.heroSubtitle as string) ?? '',
     heroBadgeText: (raw?.heroBadgeText as string) ?? '',
+    heroBadgeIcon: (raw?.heroBadgeIcon as string) ?? 'sparkles',
     heroStyle: (raw?.heroStyle as HeroStyleOption) ?? 'centered',
     heroImageUrl: (raw?.heroImageUrl as string) ?? '',
     heroCtaPrimaryText: (raw?.heroCtaPrimaryText as string) ?? 'Ver productos',
+    heroCtaPrimaryAction: (raw?.heroCtaPrimaryAction as CtaAction) ?? 'scroll',
+    heroCtaPrimaryLink: (raw?.heroCtaPrimaryLink as string) ?? '',
     heroCtaSecondaryText: (raw?.heroCtaSecondaryText as string) ?? '',
+    heroCtaSecondaryAction: (raw?.heroCtaSecondaryAction as CtaAction) ?? 'link',
+    heroCtaSecondaryLink: (raw?.heroCtaSecondaryLink as string) ?? '',
     featuredEnabled: (raw?.featuredEnabled as boolean) ?? true,
     featuredTitle: (raw?.featuredTitle as string) ?? 'Productos destacados',
     categoriesStyle: (raw?.categoriesStyle as CategoriesStyleOption) ?? 'tabs',
@@ -195,15 +294,24 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     seoTitle: (raw?.seoTitle as string) ?? '',
     seoDescription: (raw?.seoDescription as string) ?? '',
     ogImageUrl: (raw?.ogImageUrl as string) ?? '',
-    socialInstagram: ((raw?.socialLinks as Record<string, string> | null)?.instagram as string) ?? '',
-    socialFacebook: ((raw?.socialLinks as Record<string, string> | null)?.facebook as string) ?? '',
-    socialTwitter: ((raw?.socialLinks as Record<string, string> | null)?.twitter as string) ?? '',
-    socialTiktok: ((raw?.socialLinks as Record<string, string> | null)?.tiktok as string) ?? '',
-    socialYoutube: ((raw?.socialLinks as Record<string, string> | null)?.youtube as string) ?? '',
+    seoCanonicalUrl: (raw?.seoCanonicalUrl as string) ?? '',
+    seoKeywords: (raw?.seoKeywords as string) ?? '',
+    faviconUrl: (raw?.faviconUrl as string) ?? '',
+    socialInstagram: (raw?.socialInstagram as string) ?? legacySocial?.instagram ?? '',
+    socialFacebook: (raw?.socialFacebook as string) ?? legacySocial?.facebook ?? '',
+    socialTwitter: (raw?.socialTwitter as string) ?? legacySocial?.twitter ?? '',
+    socialTiktok: (raw?.socialTiktok as string) ?? legacySocial?.tiktok ?? '',
+    socialYoutube: (raw?.socialYoutube as string) ?? legacySocial?.youtube ?? '',
+    socialWhatsapp: (raw?.socialWhatsapp as string) ?? '',
+    socialEmail: (raw?.socialEmail as string) ?? '',
+    socialPhone: (raw?.socialPhone as string) ?? '',
     announcementEnabled: (raw?.announcementEnabled as boolean) ?? false,
     announcementText: (raw?.announcementText as string) ?? '',
     announcementBgColor: (raw?.announcementBgColor as string) ?? '#000000',
     announcementTextColor: (raw?.announcementTextColor as string) ?? '#ffffff',
+    announcementLink: (raw?.announcementLink as string) ?? '',
+    announcementDismissable: (raw?.announcementDismissable as boolean) ?? false,
+    announcementIcon: (raw?.announcementIcon as string) ?? '',
   };
 }
 
@@ -221,6 +329,7 @@ const FONT_FAMILY: Record<string, string> = {
 
 function buildPayload(settings: Settings): CatalogSettingsInput {
   return {
+    themePreset: settings.themePreset,
     primaryColor: settings.primaryColor,
     accentColor: settings.accentColor,
     backgroundColor: settings.backgroundColor,
@@ -228,16 +337,22 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     textColor: settings.textColor,
     borderColor: settings.borderColor,
     font: settings.font,
-    roundedCorners: settings.roundedCorners,
+    roundedCorners: settings.borderRadius > 0,
+    borderRadius: settings.borderRadius,
     cardStyle: settings.cardStyle,
     heroEnabled: settings.heroEnabled,
     heroTitle: settings.heroTitle || null,
     heroSubtitle: settings.heroSubtitle || null,
     heroBadgeText: settings.heroBadgeText || null,
+    heroBadgeIcon: settings.heroBadgeIcon || null,
     heroStyle: settings.heroStyle,
     heroImageUrl: settings.heroImageUrl || null,
     heroCtaPrimaryText: settings.heroCtaPrimaryText || null,
+    heroCtaPrimaryAction: settings.heroCtaPrimaryAction,
+    heroCtaPrimaryLink: settings.heroCtaPrimaryLink || null,
     heroCtaSecondaryText: settings.heroCtaSecondaryText || null,
+    heroCtaSecondaryAction: settings.heroCtaSecondaryAction,
+    heroCtaSecondaryLink: settings.heroCtaSecondaryLink || null,
     featuredEnabled: settings.featuredEnabled,
     featuredTitle: settings.featuredTitle || null,
     categoriesStyle: settings.categoriesStyle,
@@ -251,17 +366,24 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     seoTitle: settings.seoTitle || null,
     seoDescription: settings.seoDescription || null,
     ogImageUrl: settings.ogImageUrl || null,
-    socialLinks: {
-      instagram: settings.socialInstagram || undefined,
-      facebook: settings.socialFacebook || undefined,
-      twitter: settings.socialTwitter || undefined,
-      tiktok: settings.socialTiktok || undefined,
-      youtube: settings.socialYoutube || undefined,
-    },
+    seoCanonicalUrl: settings.seoCanonicalUrl || null,
+    seoKeywords: settings.seoKeywords || null,
+    faviconUrl: settings.faviconUrl || null,
+    socialInstagram: settings.socialInstagram || null,
+    socialFacebook: settings.socialFacebook || null,
+    socialTwitter: settings.socialTwitter || null,
+    socialTiktok: settings.socialTiktok || null,
+    socialYoutube: settings.socialYoutube || null,
+    socialWhatsapp: settings.socialWhatsapp || null,
+    socialEmail: settings.socialEmail || null,
+    socialPhone: settings.socialPhone || null,
     announcementEnabled: settings.announcementEnabled,
     announcementText: settings.announcementText || null,
     announcementBgColor: settings.announcementBgColor,
     announcementTextColor: settings.announcementTextColor,
+    announcementLink: settings.announcementLink || null,
+    announcementDismissable: settings.announcementDismissable,
+    announcementIcon: settings.announcementIcon || null,
   };
 }
 
@@ -596,25 +718,128 @@ function ImageUploadField({
 /* ── Theme Panel ── */
 
 function ThemePanel({ settings, update }: PanelProps) {
+  const applyPreset = (preset: ThemePreset) => {
+    const p = THEME_PRESETS.find((t) => t.value === preset);
+    if (!p) return;
+    update('themePreset', preset);
+    update('primaryColor', p.colors.primaryColor);
+    update('backgroundColor', p.colors.backgroundColor);
+    update('surfaceColor', p.colors.surfaceColor);
+    update('textColor', p.colors.textColor);
+    update('borderColor', p.colors.borderColor);
+  };
+
   return (
     <div className='space-y-4'>
+      <SectionDivider title='Tema predefinido' />
+      <div className='grid grid-cols-3 gap-2'>
+        {THEME_PRESETS.map((preset) => (
+          <button
+            key={preset.value}
+            onClick={() => applyPreset(preset.value)}
+            className={`flex flex-col items-center gap-1.5 rounded-lg border p-2.5 transition-colors ${
+              settings.themePreset === preset.value
+                ? 'border-gray-900 bg-gray-100 dark:border-white dark:bg-neutral-800'
+                : 'border-gray-200 hover:border-gray-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+            }`}
+          >
+            <div className='flex gap-0.5'>
+              <span className='size-3 rounded-full' style={{ backgroundColor: preset.colors.primaryColor }} />
+              <span
+                className='size-3 rounded-full'
+                style={{ backgroundColor: preset.colors.backgroundColor, border: '1px solid #ccc' }}
+              />
+              <span
+                className='size-3 rounded-full'
+                style={{ backgroundColor: preset.colors.surfaceColor, border: '1px solid #ccc' }}
+              />
+            </div>
+            <span className='text-[10px] font-medium'>{preset.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => update('themePreset', 'custom')}
+          className={`flex flex-col items-center gap-1.5 rounded-lg border p-2.5 transition-colors ${
+            settings.themePreset === 'custom'
+              ? 'border-gray-900 bg-gray-100 dark:border-white dark:bg-neutral-800'
+              : 'border-gray-200 hover:border-gray-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+          }`}
+        >
+          <Palette className='size-4 opacity-50' />
+          <span className='text-[10px] font-medium'>Custom</span>
+        </button>
+      </div>
+
       <SectionDivider title='Colores' />
-      <ColorField label='Primario' value={settings.primaryColor} onChange={(v) => update('primaryColor', v)} />
-      <ColorField label='Acento' value={settings.accentColor} onChange={(v) => update('accentColor', v)} />
-      <ColorField label='Fondo' value={settings.backgroundColor} onChange={(v) => update('backgroundColor', v)} />
-      <ColorField label='Superficie' value={settings.surfaceColor} onChange={(v) => update('surfaceColor', v)} />
-      <ColorField label='Texto' value={settings.textColor} onChange={(v) => update('textColor', v)} />
-      <ColorField label='Bordes' value={settings.borderColor} onChange={(v) => update('borderColor', v)} />
+      <ColorField
+        label='Primario'
+        value={settings.primaryColor}
+        onChange={(v) => {
+          update('primaryColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
+      <ColorField
+        label='Acento'
+        value={settings.accentColor}
+        onChange={(v) => {
+          update('accentColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
+      <ColorField
+        label='Fondo'
+        value={settings.backgroundColor}
+        onChange={(v) => {
+          update('backgroundColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
+      <ColorField
+        label='Superficie'
+        value={settings.surfaceColor}
+        onChange={(v) => {
+          update('surfaceColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
+      <ColorField
+        label='Texto'
+        value={settings.textColor}
+        onChange={(v) => {
+          update('textColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
+      <ColorField
+        label='Bordes'
+        value={settings.borderColor}
+        onChange={(v) => {
+          update('borderColor', v);
+          update('themePreset', 'custom');
+        }}
+      />
 
       <SectionDivider title='Tipografía' />
       <SelectField label='Fuente' value={settings.font} options={FONTS} onChange={(v) => update('font', v)} />
 
       <SectionDivider title='Estilo' />
-      <Toggle
-        label='Bordes redondeados'
-        checked={settings.roundedCorners}
-        onChange={(v) => update('roundedCorners', v)}
-      />
+      <FieldGroup label={`Border radius: ${settings.borderRadius}px`}>
+        <input
+          type='range'
+          min={0}
+          max={24}
+          step={4}
+          value={settings.borderRadius}
+          onChange={(e) => update('borderRadius', Number(e.target.value))}
+          className='w-full accent-gray-900 dark:accent-white'
+        />
+        <div className='flex justify-between text-[10px] text-gray-400'>
+          {RADIUS_STEPS.map((v) => (
+            <span key={v}>{v}</span>
+          ))}
+        </div>
+      </FieldGroup>
       <SelectField
         label='Estilo de cards'
         value={settings.cardStyle}
@@ -676,23 +901,59 @@ function HeroPanel({ settings, update }: PanelProps) {
             />
           </FieldGroup>
 
-          <SectionDivider title='Botones CTA' />
+          <SectionDivider title='Botón principal (CTA)' />
 
-          <FieldGroup label='Botón principal'>
+          <FieldGroup label='Texto'>
             <Input
               value={settings.heroCtaPrimaryText}
               onChange={(e) => update('heroCtaPrimaryText', e.target.value)}
               placeholder='Ver productos'
             />
           </FieldGroup>
+          <SelectField
+            label='Acción'
+            value={settings.heroCtaPrimaryAction}
+            options={CTA_ACTIONS}
+            onChange={(v) => update('heroCtaPrimaryAction', v)}
+          />
+          {settings.heroCtaPrimaryAction === 'link' && (
+            <FieldGroup label='URL del enlace'>
+              <Input
+                value={settings.heroCtaPrimaryLink}
+                onChange={(e) => update('heroCtaPrimaryLink', e.target.value)}
+                placeholder='https://...'
+              />
+            </FieldGroup>
+          )}
 
-          <FieldGroup label='Botón secundario (opcional)'>
+          <SectionDivider title='Botón secundario (opcional)' />
+
+          <FieldGroup label='Texto'>
             <Input
               value={settings.heroCtaSecondaryText}
               onChange={(e) => update('heroCtaSecondaryText', e.target.value)}
               placeholder='Ver colección'
             />
           </FieldGroup>
+          {settings.heroCtaSecondaryText && (
+            <>
+              <SelectField
+                label='Acción'
+                value={settings.heroCtaSecondaryAction}
+                options={CTA_ACTIONS}
+                onChange={(v) => update('heroCtaSecondaryAction', v)}
+              />
+              {settings.heroCtaSecondaryAction === 'link' && (
+                <FieldGroup label='URL del enlace'>
+                  <Input
+                    value={settings.heroCtaSecondaryLink}
+                    onChange={(e) => update('heroCtaSecondaryLink', e.target.value)}
+                    placeholder='https://...'
+                  />
+                </FieldGroup>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
@@ -807,6 +1068,26 @@ function AnnouncementPanel({ settings, update }: PanelProps) {
               placeholder='Envío gratis en compras mayores a $50'
             />
           </FieldGroup>
+          <FieldGroup label='Enlace (opcional)'>
+            <Input
+              value={settings.announcementLink}
+              onChange={(e) => update('announcementLink', e.target.value)}
+              placeholder='https://...'
+            />
+          </FieldGroup>
+          <FieldGroup label='Icono (opcional)'>
+            <Input
+              value={settings.announcementIcon}
+              onChange={(e) => update('announcementIcon', e.target.value)}
+              placeholder='Ej: megaphone, gift, zap'
+            />
+          </FieldGroup>
+          <Toggle
+            label='Permitir cerrar'
+            description='El usuario puede ocultar el anuncio'
+            checked={settings.announcementDismissable}
+            onChange={(v) => update('announcementDismissable', v)}
+          />
           <ColorField
             label='Color de fondo'
             value={settings.announcementBgColor}
@@ -826,6 +1107,9 @@ function AnnouncementPanel({ settings, update }: PanelProps) {
 /* ── SEO & Social Panel ── */
 
 function SeoPanel({ settings, update }: PanelProps) {
+  const descLength = settings.seoDescription.length;
+  const descColor = descLength === 0 ? 'text-gray-400' : descLength <= 160 ? 'text-green-600' : 'text-amber-500';
+
   return (
     <div className='space-y-4'>
       <SectionDivider title='SEO' />
@@ -844,12 +1128,28 @@ function SeoPanel({ settings, update }: PanelProps) {
           className='w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
           placeholder='Descripción que aparece en buscadores...'
         />
+        <p className={`text-right text-[10px] ${descColor}`}>{descLength}/160</p>
+      </FieldGroup>
+      <FieldGroup label='Palabras clave'>
+        <Input
+          value={settings.seoKeywords}
+          onChange={(e) => update('seoKeywords', e.target.value)}
+          placeholder='tienda, productos, envío gratis'
+        />
+      </FieldGroup>
+      <FieldGroup label='URL canónica'>
+        <Input
+          value={settings.seoCanonicalUrl}
+          onChange={(e) => update('seoCanonicalUrl', e.target.value)}
+          placeholder='https://mi-tienda.com'
+        />
       </FieldGroup>
       <ImageUploadField
         label='Imagen Open Graph'
         value={settings.ogImageUrl}
         onChange={(v) => update('ogImageUrl', v)}
       />
+      <ImageUploadField label='Favicon' value={settings.faviconUrl} onChange={(v) => update('faviconUrl', v)} />
 
       <SectionDivider title='Redes sociales' />
       <FieldGroup label='Instagram'>
@@ -887,6 +1187,29 @@ function SeoPanel({ settings, update }: PanelProps) {
           placeholder='https://youtube.com/@tu-negocio'
         />
       </FieldGroup>
+
+      <SectionDivider title='Contacto directo' />
+      <FieldGroup label='WhatsApp'>
+        <Input
+          value={settings.socialWhatsapp}
+          onChange={(e) => update('socialWhatsapp', e.target.value)}
+          placeholder='+1234567890'
+        />
+      </FieldGroup>
+      <FieldGroup label='Email'>
+        <Input
+          value={settings.socialEmail}
+          onChange={(e) => update('socialEmail', e.target.value)}
+          placeholder='contacto@mi-tienda.com'
+        />
+      </FieldGroup>
+      <FieldGroup label='Teléfono'>
+        <Input
+          value={settings.socialPhone}
+          onChange={(e) => update('socialPhone', e.target.value)}
+          placeholder='+1234567890'
+        />
+      </FieldGroup>
     </div>
   );
 }
@@ -904,9 +1227,10 @@ function BuilderPreview({
   categories: PreviewCategory[];
   products: PreviewProduct[];
 }) {
-  const radius = s.roundedCorners ? '0.75rem' : '0';
-  const radiusLg = s.roundedCorners ? '1rem' : '0';
-  const radiusFull = s.roundedCorners ? '9999px' : '0';
+  const br = s.borderRadius;
+  const radius = br > 0 ? `${br * 0.0625}rem` : '0';
+  const radiusLg = br > 0 ? `${(br + 4) * 0.0625}rem` : '0';
+  const radiusFull = br > 0 ? '9999px' : '0';
   const font = FONT_FAMILY[s.font] || FONT_FAMILY.inter;
   const featured = products.filter((p) => p.isFeatured);
   const cols = s.gridColumns ?? 4;
@@ -920,7 +1244,15 @@ function BuilderPreview({
     return isNaN(n) ? v : new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(n);
   };
 
-  const hasSocials = s.socialInstagram || s.socialFacebook || s.socialTwitter || s.socialTiktok || s.socialYoutube;
+  const hasSocials =
+    s.socialInstagram ||
+    s.socialFacebook ||
+    s.socialTwitter ||
+    s.socialTiktok ||
+    s.socialYoutube ||
+    s.socialWhatsapp ||
+    s.socialEmail ||
+    s.socialPhone;
 
   return (
     <div
@@ -1141,6 +1473,9 @@ function BuilderPreview({
                   {s.socialTiktok && <span>TikTok</span>}
                   {s.socialTwitter && <span>Twitter / X</span>}
                   {s.socialYoutube && <span>YouTube</span>}
+                  {s.socialWhatsapp && <span>WhatsApp</span>}
+                  {s.socialEmail && <span>Email</span>}
+                  {s.socialPhone && <span>Teléfono</span>}
                 </div>
               </div>
             )}
@@ -1459,7 +1794,7 @@ function PreviewCard({
   const isMinimal = s.cardStyle === 'minimal';
   const isBordered = s.cardStyle === 'bordered';
   const isShadow = s.cardStyle === 'shadow';
-  const radius = s.roundedCorners ? '0.75rem' : '0';
+  const radius = s.borderRadius > 0 ? `${s.borderRadius * 0.0625}rem` : '0';
 
   return (
     <div

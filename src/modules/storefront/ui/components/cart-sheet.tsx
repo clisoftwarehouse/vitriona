@@ -20,6 +20,7 @@ import {
 
 interface CartSheetProps {
   slug: string;
+  currency: string;
 }
 
 const emptySubscribe = () => () => {};
@@ -32,7 +33,7 @@ function useHydrated() {
   );
 }
 
-export function CartSheet({ slug }: CartSheetProps) {
+export function CartSheet({ slug, currency }: CartSheetProps) {
   const hydrated = useHydrated();
 
   const items = useCartStore((s) => s.items);
@@ -45,8 +46,7 @@ export function CartSheet({ slug }: CartSheetProps) {
   const itemCount = hydrated ? getItemCount() : 0;
   const total = hydrated ? getTotal() : 0;
 
-  const formatPrice = (amount: number) =>
-    new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
   return (
     <Sheet>

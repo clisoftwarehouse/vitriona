@@ -7,12 +7,16 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
 import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
-import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
-import { getProductByIdAction } from '@/modules/products/server/actions/get-products.action';
+import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
+import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getProductImagesAction } from '@/modules/products/server/actions/product-images.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import {
+  getProductByIdAction,
+  getProductAttributeValuesAction,
+} from '@/modules/products/server/actions/get-products.action';
 
 interface EditProductPageProps {
   params: Promise<{ id: string; catalogId: string; productId: string }>;
@@ -20,12 +24,14 @@ interface EditProductPageProps {
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { id, catalogId, productId } = await params;
-  const [business, catalog, categories, product, images] = await Promise.all([
+  const [business, catalog, categories, product, images, attributes, attrValues] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(catalogId),
     getProductByIdAction(productId),
     getProductImagesAction(productId),
+    getAttributesAction(id),
+    getProductAttributeValuesAction(productId),
   ]);
 
   if (!business || !catalog || !product) notFound();
@@ -56,6 +62,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
             catalogId={catalogId}
             businessId={id}
             categories={categories}
+            attributes={attributes}
             defaultValues={{
               name: product.name,
               description: product.description ?? '',
@@ -66,6 +73,13 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               categoryId: product.categoryId ?? '',
               status: product.status,
               isFeatured: product.isFeatured,
+              type: product.type as 'product' | 'service',
+              weight: product.weight ?? '',
+              minStock: product.minStock ?? 0,
+              trackInventory: product.trackInventory,
+              tags: product.tags?.join(', ') ?? '',
+              attributeValues: attrValues,
+              characteristics: product.characteristics ?? [],
             }}
           />
         </CardContent>
@@ -79,6 +93,29 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           <ProductImageUpload productId={product.id} initialImages={images} />
         </CardContent>
       </Card>
+
+      {product.trackInventory && (
+        <Card>
+          <CardHeader>
+            <div className='flex items-center justify-between'>
+              <div>
+                <h3 className='font-semibold'>Inventario</h3>
+                <p className='text-muted-foreground text-sm'>
+                  Stock actual: {product.stock ?? 0}
+                  {(product.stock ?? 0) <= (product.minStock ?? 0) && (
+                    <span className='ml-2 text-red-500'>(Stock bajo)</span>
+                  )}
+                </p>
+              </div>
+              <Button variant='outline' size='sm' asChild>
+                <Link href={`/dashboard/businesses/${id}/catalogs/${catalogId}/products/${product.id}/inventory`}>
+                  Gestionar inventario
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card className='border-destructive/50'>
         <CardHeader>

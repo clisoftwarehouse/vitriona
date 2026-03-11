@@ -24,11 +24,21 @@ export async function updateCatalogAction(catalogId: string, values: UpdateCatal
 
     if (!business) return { error: 'No autorizado' };
 
+    const slug =
+      values.slug?.trim() ||
+      values.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
     await db
       .update(catalogs)
       .set({
         name: values.name,
+        slug,
         description: values.description || null,
+        imageUrl: values.imageUrl || null,
+        type: values.type ?? 'general',
         updatedAt: new Date(),
       })
       .where(eq(catalogs.id, catalogId));

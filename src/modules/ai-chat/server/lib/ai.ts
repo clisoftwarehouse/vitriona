@@ -1,3 +1,4 @@
+import { eq, or, ilike } from 'drizzle-orm';
 import {
   SchemaType,
   type Content,
@@ -6,10 +7,23 @@ import {
   type FunctionDeclaration,
 } from '@google/generative-ai';
 
+import { db } from '@/db/drizzle';
 import type { StoredMessage } from './redis';
 import { bookAppointment, getAvailableSlots } from './calendar';
+import { orders, catalogs, products, categories, orderItems, productImages } from '@/db/schema';
 
-interface ChatbotContext {
+interface KnowledgeEntry {
+  key: string;
+  value: string;
+  category: string | null;
+}
+
+interface KnowledgeFile {
+  fileName: string;
+  extractedText: string | null;
+}
+
+export interface ChatbotContext {
   systemPrompt: string | null;
   businessInfo: Record<string, unknown> | null;
   calendarEnabled: boolean;
@@ -18,6 +32,17 @@ interface ChatbotContext {
   slotDurationMode: string;
   slotDurationMinutes: number;
   businessName: string;
+  businessId: string;
+  currency: string;
+  // Phase 3
+  personality: string | null;
+  tone: string;
+  language: string;
+  knowledgeEntries: KnowledgeEntry[];
+  knowledgeFiles: KnowledgeFile[];
+  autoAccessCatalog: boolean;
+  orderEnabled: boolean;
+  maxTokens: number;
 }
 
 function getModel() {
@@ -29,11 +54,21 @@ function getModel() {
 }
 
 function buildSystemPrompt(ctx: ChatbotContext): string {
+  const toneMap: Record<string, string> = {
+    professional: 'profesional y cortés',
+    friendly: 'amigable y cercano',
+    casual: 'casual y relajado',
+    formal: 'formal y respetuoso',
+  };
+  const toneDesc = toneMap[ctx.tone] ?? 'profesional';
+
+  const personalitySection = ctx.personality ? `\n\nPersonalidad del bot: ${ctx.personality}` : '';
+
   const base =
     ctx.systemPrompt ??
-    `Eres un asistente virtual de atención al cliente para "${ctx.businessName}". 
-Responde de forma amable, concisa y profesional. 
-Solo responde preguntas relacionadas con el negocio. 
+    `Eres un asistente virtual de atención al cliente para "${ctx.businessName}".
+Tu tono es ${toneDesc}. Responde en ${ctx.language === 'es' ? 'español' : ctx.language === 'en' ? 'inglés' : 'portugués'}.
+Solo responde preguntas relacionadas con el negocio.
 Si no sabes algo, indica amablemente que no tienes esa información.`;
 
   const now = new Date();
@@ -43,17 +78,62 @@ Si no sabes algo, indica amablemente que no tienes esa información.`;
     ? `\n\nInformación del negocio:\n${JSON.stringify(ctx.businessInfo, null, 2)}`
     : '';
 
+  // Knowledge base
+  let knowledgeSection = '';
+  if (ctx.knowledgeEntries.length > 0) {
+    const grouped = ctx.knowledgeEntries.reduce(
+      (acc, e) => {
+        const cat = e.category ?? 'general';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(`- ${e.key}: ${e.value}`);
+        return acc;
+      },
+      {} as Record<string, string[]>
+    );
+    knowledgeSection = '\n\nBase de conocimiento del negocio:';
+    for (const [cat, items] of Object.entries(grouped)) {
+      knowledgeSection += `\n[${cat}]\n${items.join('\n')}`;
+    }
+  }
+  if (ctx.knowledgeFiles.length > 0) {
+    const fileTexts = ctx.knowledgeFiles
+      .filter((f) => f.extractedText)
+      .map((f) => `--- ${f.fileName} ---\n${f.extractedText!.slice(0, 4000)}`)
+      .join('\n\n');
+    if (fileTexts) {
+      knowledgeSection += `\n\nDocumentos de referencia:\n${fileTexts}`;
+    }
+  }
+
+  // Catalog access
+  const catalogSection = ctx.autoAccessCatalog
+    ? `\n\nTienes acceso a las herramientas "search_products" y "get_categories" para consultar el catálogo del negocio. Úsalas cuando el cliente pregunte por productos, precios o categorías. La moneda del negocio es ${ctx.currency}.`
+    : '';
+
+  const orderSection = ctx.orderEnabled
+    ? `\n\nPuedes crear pedidos usando la herramienta "create_order". Cuando el cliente confirme lo que quiere, pide su nombre y teléfono, luego crea el pedido.`
+    : '';
+
   const calendarSection = ctx.calendarEnabled
     ? `\n\nIMPORTANTE - AGENDAMIENTO DE CITAS:
 Tienes acceso a herramientas de calendario. SIEMPRE debes usarlas cuando el cliente quiera:
 - Verificar disponibilidad: usa la función "check_availability" con la fecha.
 - Agendar una cita: usa la función "book_appointment" con los datos del cliente.
-NUNCA le digas al cliente que "simplemente puede venir" si tiene la opción de agendar. Siempre ofrece verificar disponibilidad y crear la reserva en el calendario.
+NUNCA le digas al cliente que "simplemente puede venir" si tiene la opción de agendar.
 NUNCA uses fechas en el pasado. El año actual es ${now.getFullYear()}.
-${ctx.slotDurationMode === 'per_service' ? 'La duración de cada cita depende del servicio. Consulta la información del negocio para obtener la duración de cada servicio y usa esa duración al verificar disponibilidad y agendar.' : `La duración estándar de cada cita es de ${ctx.slotDurationMinutes} minutos. Usa esta duración al verificar disponibilidad y al calcular la hora de fin de la cita.`}`
+${ctx.slotDurationMode === 'per_service' ? 'La duración de cada cita depende del servicio.' : `La duración estándar de cada cita es de ${ctx.slotDurationMinutes} minutos.`}`
     : '';
 
-  return base + dateSection + businessSection + calendarSection;
+  return (
+    base +
+    personalitySection +
+    dateSection +
+    businessSection +
+    knowledgeSection +
+    catalogSection +
+    orderSection +
+    calendarSection
+  );
 }
 
 function getCalendarTools(): FunctionDeclaration[] {
@@ -119,9 +199,246 @@ function historyToContents(history: StoredMessage[]): Content[] {
   }));
 }
 
+function getCatalogTools(): FunctionDeclaration[] {
+  return [
+    {
+      name: 'search_products',
+      description:
+        'Busca productos en el catálogo del negocio por nombre o categoría. Devuelve nombre, precio, descripción e imagen.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          query: {
+            type: SchemaType.STRING,
+            description: 'Término de búsqueda (nombre del producto o categoría)',
+          },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'get_categories',
+      description: 'Lista todas las categorías disponibles en el catálogo del negocio.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {},
+      },
+    },
+    {
+      name: 'get_product_details',
+      description: 'Obtiene el detalle completo de un producto por su nombre.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          product_name: {
+            type: SchemaType.STRING,
+            description: 'Nombre del producto',
+          },
+        },
+        required: ['product_name'],
+      },
+    },
+  ];
+}
+
+function getOrderTools(): FunctionDeclaration[] {
+  return [
+    {
+      name: 'create_order',
+      description:
+        'Crea un pedido para el cliente. Necesita nombre del cliente, teléfono y los productos con cantidades.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          customer_name: {
+            type: SchemaType.STRING,
+            description: 'Nombre del cliente',
+          },
+          customer_phone: {
+            type: SchemaType.STRING,
+            description: 'Teléfono del cliente',
+          },
+          items: {
+            type: SchemaType.ARRAY,
+            description: 'Lista de productos a ordenar',
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                product_name: { type: SchemaType.STRING, description: 'Nombre del producto' },
+                quantity: { type: SchemaType.NUMBER, description: 'Cantidad' },
+              },
+              required: ['product_name', 'quantity'],
+            },
+          },
+        },
+        required: ['customer_name', 'items'],
+      },
+    },
+  ];
+}
+
+async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promise<string> {
+  const args = call.args as Record<string, unknown>;
+
+  try {
+    // Get the default catalog for this business
+    const [catalog] = await db
+      .select({ id: catalogs.id })
+      .from(catalogs)
+      .where(eq(catalogs.businessId, ctx.businessId))
+      .limit(1);
+
+    if (!catalog) return JSON.stringify({ error: 'No hay catálogo disponible' });
+
+    if (call.name === 'search_products') {
+      const query = args.query as string;
+      const results = await db
+        .select({
+          id: products.id,
+          name: products.name,
+          price: products.price,
+          description: products.description,
+          stock: products.stock,
+        })
+        .from(products)
+        .where(or(ilike(products.name, `%${query}%`), ilike(products.description, `%${query}%`)))
+        .limit(10);
+
+      return JSON.stringify({
+        products: results.map((p) => ({
+          name: p.name,
+          price: `${p.price} ${ctx.currency}`,
+          description: p.description,
+          in_stock: p.stock === null || p.stock > 0,
+        })),
+        count: results.length,
+      });
+    }
+
+    if (call.name === 'get_categories') {
+      const cats = await db
+        .select({ id: categories.id, name: categories.name })
+        .from(categories)
+        .where(eq(categories.catalogId, catalog.id));
+
+      return JSON.stringify({ categories: cats.map((c) => c.name) });
+    }
+
+    if (call.name === 'get_product_details') {
+      const productName = args.product_name as string;
+      const [product] = await db
+        .select({
+          id: products.id,
+          name: products.name,
+          price: products.price,
+          compareAtPrice: products.compareAtPrice,
+          description: products.description,
+          stock: products.stock,
+        })
+        .from(products)
+        .where(ilike(products.name, `%${productName}%`))
+        .limit(1);
+
+      if (!product) return JSON.stringify({ error: 'Producto no encontrado' });
+
+      const images = await db
+        .select({ url: productImages.url })
+        .from(productImages)
+        .where(eq(productImages.productId, product.id))
+        .limit(3);
+
+      return JSON.stringify({
+        name: product.name,
+        price: `${product.price} ${ctx.currency}`,
+        compare_at_price: product.compareAtPrice ? `${product.compareAtPrice} ${ctx.currency}` : null,
+        description: product.description,
+        in_stock: product.stock === null || product.stock > 0,
+        stock: product.stock,
+        images: images.map((i) => i.url),
+      });
+    }
+
+    if (call.name === 'create_order') {
+      const customerName = args.customer_name as string;
+      const customerPhone = args.customer_phone as string | undefined;
+      const items = args.items as Array<{ product_name: string; quantity: number }>;
+
+      // Resolve products
+      const orderProducts = [];
+      for (const item of items) {
+        const [product] = await db
+          .select({ id: products.id, name: products.name, price: products.price })
+          .from(products)
+          .where(ilike(products.name, `%${item.product_name}%`))
+          .limit(1);
+
+        if (product) {
+          orderProducts.push({ ...product, quantity: item.quantity });
+        }
+      }
+
+      if (orderProducts.length === 0) {
+        return JSON.stringify({ error: 'No se encontraron los productos especificados' });
+      }
+
+      const total = orderProducts.reduce((sum, p) => sum + parseFloat(p.price) * p.quantity, 0);
+
+      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+
+      const [order] = await db
+        .insert(orders)
+        .values({
+          businessId: ctx.businessId,
+          catalogId: catalog.id,
+          orderNumber,
+          customerName,
+          customerPhone: customerPhone ?? null,
+          subtotal: total.toFixed(2),
+          total: total.toFixed(2),
+          status: 'pending',
+          checkoutType: 'internal',
+        })
+        .returning();
+
+      await db.insert(orderItems).values(
+        orderProducts.map((p) => ({
+          orderId: order.id,
+          productId: p.id,
+          productName: p.name,
+          unitPrice: p.price,
+          quantity: p.quantity,
+          subtotal: (parseFloat(p.price) * p.quantity).toFixed(2),
+        }))
+      );
+
+      return JSON.stringify({
+        success: true,
+        order_number: orderNumber,
+        total: `${total.toFixed(2)} ${ctx.currency}`,
+        items: orderProducts.map((p) => ({
+          name: p.name,
+          quantity: p.quantity,
+          price: `${p.price} ${ctx.currency}`,
+        })),
+      });
+    }
+
+    return JSON.stringify({ error: 'Función no reconocida' });
+  } catch (error) {
+    console.error('Catalog function call error:', error);
+    return JSON.stringify({ error: 'Error al consultar el catálogo' });
+  }
+}
+
 async function handleFunctionCall(call: FunctionCall, ctx: ChatbotContext): Promise<string> {
   const args = call.args as Record<string, unknown>;
 
+  // Catalog & order tools
+  if (['search_products', 'get_categories', 'get_product_details', 'create_order'].includes(call.name)) {
+    return handleCatalogCall(call, ctx);
+  }
+
+  // Calendar tools
   if (!ctx.googleCalendarId) {
     return JSON.stringify({ error: 'Calendario no configurado para este negocio' });
   }
@@ -162,7 +479,12 @@ export async function generateChatResponse(
   const genAI = getModel();
   const systemInstruction = buildSystemPrompt(ctx);
 
-  const tools = ctx.calendarEnabled ? [{ functionDeclarations: getCalendarTools() }] : [];
+  const allDeclarations: FunctionDeclaration[] = [];
+  if (ctx.calendarEnabled) allDeclarations.push(...getCalendarTools());
+  if (ctx.autoAccessCatalog) allDeclarations.push(...getCatalogTools());
+  if (ctx.orderEnabled) allDeclarations.push(...getOrderTools());
+
+  const tools = allDeclarations.length > 0 ? [{ functionDeclarations: allDeclarations }] : [];
 
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-pro',

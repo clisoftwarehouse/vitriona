@@ -36,18 +36,30 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     borderColor: settings?.borderColor ?? '#e5e7eb',
     font: settings?.font ?? 'inter',
     roundedCorners: settings?.roundedCorners ?? true,
+    borderRadius: settings?.borderRadius ?? 12,
   };
 
   const currentYear = new Date().getFullYear();
 
-  const socialLinks = settings?.socialLinks as {
+  // Support individual social columns with fallback to legacy jsonb
+  const legacySocial = settings?.socialLinks as {
     instagram?: string;
     facebook?: string;
     twitter?: string;
     tiktok?: string;
     youtube?: string;
   } | null;
-  const hasSocials = socialLinks && Object.values(socialLinks).some(Boolean);
+  const socialLinks = {
+    instagram: settings?.socialInstagram ?? legacySocial?.instagram,
+    facebook: settings?.socialFacebook ?? legacySocial?.facebook,
+    twitter: settings?.socialTwitter ?? legacySocial?.twitter,
+    tiktok: settings?.socialTiktok ?? legacySocial?.tiktok,
+    youtube: settings?.socialYoutube ?? legacySocial?.youtube,
+    whatsapp: settings?.socialWhatsapp,
+    email: settings?.socialEmail,
+    phone: settings?.socialPhone,
+  };
+  const hasSocials = Object.values(socialLinks).some(Boolean);
 
   return (
     <>
@@ -69,7 +81,18 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
               color: settings.announcementTextColor ?? '#fff',
             }}
           >
-            {settings.announcementText}
+            {settings.announcementLink ? (
+              <a
+                href={settings.announcementLink}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='underline underline-offset-2 hover:opacity-80'
+              >
+                {settings.announcementText}
+              </a>
+            ) : (
+              settings.announcementText
+            )}
           </div>
         )}
 
@@ -119,7 +142,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                   WhatsApp
                 </a>
               )}
-              <CartSheet slug={slug} />
+              <CartSheet slug={slug} currency={business.currency} />
             </div>
           </div>
         </header>
@@ -260,6 +283,26 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         className='hover:opacity-100'
                       >
                         YouTube
+                      </a>
+                    )}
+                    {socialLinks?.whatsapp && (
+                      <a
+                        href={`https://wa.me/${socialLinks.whatsapp.replace(/\D/g, '')}`}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:opacity-100'
+                      >
+                        WhatsApp
+                      </a>
+                    )}
+                    {socialLinks?.email && (
+                      <a href={`mailto:${socialLinks.email}`} className='hover:opacity-100'>
+                        {socialLinks.email}
+                      </a>
+                    )}
+                    {socialLinks?.phone && (
+                      <a href={`tel:${socialLinks.phone}`} className='hover:opacity-100'>
+                        {socialLinks.phone}
                       </a>
                     )}
                   </div>

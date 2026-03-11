@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
-import { catalogs, products, businesses } from '@/db/schema';
+import { catalogs, products, businesses, productAttributeValues } from '@/db/schema';
 import type { UpdateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 
 export async function updateProductAction(productId: string, values: UpdateProductFormValues) {
@@ -26,6 +26,13 @@ export async function updateProductAction(productId: string, values: UpdateProdu
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 
+    const parsedTags = values.tags
+      ? values.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : null;
+
     await db
       .update(products)
       .set({
@@ -39,9 +46,31 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         stock: values.stock ?? 0,
         status: values.status,
         isFeatured: values.isFeatured,
+        type: values.type ?? 'product',
+        weight: values.weight || null,
+        dimensions: values.dimensions ?? null,
+        minStock: values.minStock ?? 0,
+        trackInventory: values.trackInventory ?? true,
+        tags: parsedTags,
+        characteristics: values.characteristics?.filter((c) => c.name.trim() && c.value.trim()) ?? null,
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId));
+
+    // Sync attribute values: delete old, insert new
+    if (values.attributeValues) {
+      await db.delete(productAttributeValues).where(eq(productAttributeValues.productId, productId));
+      const attrEntries = Object.entries(values.attributeValues).filter(([, v]) => v.trim() !== '');
+      if (attrEntries.length > 0) {
+        await db.insert(productAttributeValues).values(
+          attrEntries.map(([attributeId, value]) => ({
+            productId,
+            attributeId,
+            value,
+          }))
+        );
+      }
+    }
 
     return { success: true };
   } catch {

@@ -19,6 +19,11 @@ interface Category {
   name: string;
 }
 
+interface ProductAttribute {
+  name: string;
+  value: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -30,20 +35,24 @@ interface Product {
   isFeatured: boolean;
   images: ProductImage[];
   category: Category | null;
+  attributes?: ProductAttribute[];
+  tags?: string[];
+  characteristics?: { name: string; value: string }[] | null;
 }
 
 interface ProductDetailProps {
   slug: string;
   product: Product;
   whatsappNumber: string | null;
+  currency: string;
 }
 
-export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailProps) {
+export function ProductDetail({ slug, product, whatsappNumber, currency }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
-    return new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(num);
+    return new Intl.NumberFormat('es', { style: 'currency', currency }).format(num);
   };
 
   const hasDiscount = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price);
@@ -163,12 +172,48 @@ export function ProductDetail({ slug, product, whatsappNumber }: ProductDetailPr
             <p className='mt-2 text-sm font-medium text-amber-600'>¡Solo quedan {product.stock} unidades!</p>
           )}
 
+          {product.tags && product.tags.length > 0 && (
+            <div className='mt-4 flex flex-wrap gap-1.5'>
+              {product.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className='inline-flex items-center px-2.5 py-0.5 text-xs font-medium'
+                  style={{
+                    borderRadius: 'var(--sf-radius-full, 9999px)',
+                    backgroundColor: 'var(--sf-surface, #f3f4f6)',
+                    color: 'var(--sf-primary, #374151)',
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           {product.description && (
             <div className='mt-6 pt-6' style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}>
               <h2 className='mb-2 text-sm font-semibold tracking-wide uppercase opacity-50'>Descripción</h2>
               <p className='leading-relaxed whitespace-pre-line opacity-70'>{product.description}</p>
             </div>
           )}
+
+          {(() => {
+            const allChars = [...(product.characteristics ?? []), ...(product.attributes ?? [])];
+            if (allChars.length === 0) return null;
+            return (
+              <div className='mt-6 pt-6' style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}>
+                <h2 className='mb-3 text-sm font-semibold tracking-wide uppercase opacity-50'>Características</h2>
+                <ul className='space-y-1.5 text-sm'>
+                  {allChars.map((item, idx) => (
+                    <li key={idx} className='flex items-baseline gap-2'>
+                      <span className='font-medium opacity-60'>{item.name}:</span>
+                      <span>{item.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
 
           <div className='mt-8 flex flex-col gap-3'>
             <button

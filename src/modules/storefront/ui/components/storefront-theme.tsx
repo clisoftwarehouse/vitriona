@@ -7,6 +7,7 @@ export interface StorefrontTheme {
   borderColor: string;
   font: string;
   roundedCorners: boolean;
+  borderRadius: number;
 }
 
 const FONT_MAP: Record<string, string> = {
@@ -65,9 +66,10 @@ function hexToHsl(hex: string): string {
  */
 export function StorefrontThemeStyle({ theme }: { theme: StorefrontTheme }) {
   const fontFamily = FONT_MAP[theme.font] || FONT_MAP.inter;
-  const radius = theme.roundedCorners ? '0.75rem' : '0';
-  const radiusLg = theme.roundedCorners ? '1rem' : '0';
-  const radiusFull = theme.roundedCorners ? '9999px' : '0';
+  const br = theme.borderRadius ?? (theme.roundedCorners ? 12 : 0);
+  const radius = br > 0 ? `${br * 0.0625}rem` : '0';
+  const radiusLg = br > 0 ? `${(br + 4) * 0.0625}rem` : '0';
+  const radiusFull = br > 0 ? '9999px' : '0';
 
   const css = `:root {
   --sf-primary: ${theme.primaryColor};

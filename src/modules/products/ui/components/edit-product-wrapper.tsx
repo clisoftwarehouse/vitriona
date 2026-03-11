@@ -9,11 +9,20 @@ interface Category {
   name: string;
 }
 
+interface AttributeDefinition {
+  id: string;
+  name: string;
+  type: string;
+  options: string[] | null;
+  isRequired: boolean;
+}
+
 interface EditProductWrapperProps {
   productId: string;
   catalogId: string;
   businessId: string;
   categories: Category[];
+  attributes?: AttributeDefinition[];
   defaultValues: Partial<CreateProductFormValues>;
 }
 
@@ -22,6 +31,7 @@ export function EditProductWrapper({
   catalogId,
   businessId,
   categories,
+  attributes,
   defaultValues,
 }: EditProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
@@ -34,6 +44,7 @@ export function EditProductWrapper({
       catalogId={catalogId}
       businessId={businessId}
       categories={categories}
+      attributes={attributes}
       defaultValues={defaultValues}
       onSubmitAction={handleSubmit}
     />

@@ -13,3 +13,52 @@ export const BUSINESS_CATEGORIES = [
 ] as const;
 
 export type BusinessCategory = (typeof BUSINESS_CATEGORIES)[number]['value'];
+
+export const CURRENCIES = [
+  { value: 'USD', label: 'USD — Dólar estadounidense', symbol: '$' },
+  { value: 'DOP', label: 'DOP — Peso dominicano', symbol: 'RD$' },
+  { value: 'EUR', label: 'EUR — Euro', symbol: '€' },
+  { value: 'MXN', label: 'MXN — Peso mexicano', symbol: '$' },
+  { value: 'COP', label: 'COP — Peso colombiano', symbol: '$' },
+  { value: 'ARS', label: 'ARS — Peso argentino', symbol: '$' },
+  { value: 'CLP', label: 'CLP — Peso chileno', symbol: '$' },
+  { value: 'PEN', label: 'PEN — Sol peruano', symbol: 'S/' },
+  { value: 'BRL', label: 'BRL — Real brasileño', symbol: 'R$' },
+  { value: 'GBP', label: 'GBP — Libra esterlina', symbol: '£' },
+  { value: 'CAD', label: 'CAD — Dólar canadiense', symbol: '$' },
+  { value: 'GTQ', label: 'GTQ — Quetzal guatemalteco', symbol: 'Q' },
+  { value: 'HNL', label: 'HNL — Lempira hondureño', symbol: 'L' },
+  { value: 'NIO', label: 'NIO — Córdoba nicaragüense', symbol: 'C$' },
+  { value: 'CRC', label: 'CRC — Colón costarricense', symbol: '₡' },
+  { value: 'PAB', label: 'PAB — Balboa panameño', symbol: 'B/.' },
+  { value: 'UYU', label: 'UYU — Peso uruguayo', symbol: '$U' },
+  { value: 'BOB', label: 'BOB — Boliviano', symbol: 'Bs' },
+  { value: 'PYG', label: 'PYG — Guaraní paraguayo', symbol: '₲' },
+  { value: 'VES', label: 'VES — Bolívar venezolano', symbol: 'Bs.S' },
+] as const;
+
+export const LOCALE_OPTIONS = [
+  { value: 'es', label: 'Español' },
+  { value: 'en', label: 'English' },
+  { value: 'pt', label: 'Português' },
+] as const;
+
+export const DAYS_OF_WEEK = [
+  { key: 'mon', label: 'Lunes' },
+  { key: 'tue', label: 'Martes' },
+  { key: 'wed', label: 'Miércoles' },
+  { key: 'thu', label: 'Jueves' },
+  { key: 'fri', label: 'Viernes' },
+  { key: 'sat', label: 'Sábado' },
+  { key: 'sun', label: 'Domingo' },
+] as const;
+
+export const DEFAULT_BUSINESS_HOURS: Record<string, { open: string; close: string; closed: boolean }> = {
+  mon: { open: '09:00', close: '18:00', closed: false },
+  tue: { open: '09:00', close: '18:00', closed: false },
+  wed: { open: '09:00', close: '18:00', closed: false },
+  thu: { open: '09:00', close: '18:00', closed: false },
+  fri: { open: '09:00', close: '18:00', closed: false },
+  sat: { open: '09:00', close: '14:00', closed: false },
+  sun: { open: '09:00', close: '14:00', closed: true },
+};

@@ -11,8 +11,12 @@ type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
 type LayoutOption = 'grid' | 'list' | 'magazine';
 type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
+type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
+type CtaAction = 'scroll' | 'link' | 'whatsapp' | 'catalog';
 
 export type CatalogSettingsInput = {
+  themePreset?: ThemePreset;
+  darkMode?: boolean;
   primaryColor?: string;
   accentColor?: string;
   backgroundColor?: string;
@@ -20,6 +24,7 @@ export type CatalogSettingsInput = {
   textColor?: string;
   font?: FontOption;
   roundedCorners?: boolean;
+  borderRadius?: number;
   cardStyle?: CardStyleOption;
   borderColor?: string;
   layout?: LayoutOption;
@@ -30,14 +35,20 @@ export type CatalogSettingsInput = {
   announcementText?: string | null;
   announcementBgColor?: string;
   announcementTextColor?: string;
+  announcementLink?: string | null;
+  announcementDismissable?: boolean;
+  announcementIcon?: string | null;
   heroEnabled?: boolean;
   heroTitle?: string | null;
   heroSubtitle?: string | null;
   heroImageUrl?: string | null;
   heroBadgeText?: string | null;
+  heroBadgeIcon?: string | null;
   heroCtaPrimaryText?: string | null;
+  heroCtaPrimaryAction?: CtaAction;
   heroCtaPrimaryLink?: string | null;
   heroCtaSecondaryText?: string | null;
+  heroCtaSecondaryAction?: CtaAction;
   heroCtaSecondaryLink?: string | null;
   heroStyle?: HeroStyleOption;
   featuredEnabled?: boolean;
@@ -47,9 +58,20 @@ export type CatalogSettingsInput = {
   aboutText?: string | null;
   aboutImageUrl?: string | null;
   socialLinks?: { instagram?: string; facebook?: string; twitter?: string; tiktok?: string; youtube?: string } | null;
+  socialInstagram?: string | null;
+  socialFacebook?: string | null;
+  socialTwitter?: string | null;
+  socialTiktok?: string | null;
+  socialYoutube?: string | null;
+  socialWhatsapp?: string | null;
+  socialEmail?: string | null;
+  socialPhone?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   ogImageUrl?: string | null;
+  seoCanonicalUrl?: string | null;
+  seoKeywords?: string | null;
+  faviconUrl?: string | null;
 };
 
 export async function updateCatalogSettingsAction(catalogId: string, values: CatalogSettingsInput) {

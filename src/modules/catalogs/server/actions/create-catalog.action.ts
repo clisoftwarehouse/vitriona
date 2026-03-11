@@ -20,12 +20,22 @@ export async function createCatalogAction(businessId: string, values: CreateCata
 
     if (!business) return { error: 'Negocio no encontrado' };
 
+    const slug =
+      values.slug?.trim() ||
+      values.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
     const [catalog] = await db
       .insert(catalogs)
       .values({
         businessId,
         name: values.name,
+        slug,
         description: values.description || null,
+        imageUrl: values.imageUrl || null,
+        type: values.type ?? 'general',
       })
       .returning({ id: catalogs.id });
 

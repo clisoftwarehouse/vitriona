@@ -65,7 +65,10 @@ export default async function EditCatalogPage({ params }: EditCatalogPageProps) 
             catalogId={catalog.id}
             defaultValues={{
               name: catalog.name,
+              slug: catalog.slug ?? '',
               description: catalog.description ?? '',
+              imageUrl: catalog.imageUrl ?? '',
+              type: catalog.type,
             }}
           />
         </CardContent>

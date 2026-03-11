@@ -3,7 +3,16 @@
 import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
+import {
+  catalogs,
+  products,
+  categories,
+  businesses,
+  productImages,
+  catalogSettings,
+  productAttributes,
+  productAttributeValues,
+} from '@/db/schema';
 
 export async function getBusinessBySlug(slug: string) {
   const [business] = await db
@@ -81,6 +90,76 @@ export async function getPublicProducts(catalogId: string, categoryId?: string) 
   }));
 }
 
+export async function getActiveCatalogs(businessId: string) {
+  return db
+    .select()
+    .from(catalogs)
+    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
+    .orderBy(asc(catalogs.sortOrder));
+}
+
+export async function getCatalogBySlug(businessId: string, catalogSlug: string) {
+  const [catalog] = await db
+    .select()
+    .from(catalogs)
+    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.slug, catalogSlug), eq(catalogs.isActive, true)))
+    .limit(1);
+
+  return catalog ?? null;
+}
+
+export async function getCatalogsWithPreviewProducts(businessId: string, limit = 6) {
+  const catalogList = await db
+    .select()
+    .from(catalogs)
+    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
+    .orderBy(asc(catalogs.sortOrder));
+
+  if (catalogList.length === 0) return [];
+
+  const catalogIds = catalogList.map((c) => c.id);
+
+  const allProducts = await db
+    .select()
+    .from(products)
+    .where(and(inArray(products.catalogId, catalogIds), eq(products.status, 'active')))
+    .orderBy(asc(products.sortOrder));
+
+  const productIds = allProducts.map((p) => p.id);
+  const allImages =
+    productIds.length > 0
+      ? await db
+          .select()
+          .from(productImages)
+          .where(inArray(productImages.productId, productIds))
+          .orderBy(asc(productImages.sortOrder))
+      : [];
+
+  const imageMap = new Map<string, (typeof allImages)[number][]>();
+  for (const img of allImages) {
+    const existing = imageMap.get(img.productId) ?? [];
+    existing.push(img);
+    imageMap.set(img.productId, existing);
+  }
+
+  const productsByCatalog = new Map<string, (typeof allProducts)[number][]>();
+  for (const p of allProducts) {
+    const existing = productsByCatalog.get(p.catalogId) ?? [];
+    existing.push(p);
+    productsByCatalog.set(p.catalogId, existing);
+  }
+
+  return catalogList.map((catalog) => {
+    const catalogProducts = (productsByCatalog.get(catalog.id) ?? []).slice(0, limit);
+    const totalProducts = productsByCatalog.get(catalog.id)?.length ?? 0;
+    return {
+      ...catalog,
+      products: catalogProducts.map((p) => ({ ...p, images: imageMap.get(p.id) ?? [] })),
+      totalProducts,
+    };
+  });
+}
+
 export async function getProductBySlug(catalogId: string, productSlug: string) {
   const [product] = await db
     .select()
@@ -105,5 +184,20 @@ export async function getProductBySlug(catalogId: string, productSlug: string) {
         .then((r) => r[0])
     : null;
 
-  return { ...product, images, category };
+  const attrRows = await db
+    .select({
+      name: productAttributes.name,
+      value: productAttributeValues.value,
+    })
+    .from(productAttributeValues)
+    .innerJoin(productAttributes, eq(productAttributeValues.attributeId, productAttributes.id))
+    .where(eq(productAttributeValues.productId, product.id));
+
+  return {
+    ...product,
+    images,
+    category,
+    attributes: attrRows,
+    tags: product.tags ?? [],
+  };
 }

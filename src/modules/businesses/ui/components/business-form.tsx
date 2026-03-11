@@ -5,14 +5,15 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Phone, Store, MapPin, Upload, Trash2, Loader2, MessageCircle } from 'lucide-react';
+import { Mail, Globe, Phone, Store, MapPin, Trash2, Upload, Loader2, Receipt, MessageCircle } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { BusinessHoursEditor } from './business-hours-editor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BUSINESS_CATEGORIES } from '@/modules/businesses/constants';
+import { CURRENCIES, LOCALE_OPTIONS, BUSINESS_CATEGORIES } from '@/modules/businesses/constants';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { createBusinessSchema, type CreateBusinessFormValues } from '@/modules/businesses/ui/schemas/business.schemas';
@@ -35,11 +36,26 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
       slug: '',
       description: '',
       category: undefined,
+      logoUrl: '',
       phone: '',
       email: '',
-      address: '',
       whatsappNumber: '',
-      logoUrl: '',
+      website: '',
+      address: '',
+      country: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      currency: 'USD',
+      timezone: 'America/Santo_Domingo',
+      locale: 'es',
+      instagramUrl: '',
+      facebookUrl: '',
+      tiktokUrl: '',
+      twitterUrl: '',
+      youtubeUrl: '',
+      taxId: '',
+      businessHours: undefined,
       ...defaultValues,
     },
   });
@@ -178,6 +194,8 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
             )}
           />
 
+          {/* ── Contacto ── */}
+          <SectionTitle icon={Phone} title='Contacto' />
           <div className='grid gap-6 sm:grid-cols-2'>
             <FormField
               control={form.control}
@@ -240,14 +258,14 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
 
             <FormField
               control={form.control}
-              name='address'
+              name='website'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dirección</FormLabel>
+                  <FormLabel>Sitio web</FormLabel>
                   <FormControl>
                     <div className='relative'>
-                      <MapPin className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
-                      <Input {...field} placeholder='Calle, Ciudad, País' className='pl-10' disabled={isPending} />
+                      <Globe className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
+                      <Input {...field} placeholder='https://minegocio.com' className='pl-10' disabled={isPending} />
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -255,6 +273,218 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
               )}
             />
           </div>
+
+          {/* ── Ubicación ── */}
+          <SectionTitle icon={MapPin} title='Ubicación' />
+          <FormField
+            control={form.control}
+            name='address'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Dirección</FormLabel>
+                <FormControl>
+                  <div className='relative'>
+                    <MapPin className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
+                    <Input {...field} placeholder='Calle Principal #123' className='pl-10' disabled={isPending} />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-4'>
+            <FormField
+              control={form.control}
+              name='city'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ciudad</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder='Santo Domingo' disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='state'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado / Provincia</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder='Distrito Nacional' disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='country'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>País</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder='República Dominicana' disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='zipCode'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código postal</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder='10100' disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* ── Regional ── */}
+          <SectionTitle icon={Globe} title='Configuración regional' />
+          <div className='grid gap-6 sm:grid-cols-3'>
+            <FormField
+              control={form.control}
+              name='currency'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Moneda</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? 'USD'}>
+                    <FormControl>
+                      <SelectTrigger className='w-full'>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CURRENCIES.map(({ value, label }) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='locale'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Idioma</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? 'es'}>
+                    <FormControl>
+                      <SelectTrigger className='w-full'>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {LOCALE_OPTIONS.map(({ value, label }) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='timezone'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Zona horaria</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value ?? 'America/Santo_Domingo'}
+                      onChange={field.onChange}
+                      disabled={isPending}
+                      className='border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs'
+                    >
+                      {Intl.supportedValuesOf('timeZone').map((tz) => (
+                        <option key={tz} value={tz}>
+                          {tz.replace(/_/g, ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* ── Redes sociales ── */}
+          <SectionTitle icon={Globe} title='Redes sociales' />
+          <div className='grid gap-4 sm:grid-cols-2'>
+            {(
+              [
+                { name: 'instagramUrl' as const, label: 'Instagram', ph: 'https://instagram.com/minegocio' },
+                { name: 'facebookUrl' as const, label: 'Facebook', ph: 'https://facebook.com/minegocio' },
+                { name: 'tiktokUrl' as const, label: 'TikTok', ph: 'https://tiktok.com/@minegocio' },
+                { name: 'twitterUrl' as const, label: 'X / Twitter', ph: 'https://x.com/minegocio' },
+                { name: 'youtubeUrl' as const, label: 'YouTube', ph: 'https://youtube.com/@minegocio' },
+              ] as const
+            ).map(({ name, label, ph }) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={name}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{label}</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder={ph} disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+          </div>
+
+          {/* ── Horarios ── */}
+          <SectionTitle icon={Store} title='Horarios de atención' />
+          <FormField
+            control={form.control}
+            name='businessHours'
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <BusinessHoursEditor value={field.value} onChange={field.onChange} disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* ── Fiscal ── */}
+          <SectionTitle icon={Receipt} title='Información fiscal' />
+          <FormField
+            control={form.control}
+            name='taxId'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>RNC / NIF / Tax ID</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder='000-00000-0' disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <div className='flex justify-end gap-3 pt-2'>
             <Button type='button' variant='outline' onClick={() => router.back()} disabled={isPending}>
@@ -272,6 +502,17 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
           </div>
         </form>
       </Form>
+    </div>
+  );
+}
+
+/* ─── Section Title ─── */
+
+function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className='flex items-center gap-2 border-b pt-4 pb-2'>
+      <Icon className='text-muted-foreground size-4' />
+      <h4 className='text-sm font-semibold'>{title}</h4>
     </div>
   );
 }

@@ -13,10 +13,30 @@ export const users = pgTable('users', {
   role: text('role', { enum: ['user', 'admin'] })
     .notNull()
     .default('user'),
+  phone: text('phone'),
+  timezone: text('timezone').default('America/Santo_Domingo'),
+  locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
+  avatarUrl: text('avatar_url'),
+  onboardingDone: boolean('onboarding_done').notNull().default(false),
   resetPasswordToken: text('reset_password_token'),
   resetPasswordTokenExpiry: timestamp('reset_password_token_expiry', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const userPreferences = pgTable('user_preferences', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  theme: text('theme', { enum: ['light', 'dark', 'system'] })
+    .notNull()
+    .default('system'),
+  sidebarCollapsed: boolean('sidebar_collapsed').notNull().default(false),
+  defaultBusinessId: text('default_business_id').references(() => businesses.id, { onDelete: 'set null' }),
 });
 
 export const accounts = pgTable(
@@ -117,6 +137,32 @@ export const businesses = pgTable('businesses', {
   email: text('email'),
   address: text('address'),
   whatsappNumber: text('whatsapp_number'),
+
+  // ── Regional ──
+  currency: text('currency').notNull().default('USD'),
+  timezone: text('timezone').default('America/Santo_Domingo'),
+  locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
+
+  // ── Web & Social ──
+  website: text('website'),
+  instagramUrl: text('instagram_url'),
+  facebookUrl: text('facebook_url'),
+  tiktokUrl: text('tiktok_url'),
+  twitterUrl: text('twitter_url'),
+  youtubeUrl: text('youtube_url'),
+
+  // ── Location ──
+  country: text('country'),
+  city: text('city'),
+  state: text('state'),
+  zipCode: text('zip_code'),
+
+  // ── Fiscal ──
+  taxId: text('tax_id'),
+
+  // ── Schedule ──
+  businessHours: jsonb('business_hours').$type<Record<string, { open: string; close: string; closed: boolean }>>(),
+
   isActive: boolean('is_active').notNull().default(true),
   plan: text('plan', { enum: ['free', 'pro', 'business'] })
     .notNull()
@@ -133,7 +179,13 @@ export const catalogs = pgTable('catalogs', {
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  slug: text('slug'),
   description: text('description'),
+  imageUrl: text('image_url'),
+  type: text('type', { enum: ['general', 'seasonal', 'premium', 'services'] })
+    .notNull()
+    .default('general'),
+  sortOrder: integer('sort_order').notNull().default(0),
   isDefault: boolean('is_default').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
@@ -150,6 +202,10 @@ export const catalogSettings = pgTable('catalog_settings', {
     .references(() => catalogs.id, { onDelete: 'cascade' }),
 
   // ── Theme ──
+  themePreset: text('theme_preset', {
+    enum: ['light', 'dark', 'elegant', 'vibrant', 'ocean', 'custom'],
+  }).default('custom'),
+  darkMode: boolean('dark_mode').notNull().default(false),
   primaryColor: text('primary_color').default('#000000'),
   accentColor: text('accent_color').default('#6366f1'),
   backgroundColor: text('background_color').default('#ffffff'),
@@ -159,6 +215,7 @@ export const catalogSettings = pgTable('catalog_settings', {
     enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto', 'space-grotesk', 'outfit'],
   }).default('inter'),
   roundedCorners: boolean('rounded_corners').notNull().default(true),
+  borderRadius: integer('border_radius').default(12),
   cardStyle: text('card_style', { enum: ['default', 'minimal', 'bordered', 'shadow'] }).default('default'),
 
   borderColor: text('border_color').default('#e5e7eb'),
@@ -175,16 +232,28 @@ export const catalogSettings = pgTable('catalog_settings', {
   announcementBgColor: text('announcement_bg_color').default('#000000'),
   announcementTextColor: text('announcement_text_color').default('#ffffff'),
 
+  // ── Announcement Enhancements ──
+  announcementLink: text('announcement_link'),
+  announcementDismissable: boolean('announcement_dismissable').notNull().default(false),
+  announcementIcon: text('announcement_icon'),
+
   // ── Hero Section ──
   heroEnabled: boolean('hero_enabled').notNull().default(true),
   heroTitle: text('hero_title'),
   heroSubtitle: text('hero_subtitle'),
   heroImageUrl: text('hero_image_url'),
   heroBadgeText: text('hero_badge_text'),
+  heroBadgeIcon: text('hero_badge_icon').default('sparkles'),
   heroCtaPrimaryText: text('hero_cta_primary_text').default('Ver productos'),
   heroCtaPrimaryLink: text('hero_cta_primary_link'),
+  heroCtaPrimaryAction: text('hero_cta_primary_action', {
+    enum: ['scroll', 'link', 'whatsapp', 'catalog'],
+  }).default('scroll'),
   heroCtaSecondaryText: text('hero_cta_secondary_text'),
   heroCtaSecondaryLink: text('hero_cta_secondary_link'),
+  heroCtaSecondaryAction: text('hero_cta_secondary_action', {
+    enum: ['scroll', 'link', 'whatsapp', 'catalog'],
+  }).default('link'),
   heroStyle: text('hero_style', { enum: ['centered', 'split', 'banner', 'minimal'] }).default('centered'),
 
   // ── Featured Section ──
@@ -208,11 +277,43 @@ export const catalogSettings = pgTable('catalog_settings', {
     tiktok?: string;
     youtube?: string;
   }>(),
+  socialInstagram: text('social_instagram'),
+  socialFacebook: text('social_facebook'),
+  socialTwitter: text('social_twitter'),
+  socialTiktok: text('social_tiktok'),
+  socialYoutube: text('social_youtube'),
+  socialWhatsapp: text('social_whatsapp'),
+  socialEmail: text('social_email'),
+  socialPhone: text('social_phone'),
 
   // ── SEO ──
   seoTitle: text('seo_title'),
   seoDescription: text('seo_description'),
   ogImageUrl: text('og_image_url'),
+  seoCanonicalUrl: text('seo_canonical_url'),
+  seoKeywords: text('seo_keywords'),
+  faviconUrl: text('favicon_url'),
+});
+
+export const customSections = pgTable('custom_sections', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  catalogSettingsId: text('catalog_settings_id')
+    .notNull()
+    .references(() => catalogSettings.id, { onDelete: 'cascade' }),
+  type: text('type', {
+    enum: ['info', 'banner', 'promo', 'products_by_category', 'gallery', 'testimonials'],
+  }).notNull(),
+  title: text('title'),
+  subtitle: text('subtitle'),
+  content: jsonb('content'),
+  imageUrl: text('image_url'),
+  backgroundColor: text('background_color'),
+  textColor: text('text_color'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const categories = pgTable('categories', {
@@ -250,10 +351,95 @@ export const products = pgTable('products', {
   status: text('status', { enum: ['active', 'inactive', 'out_of_stock'] })
     .notNull()
     .default('active'),
+  type: text('type', { enum: ['product', 'service'] })
+    .notNull()
+    .default('product'),
+  weight: numeric('weight', { precision: 10, scale: 2 }),
+  dimensions: jsonb('dimensions').$type<{ length?: number; width?: number; height?: number; unit?: string }>(),
+  minStock: integer('min_stock').default(0),
+  trackInventory: boolean('track_inventory').notNull().default(true),
+  tags: text('tags').array(),
+  characteristics: jsonb('characteristics').$type<{ name: string; value: string }[]>(),
   isFeatured: boolean('is_featured').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Product Attributes (definitions per business) ──
+
+export const productAttributes = pgTable('product_attributes', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  type: text('type', { enum: ['text', 'number', 'select', 'color', 'boolean'] })
+    .notNull()
+    .default('text'),
+  options: jsonb('options').$type<string[]>(),
+  isRequired: boolean('is_required').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Product Attribute Values (per product) ──
+
+export const productAttributeValues = pgTable('product_attribute_values', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  attributeId: text('attribute_id')
+    .notNull()
+    .references(() => productAttributes.id, { onDelete: 'cascade' }),
+  value: text('value').notNull(),
+});
+
+// ── Services ──
+
+export const services = pgTable('services', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  catalogId: text('catalog_id')
+    .notNull()
+    .references(() => catalogs.id, { onDelete: 'cascade' }),
+  categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  description: text('description'),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
+  durationMinutes: integer('duration_minutes'),
+  imageUrl: text('image_url'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Inventory Movements ──
+
+export const inventoryMovements = pgTable('inventory_movements', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['in', 'out', 'adjustment', 'order'] }).notNull(),
+  quantity: integer('quantity').notNull(),
+  reason: text('reason'),
+  referenceId: text('reference_id'),
+  previousStock: integer('previous_stock').notNull(),
+  newStock: integer('new_stock').notNull(),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const chatbotConfigs = pgTable('chatbot_configs', {
@@ -274,6 +460,18 @@ export const chatbotConfigs = pgTable('chatbot_configs', {
   businessInfo: jsonb('business_info'),
   faqs: jsonb('faqs').$type<string[]>().default([]),
   isEnabled: boolean('is_enabled').notNull().default(false),
+
+  // ── Personality ──
+  personality: text('personality'),
+  tone: text('tone', { enum: ['professional', 'friendly', 'casual', 'formal'] })
+    .notNull()
+    .default('professional'),
+  language: text('language').notNull().default('es'),
+
+  // ── Capabilities ──
+  autoAccessCatalog: boolean('auto_access_catalog').notNull().default(true),
+  orderEnabled: boolean('order_enabled').notNull().default(false),
+  maxTokens: integer('max_tokens').notNull().default(1024),
   calendarEnabled: boolean('calendar_enabled').notNull().default(false),
   googleCalendarId: text('google_calendar_id'),
   calendarTimezone: text('calendar_timezone').notNull().default('America/Santo_Domingo'),
@@ -283,6 +481,40 @@ export const chatbotConfigs = pgTable('chatbot_configs', {
   slotDurationMinutes: integer('slot_duration_minutes').notNull().default(60),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const chatbotKnowledgeEntries = pgTable('chatbot_knowledge_entries', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  chatbotConfigId: text('chatbot_config_id')
+    .notNull()
+    .references(() => chatbotConfigs.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(),
+  value: text('value').notNull(),
+  category: text('category', {
+    enum: ['general', 'envios', 'pagos', 'productos', 'servicios', 'politicas', 'otro'],
+  }).default('general'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const chatbotKnowledgeFiles = pgTable('chatbot_knowledge_files', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  chatbotConfigId: text('chatbot_config_id')
+    .notNull()
+    .references(() => chatbotConfigs.id, { onDelete: 'cascade' }),
+  fileName: text('file_name').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileSize: integer('file_size'),
+  mimeType: text('mime_type'),
+  extractedText: text('extracted_text'),
+  status: text('status', { enum: ['processing', 'ready', 'error'] })
+    .notNull()
+    .default('processing'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const orders = pgTable('orders', {
@@ -310,8 +542,25 @@ export const orders = pgTable('orders', {
   checkoutType: text('checkout_type', { enum: ['whatsapp', 'internal'] })
     .notNull()
     .default('whatsapp'),
+  inventoryDeducted: boolean('inventory_deducted').notNull().default(false),
+  cancelledAt: timestamp('cancelled_at', { mode: 'date' }),
+  cancelReason: text('cancel_reason'),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const orderStatusHistory = pgTable('order_status_history', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  orderId: text('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  fromStatus: text('from_status'),
+  toStatus: text('to_status').notNull(),
+  changedBy: text('changed_by').references(() => users.id, { onDelete: 'set null' }),
+  note: text('note'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const orderItems = pgTable('order_items', {

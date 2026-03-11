@@ -1,7 +1,9 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
+
 import { db } from '@/db/drizzle';
-import { orders, orderItems } from '@/db/schema';
+import { orders, products, orderItems, inventoryMovements, orderStatusHistory } from '@/db/schema';
 
 interface OrderItemInput {
   productId: string;
@@ -43,6 +45,22 @@ export async function createOrderAction(input: CreateOrderInput) {
   const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
   const total = subtotal;
 
+  // Verify stock availability for products with inventory tracking
+  for (const item of items) {
+    const [product] = await db
+      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .limit(1);
+
+    if (product?.trackInventory) {
+      const available = product.stock ?? 0;
+      if (available < item.quantity) {
+        return { error: `Stock insuficiente para "${product.name}". Disponible: ${available}` };
+      }
+    }
+  }
+
   const [order] = await db
     .insert(orders)
     .values({
@@ -57,6 +75,7 @@ export async function createOrderAction(input: CreateOrderInput) {
       total: total.toFixed(2),
       status: 'pending',
       checkoutType,
+      inventoryDeducted: true,
     })
     .returning();
 
@@ -70,6 +89,47 @@ export async function createOrderAction(input: CreateOrderInput) {
       subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
     }))
   );
+
+  // Deduct inventory
+  for (const item of items) {
+    const [product] = await db
+      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .limit(1);
+
+    if (!product?.trackInventory) continue;
+
+    const previousStock = product.stock ?? 0;
+    const newStock = Math.max(0, previousStock - item.quantity);
+
+    await db
+      .update(products)
+      .set({
+        stock: newStock,
+        status: newStock === 0 ? 'out_of_stock' : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(products.id, item.productId));
+
+    await db.insert(inventoryMovements).values({
+      productId: item.productId,
+      type: 'order',
+      quantity: item.quantity,
+      reason: `Pedido ${order.orderNumber}`,
+      referenceId: order.id,
+      previousStock,
+      newStock,
+    });
+  }
+
+  // Record initial status in history
+  await db.insert(orderStatusHistory).values({
+    orderId: order.id,
+    fromStatus: null,
+    toStatus: 'pending',
+    note: 'Pedido creado',
+  });
 
   return { success: true, order };
 }

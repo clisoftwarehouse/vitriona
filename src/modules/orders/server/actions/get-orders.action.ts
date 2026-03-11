@@ -1,10 +1,10 @@
 'use server';
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, asc, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { orders, businesses, orderItems } from '@/db/schema';
+import { orders, businesses, orderItems, orderStatusHistory } from '@/db/schema';
 
 export async function getOrdersByBusinessAction(businessId: string) {
   const session = await auth();
@@ -42,7 +42,14 @@ export async function getOrderDetailAction(orderId: string) {
 
   if (!business) return { error: 'No autorizado' };
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const [items, statusHistory] = await Promise.all([
+    db.select().from(orderItems).where(eq(orderItems.orderId, orderId)),
+    db
+      .select()
+      .from(orderStatusHistory)
+      .where(eq(orderStatusHistory.orderId, orderId))
+      .orderBy(asc(orderStatusHistory.createdAt)),
+  ]);
 
-  return { order, items };
+  return { order, items, statusHistory };
 }

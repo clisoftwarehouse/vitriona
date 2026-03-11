@@ -18,7 +18,7 @@ export async function getCatalogsAction(businessId: string) {
 
   if (!business) return [];
 
-  return db.select().from(catalogs).where(eq(catalogs.businessId, businessId)).orderBy(catalogs.createdAt);
+  return db.select().from(catalogs).where(eq(catalogs.businessId, businessId)).orderBy(catalogs.sortOrder);
 }
 
 export async function getCatalogByIdAction(catalogId: string) {

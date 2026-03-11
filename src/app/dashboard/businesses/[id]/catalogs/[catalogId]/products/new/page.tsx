@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { CreateProductWrapper } from '@/modules/products/ui/components/create-product-wrapper';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
@@ -15,10 +16,11 @@ interface NewProductPageProps {
 
 export default async function NewProductPage({ params }: NewProductPageProps) {
   const { id, catalogId } = await params;
-  const [business, catalog, categories] = await Promise.all([
+  const [business, catalog, categories, attributes] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(catalogId),
+    getAttributesAction(id),
   ]);
 
   if (!business || !catalog) notFound();
@@ -44,7 +46,7 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
           <h3 className='font-semibold'>Información del producto</h3>
         </CardHeader>
         <CardContent>
-          <CreateProductWrapper catalogId={catalogId} businessId={id} categories={categories} />
+          <CreateProductWrapper catalogId={catalogId} businessId={id} categories={categories} attributes={attributes} />
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { signOut } from 'next-auth/react';
 import { Sun, Moon, User, LogOut } from 'lucide-react';
@@ -54,9 +55,11 @@ export function UserMenu({ name, email, image }: UserMenuProps) {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem>
-          <User className='size-4' />
-          Perfil
+        <DropdownMenuItem asChild>
+          <Link href='/dashboard/settings'>
+            <User className='size-4' />
+            Perfil
+          </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>

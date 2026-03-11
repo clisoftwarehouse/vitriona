@@ -6,6 +6,11 @@ export const productStatusOptions = [
   { value: 'out_of_stock', label: 'Sin stock' },
 ] as const;
 
+export const productTypeOptions = [
+  { value: 'product', label: 'Producto' },
+  { value: 'service', label: 'Servicio' },
+] as const;
+
 export const createProductSchema = z.object({
   name: z
     .string()
@@ -23,6 +28,21 @@ export const createProductSchema = z.object({
   categoryId: z.string().optional().or(z.literal('')),
   status: z.enum(['active', 'inactive', 'out_of_stock']),
   isFeatured: z.boolean(),
+  type: z.enum(['product', 'service']),
+  weight: z.string().optional().or(z.literal('')),
+  dimensions: z
+    .object({
+      length: z.number().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      unit: z.string().optional(),
+    })
+    .optional(),
+  minStock: z.number().int().min(0).optional(),
+  trackInventory: z.boolean(),
+  tags: z.string().optional().or(z.literal('')),
+  attributeValues: z.record(z.string(), z.string()).optional(),
+  characteristics: z.array(z.object({ name: z.string().min(1), value: z.string().min(1) })).optional(),
 });
 
 export const updateProductSchema = createProductSchema;

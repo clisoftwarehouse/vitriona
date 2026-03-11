@@ -9,13 +9,22 @@ interface Category {
   name: string;
 }
 
+interface AttributeDefinition {
+  id: string;
+  name: string;
+  type: string;
+  options: string[] | null;
+  isRequired: boolean;
+}
+
 interface CreateProductWrapperProps {
   catalogId: string;
   businessId: string;
   categories: Category[];
+  attributes?: AttributeDefinition[];
 }
 
-export function CreateProductWrapper({ catalogId, businessId, categories }: CreateProductWrapperProps) {
+export function CreateProductWrapper({ catalogId, businessId, categories, attributes }: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return createProductAction(catalogId, values);
   };
@@ -26,6 +35,7 @@ export function CreateProductWrapper({ catalogId, businessId, categories }: Crea
       catalogId={catalogId}
       businessId={businessId}
       categories={categories}
+      attributes={attributes}
       onSubmitAction={handleSubmit}
     />
   );

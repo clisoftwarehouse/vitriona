@@ -8,6 +8,7 @@ import {
   getPublicProducts,
   getCatalogSettings,
   getPublicCategories,
+  getCatalogsWithPreviewProducts,
 } from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface CatalogPageProps {
@@ -29,6 +30,8 @@ export async function generateMetadata({ params }: CatalogPageProps): Promise<Me
   return {
     title,
     description,
+    ...(settings?.seoKeywords ? { keywords: settings.seoKeywords.split(',').map((k: string) => k.trim()) } : {}),
+    ...(settings?.seoCanonicalUrl ? { alternates: { canonical: settings.seoCanonicalUrl } } : {}),
     openGraph: {
       title,
       description,
@@ -48,10 +51,11 @@ export default async function CatalogPage({ params, searchParams }: CatalogPageP
   const catalog = await getDefaultCatalog(business.id);
   if (!catalog) notFound();
 
-  const [categoriesList, productsList, settings] = await Promise.all([
+  const [categoriesList, productsList, settings, allCatalogsWithProducts] = await Promise.all([
     getPublicCategories(catalog.id),
     getPublicProducts(catalog.id, categoria || undefined),
     getCatalogSettings(catalog.id),
+    getCatalogsWithPreviewProducts(business.id, 6),
   ]);
 
   const filteredProducts = buscar
@@ -71,6 +75,7 @@ export default async function CatalogPage({ params, searchParams }: CatalogPageP
       activeCategory={categoria}
       searchQuery={buscar}
       settings={settings}
+      catalogSections={allCatalogsWithProducts}
     />
   );
 }

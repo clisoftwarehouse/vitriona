@@ -23,6 +23,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       catalogId={catalog.id}
       businessName={business.name}
       whatsappNumber={business.whatsappNumber}
+      currency={business.currency}
     />
   );
 }

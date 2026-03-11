@@ -8,6 +8,7 @@ import {
   Store,
   Package,
   BookOpen,
+  Settings,
   Paintbrush,
   ShoppingCart,
   ChevronRight,
@@ -33,7 +34,7 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
   const mainNavItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Negocios', href: '/dashboard/businesses', icon: Store },
-    { label: 'Configuración de tema', href: '/dashboard/theme', icon: Paintbrush },
+    { label: 'Configuración', href: '/dashboard/settings', icon: Settings },
   ];
 
   const catalogNavItems = activeCatalog
