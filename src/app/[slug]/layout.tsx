@@ -65,7 +65,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     <>
       <StorefrontThemeStyle theme={theme} />
       <div
-        className='flex min-h-dvh flex-col'
+        className='flex min-h-dvh flex-col scroll-smooth'
         style={{
           backgroundColor: 'var(--sf-bg, #fff)',
           color: 'var(--sf-text, #111827)',

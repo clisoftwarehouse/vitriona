@@ -18,7 +18,14 @@ export async function getBusinessProductsWithCatalogStatus(businessId: string, c
   if (!business) return { error: 'Negocio no encontrado' };
 
   const allProducts = await db
-    .select({ id: products.id, name: products.name, price: products.price, sku: products.sku, status: products.status })
+    .select({
+      id: products.id,
+      name: products.name,
+      price: products.price,
+      sku: products.sku,
+      status: products.status,
+      createdAt: products.createdAt,
+    })
     .from(products)
     .where(eq(products.businessId, businessId));
 

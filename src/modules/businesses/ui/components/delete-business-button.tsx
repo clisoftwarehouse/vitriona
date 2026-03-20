@@ -3,6 +3,7 @@
 import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,6 +26,7 @@ interface DeleteBusinessButtonProps {
 
 export function DeleteBusinessButton({ businessId, businessName }: DeleteBusinessButtonProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -38,6 +40,7 @@ export function DeleteBusinessButton({ businessId, businessName }: DeleteBusines
         return;
       }
       setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
       router.push('/dashboard/businesses');
     });
   };

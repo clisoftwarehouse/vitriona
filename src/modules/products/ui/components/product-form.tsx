@@ -43,7 +43,7 @@ interface Catalog {
 
 interface ProductFormProps {
   mode: 'create' | 'edit';
-  catalogId: string;
+  catalogId?: string;
   businessId: string;
   categories: Category[];
   catalogs?: Catalog[];
@@ -84,7 +84,7 @@ export function ProductForm({
       minStock: 0,
       trackInventory: true,
       tags: '',
-      catalogIds: [catalogId],
+      catalogIds: catalogId ? [catalogId] : [],
       attributeValues: {},
       characteristics: [],
       ...defaultValues,
@@ -100,7 +100,11 @@ export function ProductForm({
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      router.push(`/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`);
+      router.push(
+        catalogId
+          ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`
+          : `/dashboard/businesses/${businessId}/products`
+      );
     });
   };
 
@@ -209,7 +213,7 @@ export function ProductForm({
               control={form.control}
               name='catalogIds'
               render={({ field }) => {
-                const selected = field.value ?? [catalogId];
+                const selected = field.value ?? (catalogId ? [catalogId] : []);
                 const toggle = (id: string) => {
                   const next = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
                   if (next.length > 0) field.onChange(next);

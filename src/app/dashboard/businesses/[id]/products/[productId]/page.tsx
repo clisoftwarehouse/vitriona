@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getCatalogsAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
 import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
@@ -12,7 +13,6 @@ import { DeleteProductButton } from '@/modules/products/ui/components/delete-pro
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getProductImagesAction } from '@/modules/products/server/actions/product-images.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
-import { getCatalogsAction, getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import {
   getProductByIdAction,
   getProductCatalogIdsAction,
@@ -20,15 +20,14 @@ import {
 } from '@/modules/products/server/actions/get-products.action';
 
 interface EditProductPageProps {
-  params: Promise<{ id: string; catalogId: string; productId: string }>;
+  params: Promise<{ id: string; productId: string }>;
 }
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
-  const { id, catalogId, productId } = await params;
-  const [business, catalog, categories, product, images, attributes, attrValues, allCatalogs, productCatalogIds] =
+  const { id, productId } = await params;
+  const [business, categories, product, images, attributes, attrValues, allCatalogs, productCatalogIds] =
     await Promise.all([
       getBusinessByIdAction(id),
-      getCatalogByIdAction(catalogId),
       getCategoriesAction(id),
       getProductByIdAction(productId),
       getProductImagesAction(productId),
@@ -38,13 +37,13 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       getProductCatalogIdsAction(productId),
     ]);
 
-  if (!business || !catalog || !product) notFound();
+  if (!business || !product) notFound();
 
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex items-center gap-3'>
         <Button variant='ghost' size='icon-sm' asChild>
-          <Link href={`/dashboard/businesses/${id}/catalogs/${catalogId}/products`}>
+          <Link href={`/dashboard/businesses/${id}/products`}>
             <ArrowLeft className='size-4' />
           </Link>
         </Button>
@@ -63,7 +62,6 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         <CardContent>
           <EditProductWrapper
             productId={product.id}
-            catalogId={catalogId}
             businessId={id}
             categories={categories}
             catalogs={allCatalogs}
@@ -83,7 +81,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               minStock: product.minStock ?? 0,
               trackInventory: product.trackInventory,
               tags: product.tags?.join(', ') ?? '',
-              catalogIds: productCatalogIds.length > 0 ? productCatalogIds : [catalogId],
+              catalogIds: productCatalogIds,
               attributeValues: attrValues,
               characteristics: product.characteristics ?? [],
             }}
@@ -114,9 +112,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
                 </p>
               </div>
               <Button variant='outline' size='sm' asChild>
-                <Link href={`/dashboard/businesses/${id}/catalogs/${catalogId}/products/${product.id}/inventory`}>
-                  Gestionar inventario
-                </Link>
+                <Link href={`/dashboard/businesses/${id}/products/${product.id}/inventory`}>Gestionar inventario</Link>
               </Button>
             </div>
           </CardHeader>
@@ -130,12 +126,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         </CardHeader>
         <CardContent>
           <Separator className='mb-4' />
-          <DeleteProductButton
-            productId={product.id}
-            productName={product.name}
-            businessId={id}
-            catalogId={catalogId}
-          />
+          <DeleteProductButton productId={product.id} productName={product.name} businessId={id} />
         </CardContent>
       </Card>
     </div>

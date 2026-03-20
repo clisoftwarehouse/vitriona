@@ -18,12 +18,12 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
       businessId={id}
       catalogId={catalogId}
       businessSlug={result.data.businessSlug}
-      catalogName={result.data.catalogName}
       initialSettings={result.data.settings}
       previewData={{
         business: result.data.business,
         categories: result.data.categories,
         products: result.data.products,
+        catalogs: result.data.catalogs,
       }}
     />
   );

@@ -1,18 +1,10 @@
 'use server';
 
-import { eq, and, asc, inArray } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import {
-  catalogs,
-  products,
-  businesses,
-  categories,
-  productImages,
-  catalogProducts,
-  catalogSettings,
-} from '@/db/schema';
+import { catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
@@ -132,28 +124,24 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
 
     if (!business) return { error: 'No autorizado', data: null };
 
-    // Get product IDs linked to this catalog via join table
-    const linkedProducts = await db
-      .select({ productId: catalogProducts.productId })
-      .from(catalogProducts)
-      .where(eq(catalogProducts.catalogId, catalogId));
-    const linkedIds = linkedProducts.map((l) => l.productId);
-
-    const [settings, cats, prods] = await Promise.all([
+    const [settings, cats, prods, businessCatalogs] = await Promise.all([
       db.select().from(catalogSettings).where(eq(catalogSettings.catalogId, catalogId)).limit(1),
       db
         .select()
         .from(categories)
         .where(and(eq(categories.businessId, business.id), eq(categories.isActive, true)))
         .orderBy(asc(categories.sortOrder)),
-      linkedIds.length > 0
-        ? db
-            .select()
-            .from(products)
-            .where(and(inArray(products.id, linkedIds), eq(products.status, 'active')))
-            .orderBy(asc(products.sortOrder))
-            .limit(12)
-        : Promise.resolve([]),
+      db
+        .select()
+        .from(products)
+        .where(and(eq(products.businessId, business.id), eq(products.status, 'active')))
+        .orderBy(asc(products.sortOrder))
+        .limit(20),
+      db
+        .select()
+        .from(catalogs)
+        .where(and(eq(catalogs.businessId, business.id), eq(catalogs.isActive, true)))
+        .orderBy(asc(catalogs.sortOrder)),
     ]);
 
     const productIds = prods.map((p) => p.id);
@@ -198,6 +186,13 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
         },
         categories: cats.map((c) => ({ id: c.id, name: c.name })),
         products: previewProducts,
+        catalogs: businessCatalogs.map((c) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          description: c.description,
+          imageUrl: c.imageUrl,
+        })),
       },
     };
   } catch {

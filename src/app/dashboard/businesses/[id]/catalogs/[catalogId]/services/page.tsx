@@ -23,7 +23,7 @@ export default async function ServicesPage({ params }: ServicesPageProps) {
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getServicesAction(catalogId),
-    getCategoriesAction(catalogId),
+    getCategoriesAction(id),
   ]);
 
   if (!business || !catalog) notFound();

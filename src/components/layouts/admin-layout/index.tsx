@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from './app-sidebar';
 import { DashboardTopbar } from './dashboard-topbar';
-import type { SidebarCatalog } from './catalog-selector';
+import type { SidebarBusiness } from '@/modules/businesses/ui/components/business-selector';
 
 interface ShellUser {
   name?: string | null;
@@ -15,12 +15,12 @@ interface ShellUser {
 
 interface DashboardShellProps {
   user: ShellUser;
-  catalogs: SidebarCatalog[];
-  activeCatalogId: string | null;
+  businesses: SidebarBusiness[];
+  activeBusinessId: string | null;
   children: React.ReactNode;
 }
 
-export function AdminLayout({ user, catalogs, activeCatalogId, children }: DashboardShellProps) {
+export function AdminLayout({ user, businesses, activeBusinessId, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -32,7 +32,7 @@ export function AdminLayout({ user, catalogs, activeCatalogId, children }: Dashb
       )}
 
       <div className={cn('md:relative md:flex', sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden md:flex')}>
-        <AppSidebar onClose={closeSidebar} catalogs={catalogs} activeCatalogId={activeCatalogId} />
+        <AppSidebar onClose={closeSidebar} businesses={businesses} activeBusinessId={activeBusinessId} />
       </div>
 
       <div className='flex min-w-0 flex-1 flex-col overflow-hidden'>

@@ -19,18 +19,18 @@ import {
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { CatalogSelector, type SidebarCatalog } from './catalog-selector';
+import { BusinessSelector, type SidebarBusiness } from '@/modules/businesses/ui/components/business-selector';
 
 interface AppSidebarProps {
   onClose?: () => void;
-  catalogs: SidebarCatalog[];
-  activeCatalogId: string | null;
+  businesses: SidebarBusiness[];
+  activeBusinessId: string | null;
 }
 
-export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarProps) {
+export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebarProps) {
   const pathname = usePathname();
 
-  const activeCatalog = catalogs.find((c) => c.id === activeCatalogId) ?? catalogs[0] ?? null;
+  const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
 
   const mainNavItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -38,42 +38,42 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
     { label: 'Configuración', href: '/dashboard/settings', icon: Settings },
   ];
 
-  const catalogNavItems = activeCatalog
+  const businessNavItems = activeBusiness
     ? [
         {
-          label: 'Catálogo',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}`,
+          label: 'Catálogos',
+          href: `/dashboard/businesses/${activeBusiness.id}/catalogs`,
           icon: BookOpen,
         },
         {
           label: 'Categorías',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}/categories`,
+          href: `/dashboard/businesses/${activeBusiness.id}/categories`,
           icon: Tags,
         },
         {
           label: 'Productos',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}/products`,
+          href: `/dashboard/businesses/${activeBusiness.id}/products`,
           icon: Package,
         },
         {
           label: 'Pedidos',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/orders`,
+          href: `/dashboard/businesses/${activeBusiness.id}/orders`,
           icon: ShoppingCart,
         },
         {
           label: 'Inventario',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/inventory`,
+          href: `/dashboard/businesses/${activeBusiness.id}/inventory`,
           icon: Warehouse,
         },
         {
           label: 'Site Builder',
-          href: `/dashboard/businesses/${activeCatalog.businessId}/catalogs/${activeCatalog.id}/builder`,
+          href: `/dashboard/businesses/${activeBusiness.id}/builder`,
           icon: Paintbrush,
         },
       ]
     : [];
 
-  const allItems = [...mainNavItems, ...catalogNavItems];
+  const allItems = [...mainNavItems, ...businessNavItems];
   const activeHref = allItems
     .filter(({ href }) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href)))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -120,9 +120,9 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
         </button>
       </div>
 
-      {catalogs.length > 0 && (
+      {businesses.length > 0 && (
         <div className='border-sidebar-border border-b px-3 py-3'>
-          <CatalogSelector catalogs={catalogs} activeCatalogId={activeCatalogId} />
+          <BusinessSelector initialBusinesses={businesses} activeBusinessId={activeBusinessId} />
         </div>
       )}
 
@@ -130,20 +130,20 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
         <p className='text-muted-foreground mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>General</p>
         <ul className='space-y-0.5'>{mainNavItems.map(renderNavItem)}</ul>
 
-        {catalogNavItems.length > 0 && (
+        {businessNavItems.length > 0 && (
           <>
             <p className='text-muted-foreground mt-5 mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>
-              Catálogo
+              {activeBusiness?.name ?? 'Negocio'}
             </p>
-            <ul className='space-y-0.5'>{catalogNavItems.map(renderNavItem)}</ul>
+            <ul className='space-y-0.5'>{businessNavItems.map(renderNavItem)}</ul>
           </>
         )}
       </nav>
 
-      {activeCatalog && (
+      {activeBusiness && (
         <div className='border-sidebar-border border-t p-3'>
           <Button variant='default' size='sm' className='w-full gap-2' asChild>
-            <Link href={`/${activeCatalog.businessSlug}`} target='_blank' rel='noopener noreferrer'>
+            <Link href={`/${activeBusiness.slug}`} target='_blank' rel='noopener noreferrer'>
               <ExternalLink className='size-3.5' />
               Ver tienda
             </Link>

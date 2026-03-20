@@ -8,30 +8,30 @@ import { updateCategoryAction } from '@/modules/categories/server/actions/update
 import { reorderCategoriesAction } from '@/modules/categories/server/actions/reorder-categories.action';
 
 export const categoryKeys = {
-  all: (catalogId: string) => ['categories', catalogId] as const,
+  all: (businessId: string) => ['categories', businessId] as const,
 };
 
-export function useCategories(catalogId: string) {
+export function useCategories(businessId: string) {
   return useQuery({
-    queryKey: categoryKeys.all(catalogId),
-    queryFn: () => getCategoriesAction(catalogId),
+    queryKey: categoryKeys.all(businessId),
+    queryFn: () => getCategoriesAction(businessId),
   });
 }
 
-export function useCreateCategory(catalogId: string) {
+export function useCreateCategory(businessId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (values: CreateCategoryFormValues) => createCategoryAction(catalogId, values),
+    mutationFn: (values: CreateCategoryFormValues) => createCategoryAction(businessId, values),
     onSuccess: (result) => {
       if (!result.error) {
-        queryClient.invalidateQueries({ queryKey: categoryKeys.all(catalogId) });
+        queryClient.invalidateQueries({ queryKey: categoryKeys.all(businessId) });
       }
     },
   });
 }
 
-export function useUpdateCategory(catalogId: string) {
+export function useUpdateCategory(businessId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -39,33 +39,33 @@ export function useUpdateCategory(catalogId: string) {
       updateCategoryAction(categoryId, values),
     onSuccess: (result) => {
       if (!result.error) {
-        queryClient.invalidateQueries({ queryKey: categoryKeys.all(catalogId) });
+        queryClient.invalidateQueries({ queryKey: categoryKeys.all(businessId) });
       }
     },
   });
 }
 
-export function useDeleteCategory(catalogId: string) {
+export function useDeleteCategory(businessId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (categoryId: string) => deleteCategoryAction(categoryId),
     onSuccess: (result) => {
       if (!result.error) {
-        queryClient.invalidateQueries({ queryKey: categoryKeys.all(catalogId) });
+        queryClient.invalidateQueries({ queryKey: categoryKeys.all(businessId) });
       }
     },
   });
 }
 
-export function useReorderCategories(catalogId: string) {
+export function useReorderCategories(businessId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (orderedIds: string[]) => reorderCategoriesAction(catalogId, orderedIds),
+    mutationFn: (orderedIds: string[]) => reorderCategoriesAction(businessId, orderedIds),
     onSuccess: (result) => {
       if (!result.error) {
-        queryClient.invalidateQueries({ queryKey: categoryKeys.all(catalogId) });
+        queryClient.invalidateQueries({ queryKey: categoryKeys.all(businessId) });
       }
     },
   });

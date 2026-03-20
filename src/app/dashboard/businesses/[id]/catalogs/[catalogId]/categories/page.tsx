@@ -42,7 +42,7 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <CategoriesList catalogId={catalogId} />
+          <CategoriesList businessId={id} />
         </CardContent>
       </Card>
     </div>

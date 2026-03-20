@@ -8,18 +8,29 @@ import { generateSlug } from '@/modules/businesses/lib/slug';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 
-export async function createProductAction(catalogId: string, values: CreateProductFormValues) {
+export async function createProductAction(catalogId: string | undefined, values: CreateProductFormValues) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, catalogId)).limit(1);
-    if (!catalog) return { error: 'Catálogo no encontrado' };
+    let businessId: string;
+
+    if (catalogId) {
+      const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, catalogId)).limit(1);
+      if (!catalog) return { error: 'Catálogo no encontrado' };
+      businessId = catalog.businessId;
+    } else if (values.catalogIds?.length) {
+      const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, values.catalogIds[0])).limit(1);
+      if (!catalog) return { error: 'Catálogo no encontrado' };
+      businessId = catalog.businessId;
+    } else {
+      return { error: 'Se requiere al menos un catálogo o businessId.' };
+    }
 
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 
@@ -30,13 +41,13 @@ export async function createProductAction(catalogId: string, values: CreateProdu
           .filter(Boolean)
       : null;
 
-    const catalogIds = values.catalogIds?.length ? values.catalogIds : [catalogId];
+    const catalogIds = values.catalogIds?.length ? values.catalogIds : catalogId ? [catalogId] : [];
 
     const [product] = await db
       .insert(products)
       .values({
         businessId: business.id,
-        catalogId,
+        catalogId: catalogId ?? null,
         categoryId: values.categoryId || null,
         name: values.name,
         slug: generateSlug(values.name),

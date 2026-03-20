@@ -104,6 +104,7 @@ export async function getInventoryOverviewAction(businessId: string) {
       type: products.type,
       status: products.status,
       price: products.price,
+      createdAt: products.createdAt,
     })
     .from(products)
     .where(and(eq(products.businessId, businessId), eq(products.type, 'product')));

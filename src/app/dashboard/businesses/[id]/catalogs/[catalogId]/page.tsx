@@ -1,6 +1,6 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Paintbrush } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -36,25 +36,6 @@ export default async function EditCatalogPage({ params }: EditCatalogPageProps) 
           </p>
         </div>
       </div>
-
-      <Card className='border-primary/20 bg-primary/5'>
-        <CardHeader>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-3'>
-              <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-                <Paintbrush className='text-primary size-5' />
-              </div>
-              <div>
-                <h3 className='font-semibold'>Site Builder</h3>
-                <p className='text-muted-foreground text-sm'>Personaliza colores, tipografía, hero y más</p>
-              </div>
-            </div>
-            <Button asChild>
-              <Link href={`/dashboard/businesses/${id}/catalogs/${catalogId}/builder`}>Abrir builder</Link>
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
 
       <Card>
         <CardHeader>

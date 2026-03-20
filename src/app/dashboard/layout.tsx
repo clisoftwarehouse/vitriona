@@ -3,10 +3,8 @@ import type { Metadata } from 'next';
 import { auth } from '@/auth';
 import { QueryProvider } from '@/components/query-provider';
 import { AdminLayout } from '@/components/layouts/admin-layout';
-import {
-  getActiveCatalogId,
-  getAllCatalogsForSidebar,
-} from '@/modules/catalogs/server/actions/set-active-catalog.action';
+import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-active-business.action';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -14,11 +12,13 @@ export const metadata: Metadata = {
 };
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
-  const [session, catalogs, activeCatalogId] = await Promise.all([
+  const [session, businesses, activeBusinessId] = await Promise.all([
     auth(),
-    getAllCatalogsForSidebar(),
-    getActiveCatalogId(),
+    getBusinessesAction(),
+    getActiveBusinessId(),
   ]);
+
+  const sidebarBusinesses = businesses.map((b) => ({ id: b.id, name: b.name, slug: b.slug }));
 
   const user = {
     name: session?.user?.name ?? null,
@@ -28,7 +28,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryProvider>
-      <AdminLayout user={user} catalogs={catalogs} activeCatalogId={activeCatalogId}>
+      <AdminLayout user={user} businesses={sidebarBusinesses} activeBusinessId={activeBusinessId}>
         {children}
       </AdminLayout>
     </QueryProvider>

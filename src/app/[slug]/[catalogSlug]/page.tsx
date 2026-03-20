@@ -54,27 +54,20 @@ export default async function CatalogViewPage({ params, searchParams }: CatalogV
 
   const [categoriesList, productsList, settings] = await Promise.all([
     getPublicCategories(catalog.id, business.id),
-    getPublicProducts(business.id, categoria || undefined, catalog.id),
+    getPublicProducts(business.id, undefined, catalog.id),
     getCatalogSettings(catalog.id),
   ]);
-
-  const filteredProducts = buscar
-    ? productsList.filter(
-        (p) =>
-          p.name.toLowerCase().includes(buscar.toLowerCase()) ||
-          p.description?.toLowerCase().includes(buscar.toLowerCase())
-      )
-    : productsList;
 
   return (
     <StorefrontCatalog
       slug={slug}
       business={business}
       categories={categoriesList}
-      products={filteredProducts}
+      products={productsList}
       activeCategory={categoria}
       searchQuery={buscar}
       settings={settings}
+      catalogName={catalog.name}
     />
   );
 }

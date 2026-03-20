@@ -22,7 +22,7 @@ interface DeleteProductButtonProps {
   productId: string;
   productName: string;
   businessId: string;
-  catalogId: string;
+  catalogId?: string;
 }
 
 export function DeleteProductButton({ productId, productName, businessId, catalogId }: DeleteProductButtonProps) {
@@ -40,7 +40,11 @@ export function DeleteProductButton({ productId, productName, businessId, catalo
         return;
       }
       setOpen(false);
-      router.push(`/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`);
+      router.push(
+        catalogId
+          ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`
+          : `/dashboard/businesses/${businessId}/products`
+      );
     });
   };
 

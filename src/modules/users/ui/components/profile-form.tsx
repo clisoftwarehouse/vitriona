@@ -156,12 +156,12 @@ export function ProfileForm({ user, providers }: ProfileFormProps) {
                     <FormLabel>Zona horaria</FormLabel>
                     <FormControl>
                       <div className='relative'>
-                        <Globe className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
+                        <Globe className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2' />
                         <select
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isPending}
-                          className='border-input bg-background flex h-9 w-full rounded-md border py-1 pr-3 pl-10 text-sm shadow-xs'
+                          className='border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full appearance-none rounded-md border py-1 pr-8 pl-10 text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
                         >
                           {Intl.supportedValuesOf('timeZone').map((tz) => (
                             <option key={tz} value={tz}>
@@ -171,6 +171,7 @@ export function ProfileForm({ user, providers }: ProfileFormProps) {
                         </select>
                       </div>
                     </FormControl>
+                    <FormDescription>Tu zona horaria local.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

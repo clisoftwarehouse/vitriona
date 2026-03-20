@@ -1,11 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Store, Check, ChevronsUpDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useBusinesses } from '@/modules/businesses/ui/hooks/use-businesses';
 import { setActiveBusinessAction } from '@/modules/businesses/server/actions/set-active-business.action';
 import {
   DropdownMenu,
@@ -16,21 +17,29 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
-interface Business {
+export interface SidebarBusiness {
   id: string;
   name: string;
   slug: string;
 }
 
 interface BusinessSelectorProps {
-  businesses: Business[];
+  initialBusinesses: SidebarBusiness[];
   activeBusinessId: string | null;
 }
 
-export function BusinessSelector({ businesses, activeBusinessId }: BusinessSelectorProps) {
+export function BusinessSelector({ initialBusinesses, activeBusinessId }: BusinessSelectorProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [currentId, setCurrentId] = useState(activeBusinessId);
+
+  const { data: queryBusinesses } = useBusinesses();
+  const businesses: SidebarBusiness[] = (queryBusinesses ?? initialBusinesses).map((b) => ({
+    id: b.id,
+    name: b.name,
+    slug: b.slug,
+  }));
 
   const activeBusiness = businesses.find((b) => b.id === currentId) ?? businesses[0];
 
@@ -39,7 +48,18 @@ export function BusinessSelector({ businesses, activeBusinessId }: BusinessSelec
     setCurrentId(businessId);
     startTransition(async () => {
       await setActiveBusinessAction(businessId);
-      router.refresh();
+
+      // If user is on a business-scoped page, navigate to the equivalent page in the new business
+      const businessPattern = /\/dashboard\/businesses\/[^/]+(\/.*)?/;
+      const match = pathname.match(businessPattern);
+      if (match) {
+        const suffix = match[1] ?? '';
+        // Strip catalog-specific segments (catalogs/[id]/...) keeping only the top-level section
+        const topSection = suffix.match(/^\/(catalogs|categories|products|orders|inventory)/)?.[0] ?? '';
+        router.push(`/dashboard/businesses/${businessId}${topSection}`);
+      } else {
+        router.refresh();
+      }
     });
   };
 

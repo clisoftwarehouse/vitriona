@@ -1,11 +1,9 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { Plus, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ProductsGrid } from '@/modules/products/ui/components/products-grid';
-import { ProductsFilters } from '@/modules/products/ui/components/products-filters';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -20,7 +18,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
   const [business, catalog, categories] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
-    getCategoriesAction(catalogId),
+    getCategoriesAction(id),
   ]);
 
   if (!business || !catalog) notFound();
@@ -49,17 +47,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
         </Button>
       </div>
 
-      <ProductsFilters categories={categories} />
-
-      <Suspense
-        fallback={
-          <div className='flex items-center justify-center py-12'>
-            <Loader2 className='text-muted-foreground size-6 animate-spin' />
-          </div>
-        }
-      >
-        <ProductsGrid businessId={id} catalogId={catalogId} />
-      </Suspense>
+      <ProductsGrid businessId={id} catalogId={catalogId} categories={categories} />
     </div>
   );
 }

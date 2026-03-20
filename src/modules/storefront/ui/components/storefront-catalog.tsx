@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { X, Plus, Search, ImageOff, Sparkles, ArrowRight, ChevronLeft, ShoppingBag, ChevronRight } from 'lucide-react';
 
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
@@ -32,6 +31,7 @@ interface Product {
   price: string;
   compareAtPrice: string | null;
   isFeatured: boolean;
+  categoryId: string | null;
   images: ProductImage[];
 }
 
@@ -74,6 +74,7 @@ interface CatalogPreview {
   name: string;
   slug: string | null;
   description: string | null;
+  imageUrl: string | null;
   products: Product[];
   totalProducts: number;
 }
@@ -87,6 +88,7 @@ interface StorefrontCatalogProps {
   searchQuery?: string;
   settings: CatalogSettings | null;
   catalogSections?: CatalogPreview[];
+  catalogName?: string;
 }
 
 /* ─── Helpers ─── */
@@ -111,16 +113,30 @@ export function StorefrontCatalog({
   slug,
   business,
   categories,
-  products,
-  activeCategory,
+  products: allProducts,
+  activeCategory: initialCategory,
   searchQuery,
   settings,
   catalogSections,
+  catalogName,
 }: StorefrontCatalogProps) {
-  const router = useRouter();
   const [search, setSearch] = useState(searchQuery ?? '');
+  const [activeCat, setActiveCat] = useState<string | undefined>(initialCategory);
   const [page, setPage] = useState(1);
   const addItem = useCartStore((s) => s.addItem);
+
+  // Client-side category + search filtering
+  const products = useMemo(() => {
+    let list = allProducts;
+    if (activeCat) {
+      list = list.filter((p) => p.categoryId === activeCat);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allProducts, activeCat, search]);
 
   const heroEnabled = settings?.heroEnabled ?? true;
   const heroTitle = settings?.heroTitle || business.name;
@@ -143,8 +159,8 @@ export function StorefrontCatalog({
   const _showStock = settings?.showStock ?? false;
   void _showStock;
 
-  const featuredProducts = products.filter((p) => p.isFeatured);
-  const isFiltering = !!searchQuery || !!activeCategory;
+  const featuredProducts = allProducts.filter((p) => p.isFeatured);
+  const isFiltering = !!search || !!activeCat;
 
   const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = useMemo(
@@ -152,25 +168,24 @@ export function StorefrontCatalog({
     [products, page]
   );
 
-  const handleSearch = useCallback(
-    (value: string) => {
-      setSearch(value);
-      const params = new URLSearchParams();
-      if (activeCategory) params.set('categoria', activeCategory);
-      if (value) params.set('buscar', value);
-      const qs = params.toString();
-      router.replace(`/${slug}${qs ? `?${qs}` : ''}`);
-    },
-    [slug, activeCategory, router]
-  );
-
-  const handleCategoryClick = (categoryId?: string) => {
-    setPage(1);
+  // Sync filter state to URL query params (shareable links) without triggering navigation
+  useEffect(() => {
     const params = new URLSearchParams();
-    if (categoryId) params.set('categoria', categoryId);
+    if (activeCat) params.set('categoria', activeCat);
     if (search) params.set('buscar', search);
     const qs = params.toString();
-    router.replace(`/${slug}${qs ? `?${qs}` : ''}`);
+    const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [activeCat, search]);
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
+
+  const handleCategoryClick = (categoryId?: string) => {
+    setActiveCat(categoryId);
+    setPage(1);
   };
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
@@ -229,12 +244,14 @@ export function StorefrontCatalog({
         </div>
       )}
 
-      <div className='mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8'>
+      <div id='storefront-content' className='mx-auto max-w-7xl scroll-mt-16 px-4 py-8 sm:px-6 sm:py-12 lg:px-8'>
+        {/* ── Catalogs Carousel (always visible, independent of category filter) ── */}
+        {catalogSections && catalogSections.length > 1 && <CatalogsCarousel catalogs={catalogSections} slug={slug} />}
         {/* ── Category Navigation ── */}
         {categories.length > 0 && (
           <CategoryNav
             categories={categories}
-            activeCategory={activeCategory}
+            activeCategory={activeCat}
             style={catStyle}
             slug={slug}
             onCategoryClick={handleCategoryClick}
@@ -262,13 +279,23 @@ export function StorefrontCatalog({
           </section>
         )}
 
-        {/* ── Catalogs Carousel ── */}
-        {catalogSections && catalogSections.length > 1 && !isFiltering && (
-          <CatalogsCarousel catalogs={catalogSections} slug={slug} />
+        {/* ── Back to all products (when inside a catalog) ── */}
+        {catalogName && (
+          <div className='mb-6'>
+            <Link
+              href={`/${slug}`}
+              className='inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-70'
+              style={{ color: 'var(--sf-primary, #000)' }}
+            >
+              <ChevronLeft className='size-4' />
+              Volver a todos los productos
+            </Link>
+            <h2 className='mt-2 text-xl font-bold tracking-tight sm:text-2xl'>{catalogName}</h2>
+          </div>
         )}
 
         {/* ── All Products (paginated) ── */}
-        <section>
+        <section id='products' className='scroll-mt-6'>
           <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
 
           {products.length === 0 ? (
@@ -319,7 +346,7 @@ function resolveCtaHref(
       return `/${slug}`;
     case 'scroll':
     default:
-      return `/${slug}#products`;
+      return '#storefront-content';
   }
 }
 
@@ -796,23 +823,48 @@ function EmptyState({ query, onClear }: { query?: string; onClear: () => void })
 
 function CatalogsCarousel({ catalogs, slug }: { catalogs: CatalogPreview[]; slug: string }) {
   return (
-    <div className='mb-8'>
+    <div className='mb-10'>
       <h2 className='mb-4 text-lg font-bold tracking-tight'>Colecciones</h2>
-      <div className='flex gap-3 overflow-x-auto pb-2'>
+      <div className='flex gap-4 overflow-x-auto pb-2'>
         {catalogs.map((cat) => (
           <Link
             key={cat.id}
             href={`/${slug}/${cat.slug ?? cat.id}`}
-            className='group flex shrink-0 items-center gap-2.5 border px-4 py-2.5 transition-shadow hover:shadow-md'
+            className='group flex w-52 shrink-0 flex-col overflow-hidden border transition-shadow hover:shadow-lg sm:w-60'
             style={{
-              borderRadius: 'var(--sf-radius, 0.75rem)',
+              borderRadius: 'var(--sf-radius-lg, 1rem)',
               borderColor: 'var(--sf-border, #e5e7eb)',
               backgroundColor: 'var(--sf-bg, #fff)',
             }}
           >
-            <span className='text-sm font-medium'>{cat.name}</span>
-            <span className='text-xs opacity-40'>{cat.totalProducts}</span>
-            <ChevronRight className='size-3.5 opacity-40 transition-transform group-hover:translate-x-0.5' />
+            <div
+              className='relative aspect-3/2 overflow-hidden'
+              style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+            >
+              {cat.imageUrl ? (
+                <Image
+                  src={cat.imageUrl}
+                  alt={cat.name}
+                  fill
+                  sizes='15rem'
+                  className='object-cover transition-transform duration-500 group-hover:scale-105'
+                />
+              ) : (
+                <div className='flex size-full items-center justify-center'>
+                  <ShoppingBag className='size-8 opacity-15' />
+                </div>
+              )}
+            </div>
+            <div className='flex items-center justify-between p-3'>
+              <div className='min-w-0'>
+                <h3 className='truncate text-sm font-semibold'>{cat.name}</h3>
+                {cat.description && <p className='mt-0.5 truncate text-xs opacity-50'>{cat.description}</p>}
+              </div>
+              <div className='flex shrink-0 items-center gap-1 pl-2'>
+                <span className='text-xs opacity-40'>{cat.totalProducts}</span>
+                <ChevronRight className='size-3.5 opacity-40 transition-transform group-hover:translate-x-0.5' />
+              </div>
+            </div>
           </Link>
         ))}
       </div>

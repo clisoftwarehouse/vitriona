@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { Mail, Globe, Phone, Store, MapPin, Trash2, Upload, Loader2, Receipt, MessageCircle } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ interface BusinessFormProps {
 
 export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +77,7 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
         setError(result.error);
         return;
       }
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
       router.push('/dashboard/businesses');
     });
   };
@@ -410,7 +413,7 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
                       value={field.value ?? 'America/Santo_Domingo'}
                       onChange={field.onChange}
                       disabled={isPending}
-                      className='border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs'
+                      className='border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full appearance-none rounded-md border px-3 py-1 text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
                     >
                       {Intl.supportedValuesOf('timeZone').map((tz) => (
                         <option key={tz} value={tz}>

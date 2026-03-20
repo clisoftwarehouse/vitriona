@@ -69,7 +69,7 @@ export function StorefrontThemeStyle({ theme }: { theme: StorefrontTheme }) {
   const br = theme.borderRadius ?? (theme.roundedCorners ? 12 : 0);
   const radius = br > 0 ? `${br * 0.0625}rem` : '0';
   const radiusLg = br > 0 ? `${(br + 4) * 0.0625}rem` : '0';
-  const radiusFull = br > 0 ? '9999px' : '0';
+  const radiusFull = br >= 20 ? '9999px' : br > 0 ? `${br * 0.125}rem` : '0';
 
   const css = `:root {
   --sf-primary: ${theme.primaryColor};

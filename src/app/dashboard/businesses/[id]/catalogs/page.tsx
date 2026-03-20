@@ -65,8 +65,8 @@ export default async function CatalogsPage({ params }: CatalogsPageProps) {
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
           {catalogs.map((catalog) => (
             <Link key={catalog.id} href={`/dashboard/businesses/${id}/catalogs/${catalog.id}`} className='group'>
-              <Card className='transition-shadow group-hover:shadow-md'>
-                <CardContent className='p-5'>
+              <Card className='flex h-full flex-col transition-shadow group-hover:shadow-md'>
+                <CardContent className='flex flex-1 flex-col p-5'>
                   <div className='flex items-start justify-between'>
                     <div className='flex items-center gap-3'>
                       <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
@@ -84,9 +84,9 @@ export default async function CatalogsPage({ params }: CatalogsPageProps) {
                     </Badge>
                   </div>
 
-                  {catalog.description && (
-                    <p className='text-muted-foreground mt-3 line-clamp-2 text-sm'>{catalog.description}</p>
-                  )}
+                  <p className='text-muted-foreground mt-3 line-clamp-2 flex-1 text-sm'>
+                    {catalog.description || '\u00A0'}
+                  </p>
 
                   <div className='mt-4'>
                     {catalog.isDefault && (

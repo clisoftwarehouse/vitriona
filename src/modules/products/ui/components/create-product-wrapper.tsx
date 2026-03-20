@@ -23,7 +23,7 @@ interface Catalog {
 }
 
 interface CreateProductWrapperProps {
-  catalogId: string;
+  catalogId?: string;
   businessId: string;
   categories: Category[];
   catalogs?: Catalog[];

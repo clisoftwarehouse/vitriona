@@ -2,12 +2,13 @@
 
 import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
-import { Search, Loader2, Package } from 'lucide-react';
+import { Search, Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { useCatalogProducts, useSyncCatalogProducts } from '@/modules/catalogs/ui/hooks/use-catalog-products';
 
 interface CatalogProductAssignerProps {
@@ -21,12 +22,48 @@ const statusLabels: Record<string, string> = {
   out_of_stock: 'Sin stock',
 };
 
+const ITEMS_PER_PAGE = 15;
+
+type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Más recientes' },
+  { value: 'oldest', label: 'Más antiguos' },
+  { value: 'az', label: 'A → Z' },
+  { value: 'za', label: 'Z → A' },
+  { value: 'price_asc', label: 'Precio: menor a mayor' },
+  { value: 'price_desc', label: 'Precio: mayor a menor' },
+];
+
+function sortProducts<T extends { name: string; price: string; createdAt: Date }>(items: T[], sort: SortOption): T[] {
+  return [...items].sort((a, b) => {
+    switch (sort) {
+      case 'newest':
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case 'oldest':
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case 'az':
+        return a.name.localeCompare(b.name);
+      case 'za':
+        return b.name.localeCompare(a.name);
+      case 'price_asc':
+        return Number(a.price) - Number(b.price);
+      case 'price_desc':
+        return Number(b.price) - Number(a.price);
+      default:
+        return 0;
+    }
+  });
+}
+
 export function CatalogProductAssigner({ businessId, catalogId }: CatalogProductAssignerProps) {
   const { data: products, isLoading } = useCatalogProducts(businessId, catalogId);
   const sync = useSyncCatalogProducts(businessId, catalogId);
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortOption>('newest');
+  const [page, setPage] = useState(1);
 
   // Initialize selected from server data once loaded
   const currentSelected = useMemo(() => {
@@ -37,10 +74,16 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
 
   const filtered = useMemo(() => {
     if (!products) return [];
-    if (!search) return products;
-    const q = search.toLowerCase();
-    return products.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
-  }, [products, search]);
+    let result = products;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
+    }
+    return sortProducts(result, sort);
+  }, [products, search, sort]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = useMemo(() => filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE), [filtered, page]);
 
   const hasChanges = useMemo(() => {
     if (!products || selected === null) return false;
@@ -114,10 +157,31 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
           <Input
             placeholder='Buscar producto...'
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className='pl-9'
           />
         </div>
+        <Select
+          value={sort}
+          onValueChange={(v) => {
+            setSort(v as SortOption);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className='w-44'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Badge variant='outline'>
           {currentSelected.size} / {products.length}
         </Badge>
@@ -133,8 +197,8 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
         </span>
       </div>
 
-      <div className='max-h-80 space-y-1 overflow-y-auto'>
-        {filtered.map((product) => (
+      <div className='max-h-96 space-y-1 overflow-y-auto'>
+        {paginated.map((product) => (
           <label
             key={product.id}
             className='hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors'
@@ -153,6 +217,30 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
           </label>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className='flex items-center justify-center gap-2 pt-2'>
+          <Button
+            variant='outline'
+            size='icon-sm'
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            <ChevronLeft className='size-4' />
+          </Button>
+          <span className='text-muted-foreground text-sm'>
+            Página {page} de {totalPages}
+          </span>
+          <Button
+            variant='outline'
+            size='icon-sm'
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            <ChevronRight className='size-4' />
+          </Button>
+        </div>
+      )}
 
       {hasChanges && (
         <div className='flex items-center justify-between border-t pt-3'>

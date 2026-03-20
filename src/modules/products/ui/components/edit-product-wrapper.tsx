@@ -24,7 +24,7 @@ interface Catalog {
 
 interface EditProductWrapperProps {
   productId: string;
-  catalogId: string;
+  catalogId?: string;
   businessId: string;
   categories: Category[];
   catalogs?: Catalog[];

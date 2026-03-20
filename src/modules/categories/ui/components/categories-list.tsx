@@ -37,15 +37,15 @@ interface Category {
 }
 
 interface CategoriesListProps {
-  catalogId: string;
+  businessId: string;
 }
 
-export function CategoriesList({ catalogId }: CategoriesListProps) {
-  const { data: categories = [], isLoading } = useCategories(catalogId);
-  const createCategory = useCreateCategory(catalogId);
-  const updateCategory = useUpdateCategory(catalogId);
-  const deleteCategory = useDeleteCategory(catalogId);
-  const reorderCategories = useReorderCategories(catalogId);
+export function CategoriesList({ businessId }: CategoriesListProps) {
+  const { data: categories = [], isLoading } = useCategories(businessId);
+  const createCategory = useCreateCategory(businessId);
+  const updateCategory = useUpdateCategory(businessId);
+  const deleteCategory = useDeleteCategory(businessId);
+  const reorderCategories = useReorderCategories(businessId);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

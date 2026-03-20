@@ -126,16 +126,25 @@ interface PreviewCategory {
   name: string;
 }
 
+interface PreviewCatalog {
+  id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  imageUrl: string | null;
+}
+
 interface SiteBuilderProps {
   businessId: string;
   catalogId: string;
   businessSlug: string;
-  catalogName: string;
+  catalogName?: string;
   initialSettings: Record<string, unknown> | null;
   previewData: {
     business: PreviewBusiness;
     categories: PreviewCategory[];
     products: PreviewProduct[];
+    catalogs: PreviewCatalog[];
   };
 }
 
@@ -387,14 +396,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
   };
 }
 
-export function SiteBuilder({
-  businessId,
-  catalogId,
-  businessSlug,
-  catalogName,
-  initialSettings,
-  previewData,
-}: SiteBuilderProps) {
+export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettings, previewData }: SiteBuilderProps) {
   const [settings, setSettings] = useState<Settings>(() => toSettings(initialSettings));
   const [activeSection, setActiveSection] = useState<Section>('theme');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -432,13 +434,13 @@ export function SiteBuilder({
       <div className='flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-neutral-800'>
         <div className='flex items-center gap-3'>
           <Button variant='ghost' size='icon-sm' asChild>
-            <Link href={`/dashboard/businesses/${businessId}/catalogs/${catalogId}`}>
+            <Link href={`/dashboard/businesses/${businessId}`}>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
           <div>
             <p className='text-sm font-semibold dark:text-white'>Site Builder</p>
-            <p className='text-muted-foreground text-xs'>{catalogName}</p>
+            <p className='text-muted-foreground text-xs'>{previewData.business.name}</p>
           </div>
         </div>
 
@@ -517,6 +519,7 @@ export function SiteBuilder({
               business={previewData.business}
               categories={previewData.categories}
               products={previewData.products}
+              catalogs={previewData.catalogs}
             />
           </div>
         </div>
@@ -1223,17 +1226,19 @@ function BuilderPreview({
   business,
   categories,
   products,
+  catalogs,
 }: {
   settings: Settings;
   business: PreviewBusiness;
   categories: PreviewCategory[];
   products: PreviewProduct[];
+  catalogs: PreviewCatalog[];
 }) {
   const [previewPage, setPreviewPage] = useState(1);
   const br = s.borderRadius;
   const radius = br > 0 ? `${br * 0.0625}rem` : '0';
   const radiusLg = br > 0 ? `${(br + 4) * 0.0625}rem` : '0';
-  const radiusFull = br > 0 ? '9999px' : '0';
+  const radiusFull = br >= 20 ? '9999px' : br > 0 ? `${br * 0.125}rem` : '0';
   const font = FONT_FAMILY[s.font] || FONT_FAMILY.inter;
   const featured = products.filter((p) => p.isFeatured);
   const cols = s.gridColumns ?? 4;
@@ -1261,7 +1266,7 @@ function BuilderPreview({
 
   return (
     <div
-      className='flex size-full flex-col overflow-y-auto'
+      className='flex size-full flex-col overflow-y-auto scroll-smooth'
       style={{ backgroundColor: s.backgroundColor, color: s.textColor, fontFamily: font }}
     >
       {/* Announcement */}
@@ -1325,7 +1330,44 @@ function BuilderPreview({
         )}
 
         <div className='mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8'>
-          {/* Categories — matches CategoryNav in storefront-catalog.tsx */}
+          {/* Catalogs Carousel (always visible, independent of category filter) */}
+          {catalogs.length > 1 && (
+            <div className='mb-10'>
+              <h2 className='mb-4 text-lg font-bold tracking-tight'>Colecciones</h2>
+              <div className='flex gap-4 overflow-x-auto pb-2'>
+                {catalogs.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className='flex w-52 shrink-0 flex-col overflow-hidden border transition-shadow hover:shadow-lg sm:w-60'
+                    style={{
+                      borderRadius: radiusLg,
+                      borderColor: s.borderColor,
+                      backgroundColor: s.backgroundColor,
+                    }}
+                  >
+                    <div className='relative aspect-3/2 overflow-hidden' style={{ backgroundColor: s.surfaceColor }}>
+                      {cat.imageUrl ? (
+                        <Image src={cat.imageUrl} alt={cat.name} fill className='object-cover' />
+                      ) : (
+                        <div className='flex size-full items-center justify-center'>
+                          <ShoppingBag className='size-8 opacity-15' />
+                        </div>
+                      )}
+                    </div>
+                    <div className='flex items-center justify-between p-3'>
+                      <div className='min-w-0'>
+                        <h3 className='truncate text-sm font-semibold'>{cat.name}</h3>
+                        {cat.description && <p className='mt-0.5 truncate text-xs opacity-50'>{cat.description}</p>}
+                      </div>
+                      <ChevronRight className='size-3.5 shrink-0 opacity-40' />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Categories */}
           {categories.length > 0 && (
             <PreviewCategoryNav
               categories={categories}
@@ -1354,7 +1396,7 @@ function BuilderPreview({
           )}
 
           {/* All Products (paginated) */}
-          <section>
+          <section id='products'>
             <div className='mb-6 flex items-center justify-between'>
               <h2 className='text-xl font-bold tracking-tight'>Todos los productos</h2>
               <span className='text-sm opacity-40'>

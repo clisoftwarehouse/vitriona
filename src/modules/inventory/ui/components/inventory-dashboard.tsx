@@ -44,12 +44,54 @@ const REASON_PRESETS: Record<AdjustType, string[]> = {
   adjustment: ['Conteo físico', 'Corrección de sistema', 'Auditoría'],
 };
 
+type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc' | 'stock_asc' | 'stock_desc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Más recientes' },
+  { value: 'oldest', label: 'Más antiguos' },
+  { value: 'az', label: 'A → Z' },
+  { value: 'za', label: 'Z → A' },
+  { value: 'price_asc', label: 'Precio: menor a mayor' },
+  { value: 'price_desc', label: 'Precio: mayor a menor' },
+  { value: 'stock_asc', label: 'Stock: menor a mayor' },
+  { value: 'stock_desc', label: 'Stock: mayor a menor' },
+];
+
+function sortProducts<T extends { name: string; price: string; stock: number | null; createdAt: Date }>(
+  items: T[],
+  sort: SortOption
+): T[] {
+  return [...items].sort((a, b) => {
+    switch (sort) {
+      case 'newest':
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case 'oldest':
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case 'az':
+        return a.name.localeCompare(b.name);
+      case 'za':
+        return b.name.localeCompare(a.name);
+      case 'price_asc':
+        return Number(a.price) - Number(b.price);
+      case 'price_desc':
+        return Number(b.price) - Number(a.price);
+      case 'stock_asc':
+        return (a.stock ?? 0) - (b.stock ?? 0);
+      case 'stock_desc':
+        return (b.stock ?? 0) - (a.stock ?? 0);
+      default:
+        return 0;
+    }
+  });
+}
+
 export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
   const { data, isLoading } = useInventoryOverview(businessId);
   const adjustStock = useAdjustStock(businessId);
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [invSort, setInvSort] = useState<SortOption>('newest');
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustProductId, setAdjustProductId] = useState<string | null>(null);
   const [adjustType, setAdjustType] = useState<AdjustType>('in');
@@ -74,8 +116,8 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
     } else if (filter === 'out') {
       list = list.filter((p) => p.trackInventory && (p.stock ?? 0) === 0);
     }
-    return list;
-  }, [products, search, filter]);
+    return sortProducts(list, invSort);
+  }, [products, search, filter, invSort]);
 
   const INV_PER_PAGE = 15;
   const invTotalPages = Math.ceil(filteredProducts.length / INV_PER_PAGE);
@@ -181,7 +223,10 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
           {(['all', 'low', 'out'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                setFilter(f);
+                setInvPage(1);
+              }}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
@@ -190,6 +235,24 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
             </button>
           ))}
         </div>
+        <Select
+          value={invSort}
+          onValueChange={(v) => {
+            setInvSort(v as SortOption);
+            setInvPage(1);
+          }}
+        >
+          <SelectTrigger className='w-48'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Products table */}

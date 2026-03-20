@@ -47,8 +47,8 @@ export default async function BusinessesPage() {
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
           {businesses.map((business) => (
             <Link key={business.id} href={`/dashboard/businesses/${business.id}`} className='group'>
-              <Card className='transition-shadow group-hover:shadow-md'>
-                <CardContent className='p-5'>
+              <Card className='flex h-full flex-col transition-shadow group-hover:shadow-md'>
+                <CardContent className='flex flex-1 flex-col p-5'>
                   <div className='flex items-start justify-between'>
                     <div className='flex items-center gap-3'>
                       <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
@@ -64,9 +64,9 @@ export default async function BusinessesPage() {
                     </Badge>
                   </div>
 
-                  {business.description && (
-                    <p className='text-muted-foreground mt-3 line-clamp-2 text-sm'>{business.description}</p>
-                  )}
+                  <p className='text-muted-foreground mt-3 line-clamp-2 flex-1 text-sm'>
+                    {business.description || '\u00A0'}
+                  </p>
 
                   <div className='mt-4 flex items-center justify-between'>
                     <Badge variant='outline' className='text-xs capitalize'>
