@@ -9,6 +9,7 @@ import {
   categories,
   businesses,
   productImages,
+  catalogProducts,
   catalogSettings,
   productAttributes,
   productAttributeValues,
@@ -47,16 +48,28 @@ export async function getCatalogSettings(catalogId: string) {
   return settings ?? null;
 }
 
-export async function getPublicCategories(catalogId: string) {
+export async function getPublicCategories(catalogId: string, businessId: string) {
   return db
     .select()
     .from(categories)
-    .where(and(eq(categories.catalogId, catalogId), eq(categories.isActive, true)))
+    .where(and(eq(categories.businessId, businessId), eq(categories.isActive, true)))
     .orderBy(asc(categories.sortOrder));
 }
 
-export async function getPublicProducts(catalogId: string, categoryId?: string) {
-  const conditions = [eq(products.catalogId, catalogId), eq(products.status, 'active')];
+export async function getPublicProducts(businessId: string, categoryId?: string, catalogId?: string) {
+  const conditions = [eq(products.businessId, businessId), eq(products.status, 'active')];
+
+  // If a specific catalog is requested, filter through the join table
+  if (catalogId) {
+    const linked = await db
+      .select({ productId: catalogProducts.productId })
+      .from(catalogProducts)
+      .where(eq(catalogProducts.catalogId, catalogId));
+
+    const linkedIds = linked.map((l) => l.productId);
+    if (linkedIds.length === 0) return [];
+    conditions.push(inArray(products.id, linkedIds));
+  }
 
   if (categoryId) {
     conditions.push(eq(products.categoryId, categoryId));
@@ -119,11 +132,19 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
 
   const catalogIds = catalogList.map((c) => c.id);
 
+  // Get all catalog-product links
+  const allLinks = await db.select().from(catalogProducts).where(inArray(catalogProducts.catalogId, catalogIds));
+
+  const allProductIds = [...new Set(allLinks.map((l) => l.productId))];
+  if (allProductIds.length === 0) return catalogList.map((c) => ({ ...c, products: [], totalProducts: 0 }));
+
   const allProducts = await db
     .select()
     .from(products)
-    .where(and(inArray(products.catalogId, catalogIds), eq(products.status, 'active')))
+    .where(and(inArray(products.id, allProductIds), eq(products.status, 'active')))
     .orderBy(asc(products.sortOrder));
+
+  const productMap = new Map(allProducts.map((p) => [p.id, p]));
 
   const productIds = allProducts.map((p) => p.id);
   const allImages =
@@ -142,11 +163,14 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
     imageMap.set(img.productId, existing);
   }
 
+  // Group products by catalog via join table links
   const productsByCatalog = new Map<string, (typeof allProducts)[number][]>();
-  for (const p of allProducts) {
-    const existing = productsByCatalog.get(p.catalogId) ?? [];
-    existing.push(p);
-    productsByCatalog.set(p.catalogId, existing);
+  for (const link of allLinks) {
+    const product = productMap.get(link.productId);
+    if (!product) continue;
+    const existing = productsByCatalog.get(link.catalogId) ?? [];
+    existing.push(product);
+    productsByCatalog.set(link.catalogId, existing);
   }
 
   return catalogList.map((catalog) => {
@@ -160,11 +184,12 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
   });
 }
 
-export async function getProductBySlug(catalogId: string, productSlug: string) {
+export async function getProductBySlug(businessId: string, productSlug: string) {
+  // Find the product by slug within this business
   const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.catalogId, catalogId), eq(products.slug, productSlug), eq(products.status, 'active')))
+    .where(and(eq(products.businessId, businessId), eq(products.slug, productSlug), eq(products.status, 'active')))
     .limit(1);
 
   if (!product) return null;

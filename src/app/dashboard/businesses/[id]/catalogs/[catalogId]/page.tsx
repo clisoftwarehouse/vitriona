@@ -9,6 +9,7 @@ import { EditCatalogWrapper } from '@/modules/catalogs/ui/components/edit-catalo
 import { DeleteCatalogButton } from '@/modules/catalogs/ui/components/delete-catalog-button';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { CatalogProductAssigner } from '@/modules/catalogs/ui/components/catalog-product-assigner';
 
 interface EditCatalogPageProps {
   params: Promise<{ id: string; catalogId: string }>;
@@ -71,6 +72,16 @@ export default async function EditCatalogPage({ params }: EditCatalogPageProps) 
               type: catalog.type,
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h3 className='font-semibold'>Productos del catálogo</h3>
+          <p className='text-muted-foreground text-sm'>Selecciona qué productos aparecerán en este catálogo.</p>
+        </CardHeader>
+        <CardContent>
+          <CatalogProductAssigner businessId={id} catalogId={catalogId} />
         </CardContent>
       </Card>
 

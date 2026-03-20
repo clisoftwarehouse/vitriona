@@ -4,7 +4,7 @@ import { eq, and, desc, ilike } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, productAttributeValues } from '@/db/schema';
+import { products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 
 interface GetProductsOptions {
   categoryId?: string;
@@ -12,21 +12,18 @@ interface GetProductsOptions {
   search?: string;
 }
 
-export async function getProductsAction(catalogId: string, options?: GetProductsOptions) {
+export async function getProductsAction(businessId: string, options?: GetProductsOptions) {
   const session = await auth();
   if (!session?.user?.id) return [];
-
-  const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, catalogId)).limit(1);
-  if (!catalog) return [];
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
     .limit(1);
   if (!business) return [];
 
-  const conditions = [eq(products.catalogId, catalogId)];
+  const conditions = [eq(products.businessId, businessId)];
 
   if (options?.categoryId) {
     conditions.push(eq(products.categoryId, options.categoryId));
@@ -52,17 +49,23 @@ export async function getProductByIdAction(productId: string) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
   if (!product) return null;
 
-  const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, product.catalogId)).limit(1);
-  if (!catalog) return null;
-
+  // Verify ownership via businessId
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
     .limit(1);
   if (!business) return null;
 
   return product;
+}
+
+export async function getProductCatalogIdsAction(productId: string) {
+  const rows = await db
+    .select({ catalogId: catalogProducts.catalogId })
+    .from(catalogProducts)
+    .where(eq(catalogProducts.productId, productId));
+  return rows.map((r) => r.catalogId);
 }
 
 export async function getProductAttributeValuesAction(productId: string) {

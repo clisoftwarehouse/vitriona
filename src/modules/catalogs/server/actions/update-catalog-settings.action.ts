@@ -1,10 +1,18 @@
 'use server';
 
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
+import {
+  catalogs,
+  products,
+  businesses,
+  categories,
+  productImages,
+  catalogProducts,
+  catalogSettings,
+} from '@/db/schema';
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
@@ -124,19 +132,28 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
 
     if (!business) return { error: 'No autorizado', data: null };
 
+    // Get product IDs linked to this catalog via join table
+    const linkedProducts = await db
+      .select({ productId: catalogProducts.productId })
+      .from(catalogProducts)
+      .where(eq(catalogProducts.catalogId, catalogId));
+    const linkedIds = linkedProducts.map((l) => l.productId);
+
     const [settings, cats, prods] = await Promise.all([
       db.select().from(catalogSettings).where(eq(catalogSettings.catalogId, catalogId)).limit(1),
       db
         .select()
         .from(categories)
-        .where(and(eq(categories.catalogId, catalogId), eq(categories.isActive, true)))
+        .where(and(eq(categories.businessId, business.id), eq(categories.isActive, true)))
         .orderBy(asc(categories.sortOrder)),
-      db
-        .select()
-        .from(products)
-        .where(and(eq(products.catalogId, catalogId), eq(products.status, 'active')))
-        .orderBy(asc(products.sortOrder))
-        .limit(12),
+      linkedIds.length > 0
+        ? db
+            .select()
+            .from(products)
+            .where(and(inArray(products.id, linkedIds), eq(products.status, 'active')))
+            .orderBy(asc(products.sortOrder))
+            .limit(12)
+        : Promise.resolve([]),
     ]);
 
     const productIds = prods.map((p) => p.id);

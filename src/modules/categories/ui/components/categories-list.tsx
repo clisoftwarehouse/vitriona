@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
@@ -10,10 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SortableCategoryItem } from './sortable-category-item';
 import type { CreateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
-import { createCategoryAction } from '@/modules/categories/server/actions/create-category.action';
-import { updateCategoryAction } from '@/modules/categories/server/actions/update-category.action';
-import { deleteCategoryAction } from '@/modules/categories/server/actions/delete-category.action';
-import { reorderCategoriesAction } from '@/modules/categories/server/actions/reorder-categories.action';
 import {
   Dialog,
   DialogTitle,
@@ -23,6 +19,13 @@ import {
   DialogContent,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+  useReorderCategories,
+} from '@/modules/categories/ui/hooks/use-categories';
 
 interface Category {
   id: string;
@@ -35,67 +38,70 @@ interface Category {
 
 interface CategoriesListProps {
   catalogId: string;
-  initialCategories: Category[];
 }
 
-export function CategoriesList({ catalogId, initialCategories }: CategoriesListProps) {
-  const router = useRouter();
-  const [categories, setCategories] = useState(initialCategories);
+export function CategoriesList({ catalogId }: CategoriesListProps) {
+  const { data: categories = [], isLoading } = useCategories(catalogId);
+  const createCategory = useCreateCategory(catalogId);
+  const updateCategory = useUpdateCategory(catalogId);
+  const deleteCategory = useDeleteCategory(catalogId);
+  const reorderCategories = useReorderCategories(catalogId);
+
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const oldIndex = categories.findIndex((c) => c.id === active.id);
     const newIndex = categories.findIndex((c) => c.id === over.id);
-    const reordered = arrayMove(categories, oldIndex, newIndex);
+    const reordered = arrayMove([...categories], oldIndex, newIndex);
 
-    setCategories(reordered);
-    await reorderCategoriesAction(
-      catalogId,
-      reordered.map((c) => c.id)
-    );
+    reorderCategories.mutate(reordered.map((c) => c.id));
   };
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false);
-    router.refresh();
   };
 
   const handleCreate = async (values: CreateCategoryFormValues) => {
-    return createCategoryAction(catalogId, values);
+    const result = await createCategory.mutateAsync(values);
+    return result;
   };
 
   const handleEditSuccess = () => {
     setEditingId(null);
-    router.refresh();
   };
 
   const handleEdit = async (values: CreateCategoryFormValues) => {
     if (!editingId) return { error: 'No hay categoría seleccionada' };
-    return updateCategoryAction(editingId, values);
+    const result = await updateCategory.mutateAsync({ categoryId: editingId, values });
+    return result;
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleteError(null);
-    setIsDeleting(true);
-    const result = await deleteCategoryAction(deleteTarget.id);
-    setIsDeleting(false);
+    const result = await deleteCategory.mutateAsync(deleteTarget.id);
     if (result?.error) {
       setDeleteError(result.error);
       return;
     }
     setDeleteTarget(null);
-    router.refresh();
   };
 
   const editingCategory = editingId ? categories.find((c) => c.id === editingId) : null;
+
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center py-8'>
+        <Loader2 className='text-muted-foreground size-5 animate-spin' />
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-4'>
@@ -154,12 +160,12 @@ export function CategoriesList({ catalogId, initialCategories }: CategoriesListP
           )}
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant='outline' disabled={isDeleting}>
+              <Button variant='outline' disabled={deleteCategory.isPending}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button variant='destructive' onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+            <Button variant='destructive' onClick={handleDelete} disabled={deleteCategory.isPending}>
+              {deleteCategory.isPending ? 'Eliminando...' : 'Sí, eliminar'}
             </Button>
           </DialogFooter>
         </DialogContent>

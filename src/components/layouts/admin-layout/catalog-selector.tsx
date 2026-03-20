@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Check, BookOpen, ChevronsUpDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ interface CatalogSelectorProps {
 
 export function CatalogSelector({ catalogs, activeCatalogId }: CatalogSelectorProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [currentId, setCurrentId] = useState(activeCatalogId);
 
@@ -39,10 +40,23 @@ export function CatalogSelector({ catalogs, activeCatalogId }: CatalogSelectorPr
 
   const handleSelect = (catalogId: string) => {
     if (catalogId === currentId) return;
+    const newCatalog = catalogs.find((c) => c.id === catalogId);
+    if (!newCatalog) return;
+
     setCurrentId(catalogId);
     startTransition(async () => {
       await setActiveCatalogAction(catalogId);
-      router.refresh();
+
+      // If user is on a catalog-scoped page, navigate to the equivalent page in the new catalog
+      const catalogPattern = /\/dashboard\/businesses\/[^/]+\/catalogs\/[^/]+/;
+      const match = pathname.match(catalogPattern);
+      if (match) {
+        const suffix = pathname.slice(match[0].length);
+        const newPath = `/dashboard/businesses/${newCatalog.businessId}/catalogs/${catalogId}${suffix}`;
+        router.push(newPath);
+      } else {
+        router.refresh();
+      }
     });
   };
 

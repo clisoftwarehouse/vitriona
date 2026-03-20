@@ -55,16 +55,16 @@ export function CheckoutForm({
   const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
   const buildWhatsAppMessage = () => {
-    let msg = `🛒 *Nuevo pedido — ${businessName}*\n\n`;
-    msg += `👤 *Cliente:* ${name}\n`;
-    if (phone) msg += `📞 *Teléfono:* ${phone}\n`;
-    if (email) msg += `📧 *Email:* ${email}\n`;
-    msg += `\n📦 *Productos:*\n`;
+    let msg = `Hola! Acabo de hacer un pedido en ${businessName}.\n\n`;
+    msg += `Nombre: ${name}\n`;
+    if (phone) msg += `Teléfono: ${phone}\n`;
+    if (email) msg += `Email: ${email}\n`;
+    msg += `\nProductos:\n`;
     items.forEach((item) => {
-      msg += `• ${item.name} x${item.quantity} — ${formatPrice(parseFloat(item.price) * item.quantity)}\n`;
+      msg += `- ${item.name} x${item.quantity}  ${formatPrice(parseFloat(item.price) * item.quantity)}\n`;
     });
-    msg += `\n💰 *Total: ${formatPrice(total)}*`;
-    if (notes) msg += `\n\n📝 *Notas:* ${notes}`;
+    msg += `\nTotal: ${formatPrice(total)}`;
+    if (notes) msg += `\n\nNota: ${notes}`;
     return msg;
   };
 

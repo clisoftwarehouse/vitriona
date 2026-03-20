@@ -9,6 +9,7 @@ import {
   Package,
   BookOpen,
   Settings,
+  Warehouse,
   Paintbrush,
   ShoppingCart,
   ChevronRight,
@@ -58,6 +59,11 @@ export function AppSidebar({ onClose, catalogs, activeCatalogId }: AppSidebarPro
           label: 'Pedidos',
           href: `/dashboard/businesses/${activeCatalog.businessId}/orders`,
           icon: ShoppingCart,
+        },
+        {
+          label: 'Inventario',
+          href: `/dashboard/businesses/${activeCatalog.businessId}/inventory`,
+          icon: Warehouse,
         },
         {
           label: 'Site Builder',

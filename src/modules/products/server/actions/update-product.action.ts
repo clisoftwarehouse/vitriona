@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
-import { catalogs, products, businesses, productAttributeValues } from '@/db/schema';
+import { products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 import type { UpdateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 
 export async function updateProductAction(productId: string, values: UpdateProductFormValues) {
@@ -16,13 +16,10 @@ export async function updateProductAction(productId: string, values: UpdateProdu
     const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
     if (!product) return { error: 'Producto no encontrado' };
 
-    const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, product.catalogId)).limit(1);
-    if (!catalog) return { error: 'Catálogo no encontrado' };
-
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 
@@ -43,19 +40,30 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         price: values.price,
         compareAtPrice: values.compareAtPrice || null,
         sku: values.sku || null,
-        stock: values.stock ?? 0,
+        stock: values.type === 'service' ? null : (values.stock ?? 0),
         status: values.status,
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
-        weight: values.weight || null,
-        dimensions: values.dimensions ?? null,
-        minStock: values.minStock ?? 0,
-        trackInventory: values.trackInventory ?? true,
+        weight: values.type === 'service' ? null : values.weight || null,
+        dimensions: values.type === 'service' ? null : (values.dimensions ?? null),
+        minStock: values.type === 'service' ? null : (values.minStock ?? 0),
+        trackInventory: values.type === 'service' ? false : (values.trackInventory ?? true),
         tags: parsedTags,
         characteristics: values.characteristics?.filter((c) => c.name.trim() && c.value.trim()) ?? null,
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId));
+
+    // Sync catalog assignments if provided
+    if (values.catalogIds && values.catalogIds.length > 0) {
+      await db.delete(catalogProducts).where(eq(catalogProducts.productId, productId));
+      await db.insert(catalogProducts).values(
+        values.catalogIds.map((catId) => ({
+          catalogId: catId,
+          productId,
+        }))
+      );
+    }
 
     // Sync attribute values: delete old, insert new
     if (values.attributeValues) {

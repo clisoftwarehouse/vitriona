@@ -26,7 +26,7 @@ export async function createCategoryAction(catalogId: string, values: CreateCate
     const existing = await db
       .select({ sortOrder: categories.sortOrder })
       .from(categories)
-      .where(eq(categories.catalogId, catalogId))
+      .where(eq(categories.businessId, business.id))
       .orderBy(categories.sortOrder);
 
     const nextOrder = existing.length > 0 ? existing[existing.length - 1].sortOrder + 1 : 0;
@@ -34,6 +34,7 @@ export async function createCategoryAction(catalogId: string, values: CreateCate
     const [category] = await db
       .insert(categories)
       .values({
+        businessId: business.id,
         catalogId,
         name: values.name,
         slug: generateSlug(values.name),

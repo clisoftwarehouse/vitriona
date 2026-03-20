@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { CategoriesList } from '@/modules/categories/ui/components/categories-list';
 import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
-import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
 
 interface CategoriesPageProps {
@@ -15,11 +14,7 @@ interface CategoriesPageProps {
 
 export default async function CategoriesPage({ params }: CategoriesPageProps) {
   const { id, catalogId } = await params;
-  const [business, catalog, categories] = await Promise.all([
-    getBusinessByIdAction(id),
-    getCatalogByIdAction(catalogId),
-    getCategoriesAction(catalogId),
-  ]);
+  const [business, catalog] = await Promise.all([getBusinessByIdAction(id), getCatalogByIdAction(catalogId)]);
 
   if (!business || !catalog) notFound();
 
@@ -47,7 +42,7 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <CategoriesList catalogId={catalogId} initialCategories={categories} />
+          <CategoriesList catalogId={catalogId} />
         </CardContent>
       </Card>
     </div>

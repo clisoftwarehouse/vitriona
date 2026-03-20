@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,11 +36,17 @@ interface AttributeDefinition {
   isRequired: boolean;
 }
 
+interface Catalog {
+  id: string;
+  name: string;
+}
+
 interface ProductFormProps {
   mode: 'create' | 'edit';
   catalogId: string;
   businessId: string;
   categories: Category[];
+  catalogs?: Catalog[];
   attributes?: AttributeDefinition[];
   defaultValues?: Partial<CreateProductFormValues>;
   onSubmitAction: (values: CreateProductFormValues) => Promise<{ error?: string; success?: boolean }>;
@@ -50,11 +57,13 @@ export function ProductForm({
   catalogId,
   businessId,
   categories,
+  catalogs = [],
   attributes = [],
   defaultValues,
   onSubmitAction,
 }: ProductFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +84,7 @@ export function ProductForm({
       minStock: 0,
       trackInventory: true,
       tags: '',
+      catalogIds: [catalogId],
       attributeValues: {},
       characteristics: [],
       ...defaultValues,
@@ -89,8 +99,8 @@ export function ProductForm({
         setError(result.error);
         return;
       }
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       router.push(`/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`);
-      router.refresh();
     });
   };
 
@@ -140,7 +150,7 @@ export function ProductForm({
           />
 
           {/* ── Type & Category ── */}
-          <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='grid items-start gap-4 sm:grid-cols-2'>
             <FormField
               control={form.control}
               name='type'
@@ -193,8 +203,47 @@ export function ProductForm({
             />
           </div>
 
+          {/* ── Catalogs (multi-select) ── */}
+          {catalogs.length > 1 && (
+            <FormField
+              control={form.control}
+              name='catalogIds'
+              render={({ field }) => {
+                const selected = field.value ?? [catalogId];
+                const toggle = (id: string) => {
+                  const next = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+                  if (next.length > 0) field.onChange(next);
+                };
+                return (
+                  <FormItem>
+                    <FormLabel>Catálogos</FormLabel>
+                    <FormDescription>Selecciona en cuáles catálogos aparecerá este producto.</FormDescription>
+                    <div className='flex flex-wrap gap-2'>
+                      {catalogs.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type='button'
+                          disabled={isPending}
+                          onClick={() => toggle(cat.id)}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            selected.includes(cat.id)
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-input bg-background hover:bg-accent'
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          )}
+
           {/* ── Pricing ── */}
-          <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='grid items-start gap-4 sm:grid-cols-2'>
             <FormField
               control={form.control}
               name='price'
@@ -225,74 +274,85 @@ export function ProductForm({
             />
           </div>
 
-          {/* ── Inventory ── */}
-          <div className='grid gap-4 sm:grid-cols-3'>
-            <FormField
-              control={form.control}
-              name='sku'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder='ABC-001' disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* ── Inventory (products only) ── */}
+          <FormField
+            control={form.control}
+            name='sku'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>SKU</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder='ABC-001' disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name='stock'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stock</FormLabel>
-                  <FormControl>
-                    <Input {...field} type='number' min='0' placeholder='0' disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {form.watch('type') === 'product' && (
+            <>
+              <div className='grid items-start gap-4 sm:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='stock'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min='0'
+                          placeholder='0'
+                          disabled={isPending}
+                          value={field.value ?? 0}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name='minStock'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stock mínimo</FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min='0'
-                      placeholder='0'
-                      disabled={isPending}
-                      value={field.value ?? 0}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormDescription>Alerta de stock bajo.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+                <FormField
+                  control={form.control}
+                  name='minStock'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock mínimo</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min='0'
+                          placeholder='0'
+                          disabled={isPending}
+                          value={field.value ?? 0}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormDescription>Alerta de stock bajo.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-          <div className='grid gap-4 sm:grid-cols-2'>
-            <FormField
-              control={form.control}
-              name='weight'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Peso (kg)</FormLabel>
-                  <FormControl>
-                    <Input {...field} type='number' step='0.01' min='0' placeholder='0.00' disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name='weight'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Peso (kg)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type='number' step='0.01' min='0' placeholder='0.00' disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
 
+          <div className='grid items-start gap-4 sm:grid-cols-2'>
             <FormField
               control={form.control}
               name='status'
@@ -350,18 +410,20 @@ export function ProductForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name='trackInventory'
-              render={({ field }) => (
-                <FormItem className='flex items-center gap-2 space-y-0'>
-                  <FormControl>
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isPending} />
-                  </FormControl>
-                  <FormLabel className='cursor-pointer'>Rastrear inventario</FormLabel>
-                </FormItem>
-              )}
-            />
+            {form.watch('type') === 'product' && (
+              <FormField
+                control={form.control}
+                name='trackInventory'
+                render={({ field }) => (
+                  <FormItem className='flex items-center gap-2 space-y-0'>
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isPending} />
+                    </FormControl>
+                    <FormLabel className='cursor-pointer'>Rastrear inventario</FormLabel>
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
 
           {/* ── Characteristics (ad-hoc key-value) ── */}

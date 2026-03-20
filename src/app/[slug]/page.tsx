@@ -52,8 +52,8 @@ export default async function CatalogPage({ params, searchParams }: CatalogPageP
   if (!catalog) notFound();
 
   const [categoriesList, productsList, settings, allCatalogsWithProducts] = await Promise.all([
-    getPublicCategories(catalog.id),
-    getPublicProducts(catalog.id, categoria || undefined),
+    getPublicCategories(catalog.id, business.id),
+    getPublicProducts(business.id, categoria || undefined),
     getCatalogSettings(catalog.id),
     getCatalogsWithPreviewProducts(business.id, 6),
   ]);

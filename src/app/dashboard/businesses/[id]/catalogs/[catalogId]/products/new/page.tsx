@@ -5,10 +5,10 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
-import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { CreateProductWrapper } from '@/modules/products/ui/components/create-product-wrapper';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getCatalogsAction, getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 
 interface NewProductPageProps {
   params: Promise<{ id: string; catalogId: string }>;
@@ -16,11 +16,12 @@ interface NewProductPageProps {
 
 export default async function NewProductPage({ params }: NewProductPageProps) {
   const { id, catalogId } = await params;
-  const [business, catalog, categories, attributes] = await Promise.all([
+  const [business, catalog, categories, attributes, allCatalogs] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(catalogId),
     getAttributesAction(id),
+    getCatalogsAction(id),
   ]);
 
   if (!business || !catalog) notFound();
@@ -46,7 +47,13 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
           <h3 className='font-semibold'>Información del producto</h3>
         </CardHeader>
         <CardContent>
-          <CreateProductWrapper catalogId={catalogId} businessId={id} categories={categories} attributes={attributes} />
+          <CreateProductWrapper
+            catalogId={catalogId}
+            businessId={id}
+            categories={categories}
+            attributes={attributes}
+            catalogs={allCatalogs}
+          />
         </CardContent>
       </Card>
     </div>

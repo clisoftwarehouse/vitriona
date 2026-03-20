@@ -40,7 +40,6 @@ export function DeleteCatalogButton({ catalogId, catalogName, businessId }: Dele
       }
       setOpen(false);
       router.push(`/dashboard/businesses/${businessId}/catalogs`);
-      router.refresh();
     });
   };
 

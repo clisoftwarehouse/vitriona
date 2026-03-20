@@ -41,6 +41,7 @@ export const createProductSchema = z.object({
   minStock: z.number().int().min(0).optional(),
   trackInventory: z.boolean(),
   tags: z.string().optional().or(z.literal('')),
+  catalogIds: z.array(z.string()).optional(),
   attributeValues: z.record(z.string(), z.string()).optional(),
   characteristics: z.array(z.object({ name: z.string().min(1), value: z.string().min(1) })).optional(),
 });

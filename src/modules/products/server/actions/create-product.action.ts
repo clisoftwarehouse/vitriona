@@ -5,8 +5,8 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
-import { catalogs, products, businesses, productAttributeValues } from '@/db/schema';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
+import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 
 export async function createProductAction(catalogId: string, values: CreateProductFormValues) {
   try {
@@ -30,9 +30,12 @@ export async function createProductAction(catalogId: string, values: CreateProdu
           .filter(Boolean)
       : null;
 
+    const catalogIds = values.catalogIds?.length ? values.catalogIds : [catalogId];
+
     const [product] = await db
       .insert(products)
       .values({
+        businessId: business.id,
         catalogId,
         categoryId: values.categoryId || null,
         name: values.name,
@@ -41,18 +44,26 @@ export async function createProductAction(catalogId: string, values: CreateProdu
         price: values.price,
         compareAtPrice: values.compareAtPrice || null,
         sku: values.sku || null,
-        stock: values.stock ?? 0,
+        stock: values.type === 'service' ? null : (values.stock ?? 0),
         status: values.status,
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
-        weight: values.weight || null,
-        dimensions: values.dimensions ?? null,
-        minStock: values.minStock ?? 0,
-        trackInventory: values.trackInventory ?? true,
+        weight: values.type === 'service' ? null : values.weight || null,
+        dimensions: values.type === 'service' ? null : (values.dimensions ?? null),
+        minStock: values.type === 'service' ? null : (values.minStock ?? 0),
+        trackInventory: values.type === 'service' ? false : (values.trackInventory ?? true),
         tags: parsedTags,
         characteristics: values.characteristics?.filter((c) => c.name.trim() && c.value.trim()) ?? null,
       })
       .returning({ id: products.id });
+
+    // Link product to catalog(s)
+    await db.insert(catalogProducts).values(
+      catalogIds.map((catId) => ({
+        catalogId: catId,
+        productId: product.id,
+      }))
+    );
 
     // Save attribute values
     if (values.attributeValues) {

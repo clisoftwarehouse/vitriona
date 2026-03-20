@@ -4,7 +4,7 @@ import { eq, and, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, inventoryMovements } from '@/db/schema';
+import { products, businesses, inventoryMovements } from '@/db/schema';
 
 // ── Helpers ──
 
@@ -12,13 +12,10 @@ async function verifyProductOwnership(productId: string, userId: string) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
   if (!product) return null;
 
-  const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, product.catalogId)).limit(1);
-  if (!catalog) return null;
-
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId)))
     .limit(1);
 
   return business ? product : null;
@@ -85,6 +82,59 @@ export async function adjustStockAction(
   }
 }
 
+export async function getInventoryOverviewAction(businessId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: 'No autorizado' };
+
+  const [business] = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .limit(1);
+  if (!business) return { error: 'No autorizado' };
+
+  const allProducts = await db
+    .select({
+      id: products.id,
+      name: products.name,
+      sku: products.sku,
+      stock: products.stock,
+      minStock: products.minStock,
+      trackInventory: products.trackInventory,
+      type: products.type,
+      status: products.status,
+      price: products.price,
+    })
+    .from(products)
+    .where(and(eq(products.businessId, businessId), eq(products.type, 'product')));
+
+  const recentMovements = await db
+    .select({
+      id: inventoryMovements.id,
+      productId: inventoryMovements.productId,
+      type: inventoryMovements.type,
+      quantity: inventoryMovements.quantity,
+      reason: inventoryMovements.reason,
+      previousStock: inventoryMovements.previousStock,
+      newStock: inventoryMovements.newStock,
+      createdAt: inventoryMovements.createdAt,
+    })
+    .from(inventoryMovements)
+    .innerJoin(products, eq(products.id, inventoryMovements.productId))
+    .where(eq(products.businessId, businessId))
+    .orderBy(desc(inventoryMovements.createdAt))
+    .limit(50);
+
+  // Enrich movements with product names
+  const productMap = new Map(allProducts.map((p) => [p.id, p.name]));
+  const enrichedMovements = recentMovements.map((m) => ({
+    ...m,
+    productName: productMap.get(m.productId) ?? 'Producto eliminado',
+  }));
+
+  return { products: allProducts, movements: enrichedMovements };
+}
+
 export async function getLowStockProductsAction(businessId: string) {
   const session = await auth();
   if (!session?.user?.id) return [];
@@ -103,11 +153,9 @@ export async function getLowStockProductsAction(businessId: string) {
       stock: products.stock,
       minStock: products.minStock,
       trackInventory: products.trackInventory,
-      catalogId: products.catalogId,
     })
     .from(products)
-    .innerJoin(catalogs, eq(products.catalogId, catalogs.id))
-    .where(and(eq(catalogs.businessId, businessId), eq(products.trackInventory, true)));
+    .where(and(eq(products.businessId, businessId), eq(products.trackInventory, true)));
 
   return allProducts.filter((p) => (p.stock ?? 0) <= (p.minStock ?? 0));
 }

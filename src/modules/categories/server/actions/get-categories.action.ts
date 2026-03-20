@@ -20,7 +20,8 @@ export async function getCategoriesAction(catalogId: string) {
     .limit(1);
   if (!business) return [];
 
-  return db.select().from(categories).where(eq(categories.catalogId, catalogId)).orderBy(categories.sortOrder);
+  // Categories are now business-level, shared across all catalogs
+  return db.select().from(categories).where(eq(categories.businessId, business.id)).orderBy(categories.sortOrder);
 }
 
 export async function getCategoryByIdAction(categoryId: string) {
@@ -30,13 +31,10 @@ export async function getCategoryByIdAction(categoryId: string) {
   const [category] = await db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
   if (!category) return null;
 
-  const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, category.catalogId)).limit(1);
-  if (!catalog) return null;
-
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, category.businessId), eq(businesses.userId, session.user.id)))
     .limit(1);
   if (!business) return null;
 

@@ -47,6 +47,8 @@ function ChatWidgetInner({ businessId }: ChatWidgetProps) {
     const botResponse = await sendMessage(messageText);
     if (botResponse) {
       addMessage(botResponse);
+    } else {
+      addMessage({ from: 'bot', text: config?.errorMessage ?? DEFAULT_CONFIG.ERROR_MESSAGE });
     }
   };
 

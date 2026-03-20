@@ -17,11 +17,17 @@ interface AttributeDefinition {
   isRequired: boolean;
 }
 
+interface Catalog {
+  id: string;
+  name: string;
+}
+
 interface EditProductWrapperProps {
   productId: string;
   catalogId: string;
   businessId: string;
   categories: Category[];
+  catalogs?: Catalog[];
   attributes?: AttributeDefinition[];
   defaultValues: Partial<CreateProductFormValues>;
 }
@@ -31,6 +37,7 @@ export function EditProductWrapper({
   catalogId,
   businessId,
   categories,
+  catalogs,
   attributes,
   defaultValues,
 }: EditProductWrapperProps) {
@@ -44,6 +51,7 @@ export function EditProductWrapper({
       catalogId={catalogId}
       businessId={businessId}
       categories={categories}
+      catalogs={catalogs}
       attributes={attributes}
       defaultValues={defaultValues}
       onSubmitAction={handleSubmit}

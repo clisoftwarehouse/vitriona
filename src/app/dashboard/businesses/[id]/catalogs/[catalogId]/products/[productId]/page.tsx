@@ -8,13 +8,14 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
 import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
-import { getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getProductImagesAction } from '@/modules/products/server/actions/product-images.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getCatalogsAction, getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 import {
   getProductByIdAction,
+  getProductCatalogIdsAction,
   getProductAttributeValuesAction,
 } from '@/modules/products/server/actions/get-products.action';
 
@@ -24,15 +25,18 @@ interface EditProductPageProps {
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { id, catalogId, productId } = await params;
-  const [business, catalog, categories, product, images, attributes, attrValues] = await Promise.all([
-    getBusinessByIdAction(id),
-    getCatalogByIdAction(catalogId),
-    getCategoriesAction(catalogId),
-    getProductByIdAction(productId),
-    getProductImagesAction(productId),
-    getAttributesAction(id),
-    getProductAttributeValuesAction(productId),
-  ]);
+  const [business, catalog, categories, product, images, attributes, attrValues, allCatalogs, productCatalogIds] =
+    await Promise.all([
+      getBusinessByIdAction(id),
+      getCatalogByIdAction(catalogId),
+      getCategoriesAction(catalogId),
+      getProductByIdAction(productId),
+      getProductImagesAction(productId),
+      getAttributesAction(id),
+      getProductAttributeValuesAction(productId),
+      getCatalogsAction(id),
+      getProductCatalogIdsAction(productId),
+    ]);
 
   if (!business || !catalog || !product) notFound();
 
@@ -62,6 +66,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
             catalogId={catalogId}
             businessId={id}
             categories={categories}
+            catalogs={allCatalogs}
             attributes={attributes}
             defaultValues={{
               name: product.name,
@@ -78,6 +83,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               minStock: product.minStock ?? 0,
               trackInventory: product.trackInventory,
               tags: product.tags?.join(', ') ?? '',
+              catalogIds: productCatalogIds.length > 0 ? productCatalogIds : [catalogId],
               attributeValues: attrValues,
               characteristics: product.characteristics ?? [],
             }}

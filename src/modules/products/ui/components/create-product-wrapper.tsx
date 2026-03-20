@@ -17,14 +17,26 @@ interface AttributeDefinition {
   isRequired: boolean;
 }
 
+interface Catalog {
+  id: string;
+  name: string;
+}
+
 interface CreateProductWrapperProps {
   catalogId: string;
   businessId: string;
   categories: Category[];
+  catalogs?: Catalog[];
   attributes?: AttributeDefinition[];
 }
 
-export function CreateProductWrapper({ catalogId, businessId, categories, attributes }: CreateProductWrapperProps) {
+export function CreateProductWrapper({
+  catalogId,
+  businessId,
+  categories,
+  catalogs,
+  attributes,
+}: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return createProductAction(catalogId, values);
   };
@@ -35,6 +47,7 @@ export function CreateProductWrapper({ catalogId, businessId, categories, attrib
       catalogId={catalogId}
       businessId={businessId}
       categories={categories}
+      catalogs={catalogs}
       attributes={attributes}
       onSubmitAction={handleSubmit}
     />

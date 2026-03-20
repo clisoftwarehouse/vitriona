@@ -1,18 +1,24 @@
 'use client';
 
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
-import { Eye, Clock, Truck, Package, XCircle, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Eye, Clock, Truck, Loader2, Package, XCircle, CheckCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { getOrderDetailAction } from '@/modules/orders/server/actions/get-orders.action';
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from '@/components/ui/dialog';
-import { cancelOrderAction, updateOrderStatusAction } from '@/modules/orders/server/actions/update-order-status.action';
+import {
+  orderKeys,
+  useOrders,
+  useOrderDetail,
+  useCancelOrder,
+  useUpdateOrderStatus,
+} from '@/modules/orders/ui/hooks/use-orders';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -22,30 +28,15 @@ interface Order {
   customerName: string;
   customerPhone: string | null;
   customerEmail: string | null;
+  customerNotes: string | null;
   total: string;
   status: string;
   checkoutType: string;
   createdAt: Date;
 }
 
-interface OrderItem {
-  id: string;
-  productName: string;
-  unitPrice: string;
-  quantity: number;
-  subtotal: string;
-}
-
-interface StatusHistoryEntry {
-  id: string;
-  fromStatus: string | null;
-  toStatus: string;
-  note: string | null;
-  createdAt: Date;
-}
-
 interface OrdersTableProps {
-  orders: Order[];
+  businessId: string;
 }
 
 const STATUS_CONFIG: Record<
@@ -69,16 +60,24 @@ const STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
   cancelled: [],
 };
 
-export function OrdersTable({ orders }: OrdersTableProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+export function OrdersTable({ businessId }: OrdersTableProps) {
+  const queryClient = useQueryClient();
+  const { data: orders = [], isLoading } = useOrders(businessId);
+  const updateStatus = useUpdateOrderStatus(businessId);
+  const cancelOrder = useCancelOrder(businessId);
+
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+
+  const selectedOrder = (orders as Order[]).find((o) => o.id === selectedOrderId) ?? null;
+  const { data: detail, isLoading: detailLoading } = useOrderDetail(detailOpen ? selectedOrderId : null);
+  const orderItems = detail?.items ?? [];
+  const statusHistory = detail?.statusHistory ?? [];
+
+  const isPending = updateStatus.isPending || cancelOrder.isPending;
 
   const formatPrice = (price: string) =>
     new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(parseFloat(price));
@@ -86,28 +85,39 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date));
 
-  const handleViewDetail = async (order: Order) => {
-    setSelectedOrder(order);
+  const handleViewDetail = (order: Order) => {
+    setSelectedOrderId(order.id);
     setDetailOpen(true);
-    const result = await getOrderDetailAction(order.id);
-    if (result.items) setOrderItems(result.items as OrderItem[]);
-    if (result.statusHistory) setStatusHistory(result.statusHistory as StatusHistoryEntry[]);
+    queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
   };
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    startTransition(async () => {
-      const result = await updateOrderStatusAction(orderId, newStatus);
-      if (result.error) {
-        toast.error(result.error);
-        return;
+    if (newStatus === 'cancelled') {
+      setSelectedOrderId(orderId);
+      setCancelOpen(true);
+      return;
+    }
+    updateStatus.mutate(
+      { orderId, status: newStatus },
+      {
+        onSuccess: () => {
+          toast.success('Estado actualizado');
+          if (detailOpen) queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+        },
+        onError: (err) => toast.error(err.message),
       }
-      toast.success('Estado actualizado');
-      setDetailOpen(false);
-      router.refresh();
-    });
+    );
   };
 
   const filteredOrders = statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
+
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center py-12'>
+        <Loader2 className='text-muted-foreground size-6 animate-spin' />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -179,14 +189,42 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   </div>
                 </CardHeader>
                 <CardContent className='pt-0'>
-                  <div className='flex items-center justify-between'>
+                  <div className='flex items-center justify-between gap-2'>
                     <Badge variant='outline' className='text-xs'>
                       {order.checkoutType === 'whatsapp' ? '📱 WhatsApp' : '📋 Interno'}
                     </Badge>
-                    <Button variant='ghost' size='sm' onClick={() => handleViewDetail(order)}>
-                      <Eye className='mr-1 size-3.5' />
-                      Ver detalle
-                    </Button>
+                    <div className='flex items-center gap-2'>
+                      {(() => {
+                        const transitions = STATUS_TRANSITIONS[order.status] ?? [];
+                        if (transitions.length === 0) return null;
+                        return (
+                          <Select
+                            value={order.status}
+                            onValueChange={(value) => handleStatusChange(order.id, value as OrderStatus)}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger className='h-8 w-40 text-xs'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={order.status} disabled>
+                                {STATUS_CONFIG[order.status]?.label ?? order.status}
+                              </SelectItem>
+                              {transitions.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s === 'cancelled' ? '❌ ' : '→ '}
+                                  {STATUS_CONFIG[s]?.label ?? s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
+                      <Button variant='ghost' size='sm' onClick={() => handleViewDetail(order)}>
+                        <Eye className='mr-1 size-3.5' />
+                        Detalle
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -216,17 +254,30 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 )}
               </div>
 
+              {selectedOrder.customerNotes && (
+                <div>
+                  <h4 className='mb-1 text-sm font-semibold'>Notas del cliente</h4>
+                  <p className='text-muted-foreground text-sm whitespace-pre-line'>{selectedOrder.customerNotes}</p>
+                </div>
+              )}
+
               <div>
                 <h4 className='mb-2 text-sm font-semibold'>Productos</h4>
                 <div className='space-y-2'>
-                  {orderItems.map((item) => (
-                    <div key={item.id} className='flex items-center justify-between text-sm'>
-                      <span>
-                        {item.productName} <span className='text-muted-foreground'>x{item.quantity}</span>
-                      </span>
-                      <span className='font-medium'>{formatPrice(item.subtotal)}</span>
+                  {detailLoading ? (
+                    <div className='flex justify-center py-4'>
+                      <Loader2 className='text-muted-foreground size-4 animate-spin' />
                     </div>
-                  ))}
+                  ) : (
+                    orderItems.map((item) => (
+                      <div key={item.id} className='flex items-center justify-between text-sm'>
+                        <span>
+                          {item.productName} <span className='text-muted-foreground'>x{item.quantity}</span>
+                        </span>
+                        <span className='font-medium'>{formatPrice(item.subtotal)}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <div className='mt-3 flex items-center justify-between border-t pt-3'>
                   <span className='font-semibold'>Total</span>
@@ -322,21 +373,21 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 disabled={isPending}
                 onClick={() => {
                   if (!selectedOrder) return;
-                  startTransition(async () => {
-                    const result = await cancelOrderAction(selectedOrder.id, cancelReason || undefined);
-                    if (result.error) {
-                      toast.error(result.error);
-                      return;
+                  cancelOrder.mutate(
+                    { orderId: selectedOrder.id, reason: cancelReason || undefined },
+                    {
+                      onSuccess: () => {
+                        toast.success('Pedido cancelado. Inventario restaurado.');
+                        setCancelOpen(false);
+                        setDetailOpen(false);
+                        setCancelReason('');
+                      },
+                      onError: (err) => toast.error(err.message),
                     }
-                    toast.success('Pedido cancelado. Inventario restaurado.');
-                    setCancelOpen(false);
-                    setDetailOpen(false);
-                    setCancelReason('');
-                    router.refresh();
-                  });
+                  );
                 }}
               >
-                {isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+                {cancelOrder.isPending ? 'Cancelando...' : 'Confirmar cancelación'}
               </Button>
             </div>
           </div>

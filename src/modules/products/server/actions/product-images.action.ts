@@ -5,19 +5,16 @@ import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, productImages } from '@/db/schema';
+import { products, businesses, productImages } from '@/db/schema';
 
 async function verifyProductOwnership(productId: string, userId: string) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
   if (!product) return null;
 
-  const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, product.catalogId)).limit(1);
-  if (!catalog) return null;
-
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId)))
     .limit(1);
   if (!business) return null;
 

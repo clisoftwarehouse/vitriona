@@ -82,6 +82,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ bus
     return NextResponse.json({ output: aiResponse });
   } catch (error) {
     console.error('Chat API error:', error);
-    return NextResponse.json({ output: '' }, { status: 200 });
+    return NextResponse.json(
+      { output: 'Lo siento, hubo un problema al procesar tu mensaje. Por favor, intenta de nuevo.' },
+      { status: 200 }
+    );
   }
 }

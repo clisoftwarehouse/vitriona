@@ -2,11 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { ProductDetail } from '@/modules/storefront/ui/components/product-detail';
-import {
-  getProductBySlug,
-  getBusinessBySlug,
-  getDefaultCatalog,
-} from '@/modules/storefront/server/queries/get-storefront-data';
+import { getProductBySlug, getBusinessBySlug } from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface ProductPageProps {
   params: Promise<{ slug: string; productSlug: string }>;
@@ -17,10 +13,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const business = await getBusinessBySlug(slug);
   if (!business) return {};
 
-  const catalog = await getDefaultCatalog(business.id);
-  if (!catalog) return {};
-
-  const product = await getProductBySlug(catalog.id, productSlug);
+  const product = await getProductBySlug(business.id, productSlug);
   if (!product) return {};
 
   const ogImage = product.images[0]?.url;
@@ -42,10 +35,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const business = await getBusinessBySlug(slug);
   if (!business) notFound();
 
-  const catalog = await getDefaultCatalog(business.id);
-  if (!catalog) notFound();
-
-  const product = await getProductBySlug(catalog.id, productSlug);
+  const product = await getProductBySlug(business.id, productSlug);
   if (!product) notFound();
 
   return (

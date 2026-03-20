@@ -76,7 +76,6 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
         return;
       }
       router.push('/dashboard/businesses');
-      router.refresh();
     });
   };
 

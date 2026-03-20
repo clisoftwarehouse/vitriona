@@ -151,19 +151,7 @@ export function ChatbotConfigForm({
     }
 
     startTransition(async () => {
-      // Save knowledge entries
-      const entriesResult = await saveKnowledgeEntriesAction(
-        businessId,
-        knowledgeEntries
-          .filter((e) => e.key.trim() && e.value.trim())
-          .map((e) => ({ key: e.key, value: e.value, category: e.category }))
-      );
-      if (entriesResult.error) {
-        toast.error(entriesResult.error);
-        return;
-      }
-
-      // Save config
+      // Save config first (creates the row if it doesn't exist yet)
       const result = await upsertChatbotConfigAction({
         businessId,
         isEnabled,
@@ -189,9 +177,22 @@ export function ChatbotConfigForm({
 
       if (result.error) {
         toast.error(result.error);
-      } else {
-        toast.success('Configuración guardada correctamente');
+        return;
       }
+
+      // Save knowledge entries (after config exists)
+      const entriesResult = await saveKnowledgeEntriesAction(
+        businessId,
+        knowledgeEntries
+          .filter((e) => e.key.trim() && e.value.trim())
+          .map((e) => ({ key: e.key, value: e.value, category: e.category }))
+      );
+      if (entriesResult.error) {
+        toast.error(entriesResult.error);
+        return;
+      }
+
+      toast.success('Configuración guardada correctamente');
     });
   };
 

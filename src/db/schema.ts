@@ -320,9 +320,10 @@ export const categories = pgTable('categories', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  catalogId: text('catalog_id')
+  businessId: text('business_id')
     .notNull()
-    .references(() => catalogs.id, { onDelete: 'cascade' }),
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  catalogId: text('catalog_id').references(() => catalogs.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   description: text('description'),
@@ -333,13 +334,29 @@ export const categories = pgTable('categories', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+export const catalogProducts = pgTable(
+  'catalog_products',
+  {
+    catalogId: text('catalog_id')
+      .notNull()
+      .references(() => catalogs.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.catalogId, t.productId] })]
+);
+
 export const products = pgTable('products', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  catalogId: text('catalog_id')
+  businessId: text('business_id')
     .notNull()
-    .references(() => catalogs.id, { onDelete: 'cascade' }),
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  catalogId: text('catalog_id').references(() => catalogs.id, { onDelete: 'set null' }),
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   slug: text('slug').notNull(),

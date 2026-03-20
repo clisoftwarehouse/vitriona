@@ -41,7 +41,6 @@ export function DeleteProductButton({ productId, productName, businessId, catalo
       }
       setOpen(false);
       router.push(`/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`);
-      router.refresh();
     });
   };
 

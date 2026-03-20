@@ -1216,6 +1216,8 @@ function SeoPanel({ settings, update }: PanelProps) {
 
 /* ─── Inline Preview (matches production layout from [slug]/layout.tsx + storefront-catalog.tsx) ─── */
 
+const PREVIEW_PER_PAGE = 8;
+
 function BuilderPreview({
   settings: s,
   business,
@@ -1227,6 +1229,7 @@ function BuilderPreview({
   categories: PreviewCategory[];
   products: PreviewProduct[];
 }) {
+  const [previewPage, setPreviewPage] = useState(1);
   const br = s.borderRadius;
   const radius = br > 0 ? `${br * 0.0625}rem` : '0';
   const radiusLg = br > 0 ? `${(br + 4) * 0.0625}rem` : '0';
@@ -1234,6 +1237,8 @@ function BuilderPreview({
   const font = FONT_FAMILY[s.font] || FONT_FAMILY.inter;
   const featured = products.filter((p) => p.isFeatured);
   const cols = s.gridColumns ?? 4;
+  const previewTotalPages = Math.ceil(products.length / PREVIEW_PER_PAGE);
+  const paginatedPreviewProducts = products.slice((previewPage - 1) * PREVIEW_PER_PAGE, previewPage * PREVIEW_PER_PAGE);
   const gridClass =
     cols === 3
       ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
@@ -1348,7 +1353,7 @@ function BuilderPreview({
             </section>
           )}
 
-          {/* All Products */}
+          {/* All Products (paginated) */}
           <section>
             <div className='mb-6 flex items-center justify-between'>
               <h2 className='text-xl font-bold tracking-tight'>Todos los productos</h2>
@@ -1357,11 +1362,48 @@ function BuilderPreview({
               </span>
             </div>
             {products.length > 0 ? (
-              <div className={gridClass}>
-                {products.map((p) => (
-                  <PreviewCard key={p.id} product={p} s={s} radiusLg={radiusLg} fmt={fmt} />
-                ))}
-              </div>
+              <>
+                <div className={gridClass}>
+                  {paginatedPreviewProducts.map((p) => (
+                    <PreviewCard key={p.id} product={p} s={s} radiusLg={radiusLg} fmt={fmt} />
+                  ))}
+                </div>
+                {previewTotalPages > 1 && (
+                  <div className='mt-6 flex items-center justify-center gap-1'>
+                    <button
+                      onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                      disabled={previewPage === 1}
+                      className='flex size-8 items-center justify-center border text-xs transition-colors disabled:opacity-30'
+                      style={{ borderRadius: radius, borderColor: s.borderColor }}
+                    >
+                      ‹
+                    </button>
+                    {Array.from({ length: previewTotalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPreviewPage(p)}
+                        className='flex size-8 items-center justify-center text-xs font-medium transition-colors'
+                        style={{
+                          borderRadius: radius,
+                          backgroundColor: p === previewPage ? s.primaryColor : 'transparent',
+                          color: p === previewPage ? '#fff' : 'inherit',
+                          border: p === previewPage ? 'none' : `1px solid ${s.borderColor}`,
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPreviewPage((p) => Math.min(previewTotalPages, p + 1))}
+                      disabled={previewPage === previewTotalPages}
+                      className='flex size-8 items-center justify-center border text-xs transition-colors disabled:opacity-30'
+                      style={{ borderRadius: radius, borderColor: s.borderColor }}
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div
                 className='flex flex-col items-center py-20'

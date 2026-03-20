@@ -1,0 +1,96 @@
+Product,Description,Price,Quantity,Code
+Wireless Bluetooth Headphones,Over-ear noise cancelling headphones with 30hr battery,79.99,45,ELEC-001
+Portable Bluetooth Speaker,Waterproof speaker with 360 sound,39.99,60,ELEC-002
+USB-C Charging Cable 2m,Braided nylon fast charging cable,9.99,200,ELEC-003
+Phone Case Transparent,Clear TPU case with drop protection,12.99,150,ELEC-004
+Screen Protector Tempered Glass,9H hardness tempered glass screen protector,7.99,180,ELEC-005
+Wireless Mouse Ergonomic,Ergonomic wireless mouse with silent clicks,24.99,70,ELEC-006
+Mechanical Keyboard RGB,Full size mechanical keyboard with RGB backlighting,69.99,35,ELEC-007
+Laptop Stand Adjustable,Aluminum adjustable laptop riser,34.99,40,ELEC-008
+Webcam HD 1080p,Full HD webcam with built-in microphone,44.99,55,ELEC-009
+USB Hub 7 Port,Powered USB 3.0 hub with 7 ports,19.99,65,ELEC-010
+Power Bank 20000mAh,Portable charger with dual USB output,29.99,80,ELEC-011
+Wireless Earbuds Pro,True wireless earbuds with ANC,59.99,50,ELEC-012
+Smart Watch Fitness,Fitness tracker with heart rate and GPS,89.99,30,ELEC-013
+Tablet Stand Holder,Adjustable tablet and phone holder for desk,14.99,90,ELEC-014
+HDMI Cable 3m,High speed HDMI 2.1 cable,11.99,120,ELEC-015
+Desk LED Lamp,Dimmable LED desk lamp with USB port,27.99,45,HOME-001
+Scented Candle Lavender,Natural soy wax candle lavender scent 300g,16.99,75,HOME-002
+Throw Pillow Velvet,Decorative velvet throw pillow 45x45cm,19.99,60,HOME-003
+Wall Clock Minimalist,Silent wall clock minimalist design 30cm,22.99,40,HOME-004
+Photo Frame Set,Set of 3 wooden photo frames various sizes,24.99,35,HOME-005
+Plant Pot Ceramic,Ceramic plant pot with drainage hole 15cm,14.99,80,HOME-006
+Kitchen Timer Digital,Digital magnetic kitchen timer,8.99,100,HOME-007
+Cutting Board Bamboo,Large bamboo cutting board 40x30cm,18.99,55,HOME-008
+Water Bottle Insulated,Vacuum insulated water bottle 750ml,21.99,65,HOME-009
+Travel Mug Stainless,Stainless steel travel mug 450ml,15.99,70,HOME-010
+Yoga Mat Premium,Non-slip yoga mat 6mm thick,29.99,50,FIT-001
+Resistance Bands Set,Set of 5 resistance bands different levels,16.99,85,FIT-002
+Jump Rope Speed,Adjustable speed jump rope with bearings,11.99,90,FIT-003
+Foam Roller 45cm,High density foam roller for recovery,19.99,55,FIT-004
+Dumbbell Set 10kg,Pair of neoprene coated dumbbells 5kg each,34.99,30,FIT-005
+Exercise Ball 65cm,Anti-burst exercise ball with pump,18.99,40,FIT-006
+Gym Bag Duffle,Large duffle bag with shoe compartment,27.99,45,FIT-007
+Wrist Wraps Pair,Weightlifting wrist support wraps,9.99,100,FIT-008
+Protein Shaker 700ml,Leak-proof protein shaker with mixer ball,8.99,110,FIT-009
+Sweatband Headband,Moisture wicking athletic headband,6.99,120,FIT-010
+Notebook A5 Ruled,Premium hardcover notebook 200 pages,9.99,130,OFF-001
+Pen Set Ballpoint,Set of 10 smooth writing ballpoint pens,5.99,200,OFF-002
+Desk Organizer Wood,Wooden desk organizer with 5 compartments,24.99,40,OFF-003
+Sticky Notes Pack,Pack of 12 pads assorted colors,7.99,150,OFF-004
+Highlighter Set 6,Set of 6 fluorescent highlighters,4.99,170,OFF-005
+Planner Weekly 2025,Weekly planner with monthly overview,14.99,80,OFF-006
+Paper Clips Box 500,Box of 500 silver paper clips,3.99,160,OFF-007
+Stapler Heavy Duty,Heavy duty stapler up to 100 sheets,12.99,50,OFF-008
+Tape Dispenser,Desktop tape dispenser with weighted base,8.99,70,OFF-009
+Whiteboard Markers Set,Set of 8 dry erase whiteboard markers,6.99,100,OFF-010
+Backpack Travel 40L,Large travel backpack with laptop pocket,54.99,30,BAG-001
+Crossbody Bag Nylon,Lightweight nylon crossbody bag,22.99,55,BAG-002
+Toiletry Bag Hanging,Hanging toiletry bag with compartments,16.99,65,BAG-003
+Packing Cubes Set 6,Set of 6 packing cubes various sizes,19.99,50,BAG-004
+Passport Holder Leather,RFID blocking leather passport holder,14.99,75,BAG-005
+Luggage Tag Set,Set of 4 silicone luggage tags,7.99,100,BAG-006
+Neck Pillow Memory Foam,Memory foam travel neck pillow,17.99,60,BAG-007
+Eye Mask Sleep,Silk sleep eye mask with adjustable strap,9.99,90,BAG-008
+Compression Socks Travel,Graduated compression socks for travel,12.99,70,BAG-009
+Document Organizer,Travel document organizer with zipper,11.99,80,BAG-010
+Sunglasses Polarized,Polarized UV400 protection sunglasses,24.99,50,ACC-001
+Watch Minimalist,Minimalist quartz watch leather strap,44.99,25,ACC-002
+Wallet Bifold Leather,Genuine leather bifold wallet RFID,29.99,45,ACC-003
+Belt Reversible,Reversible black and brown leather belt,22.99,55,ACC-004
+Scarf Cashmere Blend,Soft cashmere blend winter scarf,34.99,30,ACC-005
+Gloves Touch Screen,Touch screen compatible winter gloves,14.99,65,ACC-006
+Beanie Wool,Merino wool beanie hat unisex,16.99,70,ACC-007
+Umbrella Compact,Compact automatic open close umbrella,12.99,80,ACC-008
+Keychain Multi-tool,Stainless steel multi-tool keychain,9.99,100,ACC-009
+Cufflinks Silver,Sterling silver classic cufflinks pair,29.99,30,ACC-010
+Face Wash Gel,Gentle daily face wash gel 200ml,11.99,85,CARE-001
+Moisturizer SPF 30,Daily moisturizer with SPF 30 50ml,18.99,60,CARE-002
+Shampoo Argan Oil,Argan oil nourishing shampoo 400ml,13.99,75,CARE-003
+Conditioner Repair,Deep repair conditioner 400ml,13.99,70,CARE-004
+Body Lotion Coconut,Coconut moisturizing body lotion 300ml,10.99,90,CARE-005
+Hand Cream Travel,Intensive hand cream travel size 50ml,6.99,120,CARE-006
+Lip Balm SPF 15,Moisturizing lip balm with SPF 15,4.99,150,CARE-007
+Deodorant Natural,Natural aluminum-free deodorant 75ml,8.99,100,CARE-008
+Toothbrush Bamboo,Eco-friendly bamboo toothbrush,3.99,180,CARE-009
+Hair Brush Detangle,Flexible bristle detangling hair brush,11.99,65,CARE-010
+Candle Set Gift,Gift set of 3 scented candles,29.99,35,GIFT-001
+Bath Bomb Set 6,Set of 6 fizzy bath bombs,16.99,55,GIFT-002
+Essential Oil Diffuser,Ultrasonic aromatherapy oil diffuser,24.99,40,GIFT-003
+Tea Gift Box,Premium tea collection gift box 30 bags,19.99,50,GIFT-004
+Chocolate Box Premium,Premium assorted chocolate box 24pcs,22.99,45,GIFT-005
+Coffee Sampler Set,Artisan coffee sampler 6 varieties,18.99,55,GIFT-006
+Wine Opener Set,Professional wine opener and accessory set,27.99,30,GIFT-007
+Cheese Board Set,Bamboo cheese board with knife set,34.99,25,GIFT-008
+Cocktail Kit Set,Home cocktail making kit with tools,39.99,20,GIFT-009
+Puzzle 1000 Pieces,Premium 1000 piece jigsaw puzzle,14.99,60,GIFT-010
+Board Game Strategy,Strategic board game for 2-4 players,29.99,35,TOY-001
+Card Game Party,Party card game for groups,12.99,70,TOY-002
+Dice Set RPG,Set of 7 polyhedral RPG dice,8.99,80,TOY-003
+Coloring Book Adult,Detailed adult coloring book 100 pages,9.99,65,TOY-004
+Sketch Pad A4,Artist sketch pad 50 sheets 200gsm,7.99,75,TOY-005
+Colored Pencils 36,Set of 36 professional colored pencils,16.99,50,TOY-006
+Watercolor Set 24,Set of 24 watercolor paints with brush,19.99,40,TOY-007
+Canvas Stretched 40x50,Pre-stretched artist canvas 40x50cm,11.99,55,TOY-008
+Paint Brush Set 12,Set of 12 assorted paint brushes,13.99,60,TOY-009
+Craft Glue Set,Set of craft glues and adhesives,8.99,90,TOY-010

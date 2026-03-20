@@ -1,0 +1,101 @@
+Nombre,Descripcion,Precio,Stock,SKU
+Camiseta Básica Blanca,Camiseta de algodón 100% en color blanco,12.99,150,CAM-001
+Camiseta Básica Negra,Camiseta de algodón 100% en color negro,12.99,120,CAM-002
+Pantalón Jeans Clásico,Jeans de mezclilla corte recto,39.99,80,PAN-001
+Pantalón Chino Beige,Pantalón chino de algodón en color beige,34.99,60,PAN-002
+Sudadera con Capucha Gris,Sudadera de felpa con capucha y bolsillo canguro,29.99,45,SUD-001
+Sudadera sin Capucha Azul,Sudadera básica sin capucha color azul marino,24.99,55,SUD-002
+Chaqueta de Cuero Sintético,Chaqueta estilo biker en cuero sintético negro,79.99,25,CHA-001
+Chaqueta Denim,Chaqueta de mezclilla lavada,59.99,30,CHA-002
+Vestido Floral Verano,Vestido corto con estampado floral,27.99,70,VES-001
+Vestido Negro Elegante,Vestido negro largo para ocasiones especiales,49.99,35,VES-002
+Falda Plisada Midi,Falda plisada a media pierna,22.99,40,FAL-001
+Falda Mini Denim,Falda corta de mezclilla,19.99,50,FAL-002
+Shorts Deportivos,Shorts ligeros para entrenamiento,15.99,100,SHO-001
+Shorts Casuales,Shorts de algodón para uso diario,17.99,85,SHO-002
+Camisa Formal Blanca,Camisa de vestir manga larga,32.99,40,CMF-001
+Camisa a Cuadros,Camisa casual a cuadros rojos y negros,28.99,55,CMF-002
+Polo Clásico,Polo de piqué con cuello y botones,21.99,90,POL-001
+Polo Deportivo,Polo de tela deportiva transpirable,24.99,70,POL-002
+Blusa de Seda,Blusa elegante de seda natural,44.99,30,BLU-001
+Blusa Campesina,Blusa estilo campesina con bordados,19.99,65,BLU-002
+Abrigo de Lana,Abrigo largo de lana gruesa,99.99,15,ABR-001
+Abrigo Impermeable,Abrigo con capa impermeable y capucha,69.99,20,ABR-002
+Chaleco Acolchado,Chaleco acolchado ultraligero,39.99,35,CHL-001
+Chaleco de Vestir,Chaleco formal para traje,29.99,25,CHL-002
+Leggings Deportivos,Leggings de compresión para ejercicio,18.99,110,LEG-001
+Leggings Casuales,Leggings básicos de algodón,14.99,130,LEG-002
+Top Deportivo,Top de soporte medio para entrenamiento,16.99,95,TOP-001
+Top Crop,Top corto casual de algodón,11.99,105,TOP-002
+Pijama Completa,Set de pijama pantalón y camisa,22.99,60,PIJ-001
+Bata de Baño,Bata de algodón absorbente,34.99,30,PIJ-002
+Zapatos Deportivos Running,Zapatillas para correr con amortiguación,89.99,50,ZAP-001
+Zapatos Casuales de Lona,Zapatillas de lona estilo urbano,39.99,75,ZAP-002
+Botas de Cuero,Botas altas de cuero genuino,119.99,20,BOT-001
+Botas de Lluvia,Botas impermeables para lluvia,29.99,40,BOT-002
+Sandalias de Playa,Sandalias cómodas para playa,14.99,100,SAN-001
+Sandalias con Plataforma,Sandalias de plataforma elegantes,24.99,45,SAN-002
+Mocasines de Cuero,Mocasines clásicos de cuero café,54.99,30,MOC-001
+Mocasines Casuales,Mocasines de gamuza suave,44.99,35,MOC-002
+Bolso de Mano Grande,Bolso amplio de cuero sintético,49.99,25,BOL-001
+Bolso Crossbody,Bolso pequeño cruzado con correa,29.99,50,BOL-002
+Mochila Escolar,Mochila resistente con múltiples compartimentos,34.99,60,MOC-003
+Mochila Deportiva,Mochila ligera impermeable,27.99,45,MOC-004
+Billetera de Cuero,Billetera clásica de cuero genuino,24.99,80,BIL-001
+Billetera Minimalista,Billetera compacta con protección RFID,19.99,70,BIL-002
+Cinturón de Cuero Negro,Cinturón de cuero con hebilla plateada,18.99,90,CIN-001
+Cinturón Casual Café,Cinturón de cuero casual color café,16.99,85,CIN-002
+Bufanda de Lana,Bufanda tejida de lana merino,14.99,55,BUF-001
+Bufanda Ligera,Bufanda de algodón para primavera,9.99,70,BUF-002
+Gorro de Lana,Gorro tejido para invierno,12.99,65,GOR-001
+Gorra Deportiva,Gorra ajustable con visera curva,11.99,100,GOR-002
+Guantes de Cuero,Guantes de cuero forrados,24.99,35,GUA-001
+Guantes Táctiles,Guantes compatibles con pantalla táctil,14.99,50,GUA-002
+Reloj Analógico Clásico,Reloj de pulsera con correa de cuero,64.99,20,REL-001
+Reloj Digital Deportivo,Reloj digital resistente al agua,39.99,35,REL-002
+Gafas de Sol Aviador,Gafas estilo aviador con protección UV,29.99,45,GAF-001
+Gafas de Sol Redondas,Gafas redondas estilo retro,24.99,50,GAF-002
+Collar de Plata,Collar de plata esterlina 925,34.99,30,COL-001
+Collar con Dije,Collar con dije de corazón,19.99,55,COL-002
+Pulsera de Cuero,Pulsera trenzada de cuero,12.99,70,PUL-001
+Pulsera de Plata,Pulsera de eslabones de plata,29.99,35,PUL-002
+Aretes de Perla,Aretes tipo botón con perla cultivada,22.99,40,ARE-001
+Aretes Largos Dorados,Aretes colgantes en tono dorado,16.99,50,ARE-002
+Anillo de Plata,Anillo de plata con diseño minimalista,19.99,45,ANI-001
+Anillo con Piedra,Anillo con piedra semipreciosa,29.99,30,ANI-002
+Sombrero Fedora,Sombrero fedora de fieltro,27.99,25,SOM-001
+Sombrero de Paja,Sombrero de paja para playa,17.99,40,SOM-002
+Corbata de Seda,Corbata de seda con diseño de rayas,24.99,35,COR-001
+Corbata Delgada,Corbata slim de poliéster,14.99,50,COR-002
+Pajarita Negra,Pajarita negra para eventos formales,12.99,45,PAJ-001
+Pajarita Estampada,Pajarita con estampado moderno,14.99,40,PAJ-002
+Calcetines Pack x3,Pack de 3 pares de calcetines de algodón,9.99,150,CAL-001
+Calcetines Deportivos Pack x3,Pack de 3 pares de calcetines deportivos,11.99,130,CAL-002
+Ropa Interior Boxer Pack x3,Pack de 3 boxers de algodón premium,16.99,120,RIN-001
+Ropa Interior Brief Pack x3,Pack de 3 briefs de microfibra,14.99,110,RIN-002
+Traje de Baño Hombre,Bermuda de baño con secado rápido,22.99,60,TBH-001
+Traje de Baño Mujer,Traje de baño de una pieza,29.99,45,TBM-001
+Bikini Estampado,Set de bikini con estampado tropical,24.99,50,BIK-001
+Pareo de Playa,Pareo multiuso para playa,12.99,65,PAR-001
+Toalla de Playa,Toalla grande de microfibra,19.99,40,TOA-001
+Lentes de Contacto Moda,Lentes de contacto decorativos,14.99,80,LEN-001
+Perfume Floral 100ml,Perfume con notas florales y frescas,49.99,25,PER-001
+Perfume Amaderado 100ml,Perfume con notas amaderadas y especiadas,54.99,20,PER-002
+Crema Facial Hidratante,Crema hidratante para todo tipo de piel,24.99,55,CRE-001
+Protector Solar SPF 50,Protector solar de amplio espectro,18.99,70,PRO-001
+Labial Mate Rojo,Labial de larga duración mate,11.99,90,LAB-001
+Labial Nude,Labial en tono nude natural,11.99,85,LAB-002
+Kit de Maquillaje Básico,Set con base sombras rubor y labial,39.99,30,KIT-001
+Esmalte de Uñas Pack x6,Set de 6 esmaltes en colores variados,14.99,50,ESM-001
+Cepillo para Cabello,Cepillo desenredante de cerdas flexibles,8.99,75,CEP-001
+Set de Brochas Maquillaje,Set de 12 brochas profesionales,29.99,35,BRO-001
+Neceser de Viaje,Neceser organizador impermeable,16.99,55,NEC-001
+Organizador de Joyas,Organizador portátil de joyas,19.99,40,ORG-001
+Espejo de Bolsillo,Espejo compacto con luz LED,9.99,80,ESP-001
+Porta Lentes,Estuche rígido para lentes,7.99,95,POR-001
+Pañuelo de Seda,Pañuelo decorativo de seda pura,22.99,30,PAN-003
+Llavero de Cuero,Llavero elegante de cuero genuino,8.99,100,LLA-001
+Paraguas Compacto,Paraguas plegable resistente al viento,14.99,50,PAR-002
+Termo Acero Inoxidable,Termo de 500ml doble pared,19.99,45,TER-001
+Botella Reutilizable,Botella de agua ecológica 750ml,12.99,60,BOT-003
+Funda para Laptop,Funda acolchada para laptop 15 pulgadas,24.99,35,FUN-001

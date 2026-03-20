@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { auth } from '@/auth';
+import { QueryProvider } from '@/components/query-provider';
 import { AdminLayout } from '@/components/layouts/admin-layout';
 import {
   getActiveCatalogId,
@@ -26,9 +27,11 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AdminLayout user={user} catalogs={catalogs} activeCatalogId={activeCatalogId}>
-      {children}
-    </AdminLayout>
+    <QueryProvider>
+      <AdminLayout user={user} catalogs={catalogs} activeCatalogId={activeCatalogId}>
+        {children}
+      </AdminLayout>
+    </QueryProvider>
   );
 };
 

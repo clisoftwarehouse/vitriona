@@ -1,4 +1,4 @@
-import { eq, or, ilike } from 'drizzle-orm';
+import { eq, or, and, ilike, inArray } from 'drizzle-orm';
 import {
   SchemaType,
   type Content,
@@ -10,7 +10,7 @@ import {
 import { db } from '@/db/drizzle';
 import type { StoredMessage } from './redis';
 import { bookAppointment, getAvailableSlots } from './calendar';
-import { orders, catalogs, products, categories, orderItems, productImages } from '@/db/schema';
+import { orders, catalogs, products, categories, orderItems, productImages, catalogProducts } from '@/db/schema';
 
 interface KnowledgeEntry {
   key: string;
@@ -204,16 +204,30 @@ function getCatalogTools(): FunctionDeclaration[] {
     {
       name: 'search_products',
       description:
-        'Busca productos en el catálogo del negocio por nombre o categoría. Devuelve nombre, precio, descripción e imagen.',
+        'Busca productos en el catálogo del negocio por nombre o descripción. Devuelve nombre, precio, descripción y stock.',
       parameters: {
         type: SchemaType.OBJECT,
         properties: {
           query: {
             type: SchemaType.STRING,
-            description: 'Término de búsqueda (nombre del producto o categoría)',
+            description: 'Término de búsqueda (nombre del producto o palabra clave)',
           },
         },
         required: ['query'],
+      },
+    },
+    {
+      name: 'list_products',
+      description:
+        'Lista todos los productos/servicios del catálogo, opcionalmente filtrados por categoría. Usa esto cuando el cliente pregunte qué productos o servicios hay disponibles.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          category_name: {
+            type: SchemaType.STRING,
+            description: 'Nombre de la categoría para filtrar (opcional). Si no se provee, lista todos los productos.',
+          },
+        },
       },
     },
     {
@@ -290,8 +304,17 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
 
     if (!catalog) return JSON.stringify({ error: 'No hay catálogo disponible' });
 
+    // Get product IDs linked to this catalog
+    const linked = await db
+      .select({ productId: catalogProducts.productId })
+      .from(catalogProducts)
+      .where(eq(catalogProducts.catalogId, catalog.id));
+    const linkedIds = linked.map((l) => l.productId);
+
     if (call.name === 'search_products') {
       const query = args.query as string;
+      if (linkedIds.length === 0) return JSON.stringify({ products: [], count: 0 });
+
       const results = await db
         .select({
           id: products.id,
@@ -301,7 +324,12 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
           stock: products.stock,
         })
         .from(products)
-        .where(or(ilike(products.name, `%${query}%`), ilike(products.description, `%${query}%`)))
+        .where(
+          and(
+            inArray(products.id, linkedIds),
+            or(ilike(products.name, `%${query}%`), ilike(products.description, `%${query}%`))
+          )
+        )
         .limit(10);
 
       return JSON.stringify({
@@ -315,17 +343,63 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
       });
     }
 
+    if (call.name === 'list_products') {
+      const categoryName = args.category_name as string | undefined;
+      if (linkedIds.length === 0)
+        return JSON.stringify({ products: [], count: 0, category_filter: categoryName ?? null });
+
+      const conditions = [inArray(products.id, linkedIds)];
+
+      if (categoryName) {
+        const [cat] = await db
+          .select({ id: categories.id })
+          .from(categories)
+          .where(and(eq(categories.businessId, ctx.businessId), ilike(categories.name, `%${categoryName}%`)))
+          .limit(1);
+
+        if (cat) {
+          conditions.push(eq(products.categoryId, cat.id));
+        }
+      }
+
+      const results = await db
+        .select({
+          name: products.name,
+          price: products.price,
+          description: products.description,
+          stock: products.stock,
+          type: products.type,
+        })
+        .from(products)
+        .where(and(...conditions))
+        .limit(20);
+
+      return JSON.stringify({
+        products: results.map((p) => ({
+          name: p.name,
+          type: p.type,
+          price: `${p.price} ${ctx.currency}`,
+          description: p.description,
+          in_stock: p.stock === null || p.stock > 0,
+        })),
+        count: results.length,
+        category_filter: categoryName ?? null,
+      });
+    }
+
     if (call.name === 'get_categories') {
       const cats = await db
         .select({ id: categories.id, name: categories.name })
         .from(categories)
-        .where(eq(categories.catalogId, catalog.id));
+        .where(eq(categories.businessId, ctx.businessId));
 
       return JSON.stringify({ categories: cats.map((c) => c.name) });
     }
 
     if (call.name === 'get_product_details') {
       const productName = args.product_name as string;
+      if (linkedIds.length === 0) return JSON.stringify({ error: 'Producto no encontrado' });
+
       const [product] = await db
         .select({
           id: products.id,
@@ -336,7 +410,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
           stock: products.stock,
         })
         .from(products)
-        .where(ilike(products.name, `%${productName}%`))
+        .where(and(inArray(products.id, linkedIds), ilike(products.name, `%${productName}%`)))
         .limit(1);
 
       if (!product) return JSON.stringify({ error: 'Producto no encontrado' });
@@ -365,16 +439,38 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
 
       // Resolve products
       const orderProducts = [];
+      const stockIssues: string[] = [];
       for (const item of items) {
         const [product] = await db
-          .select({ id: products.id, name: products.name, price: products.price })
+          .select({
+            id: products.id,
+            name: products.name,
+            price: products.price,
+            stock: products.stock,
+            trackInventory: products.trackInventory,
+          })
           .from(products)
-          .where(ilike(products.name, `%${item.product_name}%`))
+          .where(
+            and(
+              inArray(products.id, linkedIds.length > 0 ? linkedIds : ['']),
+              ilike(products.name, `%${item.product_name}%`)
+            )
+          )
           .limit(1);
 
         if (product) {
+          if (product.trackInventory && product.stock !== null && product.stock < item.quantity) {
+            stockIssues.push(
+              `"${product.name}" solo tiene ${product.stock} unidades disponibles (pediste ${item.quantity})`
+            );
+            continue;
+          }
           orderProducts.push({ ...product, quantity: item.quantity });
         }
+      }
+
+      if (stockIssues.length > 0) {
+        return JSON.stringify({ error: `Problemas de stock: ${stockIssues.join('; ')}` });
       }
 
       if (orderProducts.length === 0) {
@@ -434,7 +530,9 @@ async function handleFunctionCall(call: FunctionCall, ctx: ChatbotContext): Prom
   const args = call.args as Record<string, unknown>;
 
   // Catalog & order tools
-  if (['search_products', 'get_categories', 'get_product_details', 'create_order'].includes(call.name)) {
+  if (
+    ['search_products', 'list_products', 'get_categories', 'get_product_details', 'create_order'].includes(call.name)
+  ) {
     return handleCatalogCall(call, ctx);
   }
 
@@ -490,6 +588,9 @@ export async function generateChatResponse(
     model: 'gemini-2.5-pro',
     systemInstruction,
     tools,
+    generationConfig: {
+      maxOutputTokens: ctx.maxTokens,
+    },
   });
 
   const chat = model.startChat({

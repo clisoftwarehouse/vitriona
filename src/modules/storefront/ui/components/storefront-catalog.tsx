@@ -4,8 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useState, useCallback } from 'react';
-import { X, Plus, Search, ImageOff, Sparkles, ArrowRight, ShoppingBag, ChevronRight } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { X, Plus, Search, ImageOff, Sparkles, ArrowRight, ChevronLeft, ShoppingBag, ChevronRight } from 'lucide-react';
 
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
@@ -103,6 +103,8 @@ function discountPercent(p: Product) {
   return p.compareAtPrice ? Math.round((1 - parseFloat(p.price) / parseFloat(p.compareAtPrice)) * 100) : 0;
 }
 
+const PRODUCTS_PER_PAGE = 12;
+
 /* ─── Main Component ─── */
 
 export function StorefrontCatalog({
@@ -117,6 +119,7 @@ export function StorefrontCatalog({
 }: StorefrontCatalogProps) {
   const router = useRouter();
   const [search, setSearch] = useState(searchQuery ?? '');
+  const [page, setPage] = useState(1);
   const addItem = useCartStore((s) => s.addItem);
 
   const heroEnabled = settings?.heroEnabled ?? true;
@@ -143,6 +146,12 @@ export function StorefrontCatalog({
   const featuredProducts = products.filter((p) => p.isFeatured);
   const isFiltering = !!searchQuery || !!activeCategory;
 
+  const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = useMemo(
+    () => products.slice((page - 1) * PRODUCTS_PER_PAGE, page * PRODUCTS_PER_PAGE),
+    [products, page]
+  );
+
   const handleSearch = useCallback(
     (value: string) => {
       setSearch(value);
@@ -156,6 +165,7 @@ export function StorefrontCatalog({
   );
 
   const handleCategoryClick = (categoryId?: string) => {
+    setPage(1);
     const params = new URLSearchParams();
     if (categoryId) params.set('categoria', categoryId);
     if (search) params.set('buscar', search);
@@ -252,70 +262,21 @@ export function StorefrontCatalog({
           </section>
         )}
 
-        {/* ── Catalog Sections or All Products ── */}
-        {catalogSections && catalogSections.length > 0 && !isFiltering ? (
-          catalogSections.map((cat) => {
-            if (cat.products.length === 0) return null;
-            const hasMore = cat.totalProducts > cat.products.length;
-            const catHref = `/${slug}/${cat.slug ?? cat.id}`;
-            return (
-              <section key={cat.id} className='mb-8'>
-                <div className='mb-5 flex items-center justify-between'>
-                  <div>
-                    <h2 className='text-xl font-bold tracking-tight'>{cat.name}</h2>
-                    {cat.description && <p className='mt-0.5 text-sm opacity-50'>{cat.description}</p>}
-                  </div>
-                  {hasMore && (
-                    <Link
-                      href={catHref}
-                      className='flex shrink-0 items-center gap-1 text-sm font-medium opacity-60 transition-opacity hover:opacity-100'
-                    >
-                      Ver más
-                      <ArrowRight className='size-3.5' />
-                    </Link>
-                  )}
-                </div>
-                <div className={gridClass}>
-                  {cat.products.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      slug={slug}
-                      currency={business.currency}
-                      onAddToCart={handleAddToCart}
-                      cardStyle={cardStyle}
-                      showPrices={showPrices}
-                    />
-                  ))}
-                </div>
-                {hasMore && (
-                  <div className='mt-4 text-center'>
-                    <Link
-                      href={catHref}
-                      className='inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-medium transition-colors'
-                      style={{
-                        borderRadius: 'var(--sf-radius, 0.75rem)',
-                        borderColor: 'var(--sf-border, #e5e7eb)',
-                        color: 'var(--sf-primary, #000)',
-                      }}
-                    >
-                      Ver todos de {cat.name}
-                      <ArrowRight className='size-3.5' />
-                    </Link>
-                  </div>
-                )}
-              </section>
-            );
-          })
-        ) : (
-          <section>
-            <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
+        {/* ── Catalogs Carousel ── */}
+        {catalogSections && catalogSections.length > 1 && !isFiltering && (
+          <CatalogsCarousel catalogs={catalogSections} slug={slug} />
+        )}
 
-            {products.length === 0 ? (
-              <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
-            ) : (
+        {/* ── All Products (paginated) ── */}
+        <section>
+          <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
+
+          {products.length === 0 ? (
+            <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
+          ) : (
+            <>
               <div className={gridClass}>
-                {products.map((product) => (
+                {paginatedProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -327,9 +288,10 @@ export function StorefrontCatalog({
                   />
                 ))}
               </div>
-            )}
-          </section>
-        )}
+              {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
+            </>
+          )}
+        </section>
 
         {/* ── About Section ── */}
         {!isFiltering && aboutEnabled && aboutText && (
@@ -826,6 +788,98 @@ function EmptyState({ query, onClear }: { query?: string; onClear: () => void })
           Limpiar búsqueda
         </button>
       )}
+    </div>
+  );
+}
+
+/* ─── Catalogs Carousel ─── */
+
+function CatalogsCarousel({ catalogs, slug }: { catalogs: CatalogPreview[]; slug: string }) {
+  return (
+    <div className='mb-8'>
+      <h2 className='mb-4 text-lg font-bold tracking-tight'>Colecciones</h2>
+      <div className='flex gap-3 overflow-x-auto pb-2'>
+        {catalogs.map((cat) => (
+          <Link
+            key={cat.id}
+            href={`/${slug}/${cat.slug ?? cat.id}`}
+            className='group flex shrink-0 items-center gap-2.5 border px-4 py-2.5 transition-shadow hover:shadow-md'
+            style={{
+              borderRadius: 'var(--sf-radius, 0.75rem)',
+              borderColor: 'var(--sf-border, #e5e7eb)',
+              backgroundColor: 'var(--sf-bg, #fff)',
+            }}
+          >
+            <span className='text-sm font-medium'>{cat.name}</span>
+            <span className='text-xs opacity-40'>{cat.totalProducts}</span>
+            <ChevronRight className='size-3.5 opacity-40 transition-transform group-hover:translate-x-0.5' />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Pagination ─── */
+
+function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const visible =
+    totalPages <= 7
+      ? pages
+      : page <= 4
+        ? [...pages.slice(0, 5), -1, totalPages]
+        : page >= totalPages - 3
+          ? [1, -1, ...pages.slice(totalPages - 5)]
+          : [1, -1, page - 1, page, page + 1, -2, totalPages];
+
+  return (
+    <div className='mt-8 flex items-center justify-center gap-1.5'>
+      <button
+        onClick={() => onPageChange(page - 1)}
+        disabled={page === 1}
+        className='flex size-9 items-center justify-center border transition-colors disabled:opacity-30'
+        style={{ borderRadius: 'var(--sf-radius, 0.75rem)', borderColor: 'var(--sf-border, #e5e7eb)' }}
+      >
+        <ChevronLeft className='size-4' />
+      </button>
+      {visible.map((p, i) =>
+        p < 0 ? (
+          <span key={`ellipsis-${i}`} className='px-1 text-sm opacity-40'>
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className='flex size-9 items-center justify-center text-sm font-medium transition-colors'
+            style={{
+              borderRadius: 'var(--sf-radius, 0.75rem)',
+              backgroundColor: p === page ? 'var(--sf-primary, #000)' : 'transparent',
+              color: p === page ? '#fff' : 'inherit',
+              border: p === page ? 'none' : '1px solid var(--sf-border, #e5e7eb)',
+            }}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button
+        onClick={() => onPageChange(page + 1)}
+        disabled={page === totalPages}
+        className='flex size-9 items-center justify-center border transition-colors disabled:opacity-30'
+        style={{ borderRadius: 'var(--sf-radius, 0.75rem)', borderColor: 'var(--sf-border, #e5e7eb)' }}
+      >
+        <ChevronRight className='size-4' />
+      </button>
     </div>
   );
 }

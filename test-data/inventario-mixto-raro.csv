@@ -1,0 +1,101 @@
+Producto,Informacion,Valor,Existencia,Referencia
+Arroz Premium 1kg,Arroz de grano largo tipo premium,2.49,500,ALI-001
+Frijoles Negros 500g,Frijoles negros secos seleccionados,1.89,400,ALI-002
+Aceite de Oliva 500ml,Aceite de oliva extra virgen importado,8.99,150,ALI-003
+Pasta Spaghetti 500g,Pasta de trigo duro italiana,1.49,350,ALI-004
+Salsa de Tomate 400g,Salsa de tomate natural sin conservantes,2.29,280,ALI-005
+Atún en Lata 170g,Atún en agua premium,2.99,300,ALI-006
+Leche en Polvo 800g,Leche en polvo entera fortificada,6.99,180,ALI-007
+Café Molido 250g,Café molido tostado medio 100% arábica,5.49,200,ALI-008
+Azúcar Refinada 1kg,Azúcar blanca refinada,1.29,450,ALI-009
+Sal Marina 500g,Sal marina gruesa sin refinar,0.99,380,ALI-010
+Harina de Trigo 1kg,Harina de trigo todo uso,1.39,320,ALI-011
+Mantequilla 200g,Mantequilla sin sal premium,3.49,160,ALI-012
+Queso Mozzarella 250g,Queso mozzarella fresco,4.29,120,ALI-013
+Jamón de Pavo 200g,Jamón de pavo bajo en grasa,3.99,140,ALI-014
+Pan Integral Rebanado,Pan integral con semillas,2.79,200,ALI-015
+Cereal Granola 500g,Granola con frutas y nueces,4.99,170,ALI-016
+Yogurt Natural 1L,Yogurt natural sin azúcar,3.29,150,ALI-017
+Jugo de Naranja 1L,Jugo de naranja 100% natural,3.49,190,ALI-018
+Agua Mineral 6 Pack,Pack de 6 botellas de agua 500ml,4.99,250,ALI-019
+Galletas Integrales 200g,Galletas integrales con avena,2.49,220,ALI-020
+Chocolate 70% Cacao,Tableta de chocolate oscuro 100g,3.99,130,ALI-021
+Miel de Abeja 350g,Miel pura de abeja multifloral,7.99,90,ALI-022
+Mermelada de Fresa 300g,Mermelada artesanal de fresa,3.49,110,ALI-023
+Vinagre Balsámico 250ml,Vinagre balsámico de Módena,5.99,80,ALI-024
+Mostaza Dijon 200g,Mostaza tipo Dijon importada,3.29,100,ALI-025
+Jabón Líquido Manos 500ml,Jabón antibacterial para manos,3.99,200,LIM-001
+Detergente Líquido 1L,Detergente concentrado para ropa,6.49,150,LIM-002
+Suavizante de Ropa 1L,Suavizante con aroma primaveral,4.99,140,LIM-003
+Desinfectante Multiusos 750ml,Desinfectante para superficies,3.49,180,LIM-004
+Esponja para Platos x3,Pack de 3 esponjas doble uso,1.99,250,LIM-005
+Papel Higiénico x12,Pack de 12 rollos triple hoja,8.99,160,LIM-006
+Toallas de Papel x3,Pack de 3 rollos de toallas absorbentes,4.49,170,LIM-007
+Bolsas de Basura 30L x20,Bolsas de basura resistentes,2.99,200,LIM-008
+Cloro Concentrado 1L,Cloro concentrado para desinfección,2.49,190,LIM-009
+Lavavajillas Líquido 750ml,Detergente para platos aroma limón,2.99,210,LIM-010
+Shampoo Anticaspa 400ml,Shampoo anticaspa uso diario,7.99,120,HIG-001
+Gel de Ducha 400ml,Gel de ducha hidratante,5.99,130,HIG-002
+Crema Dental 150ml,Pasta dental con flúor y blanqueador,3.49,200,HIG-003
+Enjuague Bucal 500ml,Enjuague bucal menta fresca,4.99,150,HIG-004
+Desodorante Roll-On,Desodorante antitranspirante 48h,3.99,170,HIG-005
+Rastrillos Desechables x5,Pack de 5 rastrillos de 3 hojas,4.49,140,HIG-006
+Algodón 100g,Algodón puro hidrófilo,1.99,180,HIG-007
+Alcohol en Gel 250ml,Gel antibacterial 70% alcohol,2.99,220,HIG-008
+Toallitas Húmedas x80,Pack de 80 toallitas multiusos,3.49,160,HIG-009
+Pañuelos Desechables x10,Pack de 10 paquetes de pañuelos,2.49,190,HIG-010
+Sartén Antiadherente 26cm,Sartén con recubrimiento cerámico,19.99,60,COC-001
+Olla de Presión 6L,Olla de presión en acero inoxidable,49.99,25,COC-002
+Set de Cuchillos x5,Set de 5 cuchillos con bloque de madera,34.99,30,COC-003
+Tabla de Picar Bambú,Tabla de picar de bambú 35x25cm,12.99,50,COC-004
+Set de Tuppers x10,Set de 10 contenedores herméticos,16.99,45,COC-005
+Licuadora 1.5L,Licuadora de vaso con 3 velocidades,29.99,35,COC-006
+Tostadora 2 Rebanadas,Tostadora con 7 niveles de tostado,22.99,40,COC-007
+Cafetera de Goteo,Cafetera programable 12 tazas,39.99,20,COC-008
+Batidora de Mano,Batidora de inmersión 400W,18.99,45,COC-009
+Set de Vasos x6,Set de 6 vasos de vidrio templado,14.99,55,COC-010
+Platos Hondos Set x6,Set de 6 platos hondos de cerámica,19.99,40,COC-011
+Tazas de Café Set x4,Set de 4 tazas de café 350ml,12.99,50,COC-012
+Cubiertos Set x24,Set de 24 cubiertos acero inoxidable,24.99,30,COC-013
+Mantel Individual x4,Set de 4 manteles individuales lavables,9.99,65,COC-014
+Delantal de Cocina,Delantal ajustable con bolsillos,8.99,70,COC-015
+Almohada Memory Foam,Almohada viscoelástica ergonómica,24.99,40,DOR-001
+Sábanas King Set,Set de sábanas king 100% algodón,39.99,25,DOR-002
+Edredón Reversible Queen,Edredón reversible doble cara,49.99,20,DOR-003
+Funda Nórdica Individual,Funda nórdica de microfibra suave,29.99,30,DOR-004
+Protector de Colchón Queen,Protector impermeable para colchón,22.99,35,DOR-005
+Lámpara de Noche LED,Lámpara de mesa con luz cálida regulable,18.99,50,DOR-006
+Despertador Digital,Reloj despertador con proyector,14.99,55,DOR-007
+Organizador de Closet,Organizador colgante de 6 niveles,12.99,45,DOR-008
+Colgadores Terciopelo x20,Pack de 20 ganchos antideslizantes,9.99,60,DOR-009
+Caja Organizadora Grande,Caja de almacenamiento con tapa 60L,8.99,70,DOR-010
+Maceta Autoirrigable,Maceta con sistema de autorriego 25cm,14.99,50,JAR-001
+Tierra para Macetas 10L,Sustrato universal para plantas,5.99,80,JAR-002
+Fertilizante Líquido 500ml,Fertilizante orgánico para plantas,4.99,70,JAR-003
+Regadera Metálica 2L,Regadera decorativa de metal galvanizado,11.99,45,JAR-004
+Guantes de Jardín,Guantes de jardín con agarre reforzado,6.99,60,JAR-005
+Tijeras de Podar,Tijeras de podar ergonómicas,12.99,40,JAR-006
+Semillas Albahaca,Pack de semillas de albahaca orgánica,2.49,100,JAR-007
+Semillas Tomate Cherry,Pack de semillas de tomate cherry,2.49,95,JAR-008
+Kit de Herramientas Jardín,Set de 3 herramientas de jardín,19.99,30,JAR-009
+Manguera Extensible 15m,Manguera expandible con pistola,24.99,25,JAR-010
+Cuerda para Saltar Niños,Cuerda para saltar con mangos de colores,4.99,80,JUG-001
+Pelota de Fútbol No.5,Balón de fútbol tamaño oficial,14.99,50,JUG-002
+Set de Pintura Infantil,Set de pinturas lavables 12 colores,8.99,65,JUG-003
+Rompecabezas 500 Piezas,Rompecabezas paisaje natural,9.99,55,JUG-004
+Juego de Mesa Familiar,Juego de mesa clásico para toda la familia,19.99,35,JUG-005
+Plastilina Set x10,Set de 10 barras de plastilina,5.99,75,JUG-006
+Cuaderno para Dibujo A4,Block de dibujo 100 hojas blancas,4.49,90,JUG-007
+Crayones x24,Set de 24 crayones de colores,3.99,100,JUG-008
+Pegamento Escolar,Pegamento blanco no tóxico 120ml,1.99,120,JUG-009
+Tijeras Escolares,Tijeras de punta redonda para niños,2.49,110,JUG-010
+Pilas AA Pack x8,Pack de 8 pilas alcalinas AA,5.99,130,VAR-001
+Pilas AAA Pack x8,Pack de 8 pilas alcalinas AAA,5.99,120,VAR-002
+Bombillo LED 9W,Bombillo LED luz blanca 9W equivalente 60W,2.99,200,VAR-003
+Extensión Eléctrica 3m,Extensión con 3 tomas y protección,7.99,80,VAR-004
+Cinta Adhesiva Transparente,Rollo de cinta adhesiva 48mm x 50m,1.99,150,VAR-005
+Pegamento Instantáneo,Pegamento de cianoacrilato 3g,2.49,130,VAR-006
+Candado de Combinación,Candado con combinación de 4 dígitos,6.99,70,VAR-007
+Linterna LED Recargable,Linterna LED con batería recargable USB,9.99,55,VAR-008
+Destornillador Set x6,Set de 6 destornilladores variados,8.99,60,VAR-009
+Cinta Métrica 5m,Cinta métrica retráctil con freno,4.99,75,VAR-010

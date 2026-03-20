@@ -39,7 +39,6 @@ export function DeleteBusinessButton({ businessId, businessName }: DeleteBusines
       }
       setOpen(false);
       router.push('/dashboard/businesses');
-      router.refresh();
     });
   };
 

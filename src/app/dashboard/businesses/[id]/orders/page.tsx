@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { OrdersTable } from '@/modules/orders/ui/components/orders-table';
-import { getOrdersByBusinessAction } from '@/modules/orders/server/actions/get-orders.action';
 
 interface OrdersPageProps {
   params: Promise<{ id: string }>;
@@ -13,9 +12,6 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
   if (!session?.user?.id) notFound();
 
   const { id: businessId } = await params;
-  const result = await getOrdersByBusinessAction(businessId);
-
-  if (result.error || !result.orders) notFound();
 
   return (
     <div className='flex flex-col gap-6'>
@@ -24,7 +20,7 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
         <p className='text-muted-foreground text-sm'>Gestiona los pedidos recibidos de tus clientes.</p>
       </div>
 
-      <OrdersTable orders={result.orders} />
+      <OrdersTable businessId={businessId} />
     </div>
   );
 }
