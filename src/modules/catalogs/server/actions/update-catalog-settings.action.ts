@@ -1,10 +1,10 @@
 'use server';
 
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
+import { brands, catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
@@ -158,15 +158,29 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
       if (!imageMap.has(img.productId)) imageMap.set(img.productId, img.url);
     }
 
+    // Fetch brand names
+    const brandIds = [...new Set(prods.map((p) => p.brandId).filter(Boolean))] as string[];
+    const brandMap = new Map<string, string>();
+    if (brandIds.length > 0) {
+      const brandRows = await db
+        .select({ id: brands.id, name: brands.name })
+        .from(brands)
+        .where(inArray(brands.id, brandIds));
+      for (const b of brandRows) brandMap.set(b.id, b.name);
+    }
+
     const previewProducts = prods.map((p) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
+      description: p.description,
       price: p.price,
       compareAtPrice: p.compareAtPrice,
       imageUrl: imageMap.get(p.id) ?? null,
       isFeatured: p.isFeatured,
       stock: p.stock,
+      trackInventory: p.trackInventory,
+      brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
     }));
 
     return {

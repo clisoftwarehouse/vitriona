@@ -1,10 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Search, Paintbrush, LayoutDashboard } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import {
+  Tags,
+  Stamp,
+  Store,
+  Search,
+  Package,
+  BookOpen,
+  Settings,
+  Warehouse,
+  Paintbrush,
+  ShoppingCart,
+  ExternalLink,
+  MessageSquare,
+  TicketPercent,
+  LayoutDashboard,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useModifierKey } from '@/hooks/use-os';
 import {
   CommandItem,
   CommandList,
@@ -14,20 +30,15 @@ import {
   CommandDialog,
 } from '@/components/ui/command';
 
-const COMMANDS = [
-  {
-    group: 'Navegación',
-    items: [
-      { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-      { icon: Store, label: 'Negocios', href: '/dashboard/businesses' },
-      { icon: Paintbrush, label: 'Configuración de tema', href: '/dashboard/theme' },
-    ],
-  },
-];
+interface SearchCommandProps {
+  activeBusinessId?: string | null;
+  activeBusinessSlug?: string | null;
+}
 
-export function SearchCommand() {
+export function SearchCommand({ activeBusinessId, activeBusinessSlug }: SearchCommandProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const modKey = useModifierKey();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -40,9 +51,53 @@ export function SearchCommand() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  const commands = useMemo(() => {
+    const groups: { group: string; items: { icon: React.ElementType; label: string; href: string }[] }[] = [
+      {
+        group: 'General',
+        items: [
+          { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+          { icon: Store, label: 'Negocios', href: '/dashboard/businesses' },
+          { icon: Settings, label: 'Configuración', href: '/dashboard/settings' },
+        ],
+      },
+    ];
+
+    if (activeBusinessId) {
+      const base = `/dashboard/businesses/${activeBusinessId}`;
+      groups.push({
+        group: 'Negocio activo',
+        items: [
+          { icon: BookOpen, label: 'Catálogos', href: `${base}/catalogs` },
+          { icon: Tags, label: 'Categorías', href: `${base}/categories` },
+          { icon: Stamp, label: 'Marcas', href: `${base}/brands` },
+          { icon: Package, label: 'Productos', href: `${base}/products` },
+          { icon: ShoppingCart, label: 'Pedidos', href: `${base}/orders` },
+          { icon: Warehouse, label: 'Inventario', href: `${base}/inventory` },
+          { icon: MessageSquare, label: 'Reseñas', href: `${base}/reviews` },
+          { icon: TicketPercent, label: 'Cupones', href: `${base}/coupons` },
+          { icon: Paintbrush, label: 'Site Builder', href: `${base}/builder` },
+        ],
+      });
+    }
+
+    if (activeBusinessSlug) {
+      groups.push({
+        group: 'Acciones',
+        items: [{ icon: ExternalLink, label: 'Ver tienda', href: `/${activeBusinessSlug}` }],
+      });
+    }
+
+    return groups;
+  }, [activeBusinessId, activeBusinessSlug]);
+
   const runCommand = (href: string) => {
     setOpen(false);
-    router.push(href);
+    if (href.startsWith('/dashboard')) {
+      router.push(href);
+    } else {
+      window.open(href, '_blank');
+    }
   };
 
   return (
@@ -67,7 +122,7 @@ export function SearchCommand() {
         <Search className='size-3.5 shrink-0' />
         <span>Buscar...</span>
         <kbd className='bg-muted border-border pointer-events-none ml-auto flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium select-none'>
-          <span>⌘</span>K
+          <span>{modKey}</span>K
         </kbd>
       </Button>
 
@@ -75,7 +130,7 @@ export function SearchCommand() {
         <CommandInput placeholder='Buscar en el dashboard...' />
         <CommandList>
           <CommandEmpty>Sin resultados.</CommandEmpty>
-          {COMMANDS.map(({ group, items }) => (
+          {commands.map(({ group, items }) => (
             <CommandGroup key={group} heading={group}>
               {items.map(({ icon: Icon, label, href }) => (
                 <CommandItem key={href} onSelect={() => runCommand(href)}>

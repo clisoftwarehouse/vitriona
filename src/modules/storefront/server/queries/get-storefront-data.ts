@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and, asc, inArray } from 'drizzle-orm';
+import { eq, and, asc, avg, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import {
@@ -10,6 +10,7 @@ import {
   categories,
   businesses,
   productImages,
+  productReviews,
   catalogProducts,
   catalogSettings,
   productVariants,
@@ -110,10 +111,31 @@ export async function getPublicProducts(businessId: string, categoryId?: string,
     for (const b of brandRows) brandMap.set(b.id, b.name);
   }
 
+  // Fetch review stats (approved only)
+  const reviewRows = await db
+    .select({
+      productId: productReviews.productId,
+      avgRating: avg(productReviews.rating),
+      reviewCount: count(),
+    })
+    .from(productReviews)
+    .where(and(inArray(productReviews.productId, productIds), eq(productReviews.isApproved, true)))
+    .groupBy(productReviews.productId);
+
+  const reviewMap = new Map<string, { avgRating: number; reviewCount: number }>();
+  for (const r of reviewRows) {
+    reviewMap.set(r.productId, {
+      avgRating: r.avgRating ? parseFloat(r.avgRating) : 0,
+      reviewCount: r.reviewCount,
+    });
+  }
+
   return productList.map((p) => ({
     ...p,
     images: imageMap.get(p.id) ?? [],
     brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
+    avgRating: reviewMap.get(p.id)?.avgRating ?? 0,
+    reviewCount: reviewMap.get(p.id)?.reviewCount ?? 0,
   }));
 }
 

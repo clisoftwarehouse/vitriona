@@ -568,7 +568,10 @@ export const orders = pgTable('orders', {
   customerEmail: text('customer_email'),
   customerNotes: text('customer_notes'),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull().default('0'),
+  discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0'),
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
+  couponId: text('coupon_id').references(() => coupons.id, { onDelete: 'set null' }),
+  couponCode: text('coupon_code'),
   status: text('status', {
     enum: ['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'],
   })
@@ -665,5 +668,30 @@ export const productReviews = pgTable('product_reviews', {
   title: text('title'),
   comment: text('comment'),
   isApproved: boolean('is_approved').notNull().default(false),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Coupons ──
+
+export const coupons = pgTable('coupons', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  code: text('code').notNull(),
+  description: text('description'),
+  discountType: text('discount_type', { enum: ['percentage', 'fixed'] })
+    .notNull()
+    .default('percentage'),
+  discountValue: numeric('discount_value', { precision: 10, scale: 2 }).notNull(),
+  minOrderAmount: numeric('min_order_amount', { precision: 10, scale: 2 }),
+  maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }),
+  usageLimit: integer('usage_limit'),
+  usageCount: integer('usage_count').notNull().default(0),
+  startsAt: timestamp('starts_at', { mode: 'date' }),
+  expiresAt: timestamp('expires_at', { mode: 'date' }),
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });

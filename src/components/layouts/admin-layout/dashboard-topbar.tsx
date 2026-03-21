@@ -15,10 +15,12 @@ interface TopbarUser {
 
 interface DashboardTopbarProps {
   user?: TopbarUser;
+  activeBusinessId?: string | null;
+  activeBusinessSlug?: string | null;
   onMenuClick?: () => void;
 }
 
-export function DashboardTopbar({ user, onMenuClick }: DashboardTopbarProps) {
+export function DashboardTopbar({ user, activeBusinessId, activeBusinessSlug, onMenuClick }: DashboardTopbarProps) {
   return (
     <header className='bg-background flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 py-8 md:px-6'>
       <div className='flex items-center gap-2'>
@@ -35,7 +37,7 @@ export function DashboardTopbar({ user, onMenuClick }: DashboardTopbarProps) {
       </div>
 
       <div className='flex items-center gap-1.5'>
-        <SearchCommand />
+        <SearchCommand activeBusinessId={activeBusinessId} activeBusinessSlug={activeBusinessSlug} />
         <NotificationsMenu />
         <div className='border-border ml-1 flex items-center border-l pl-3'>
           <UserMenu name={user?.name} email={user?.email} image={user?.image} />

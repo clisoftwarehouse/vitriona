@@ -22,6 +22,7 @@ interface DashboardShellProps {
 
 export function AdminLayout({ user, businesses, activeBusinessId, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -36,7 +37,12 @@ export function AdminLayout({ user, businesses, activeBusinessId, children }: Da
       </div>
 
       <div className='flex min-w-0 flex-1 flex-col overflow-hidden'>
-        <DashboardTopbar user={user} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+        <DashboardTopbar
+          user={user}
+          activeBusinessId={activeBusiness?.id ?? null}
+          activeBusinessSlug={activeBusiness?.slug ?? null}
+          onMenuClick={() => setSidebarOpen((prev) => !prev)}
+        />
         <main className='bg-muted/50 flex-1 overflow-y-auto p-4 md:p-6'>{children}</main>
       </div>
     </div>

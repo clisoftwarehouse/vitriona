@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
+import { StarsDisplay } from '@/modules/reviews/ui/components/product-reviews';
 
 interface ProductImage {
   id: string;
@@ -75,14 +76,20 @@ interface Product {
   variants?: ProductVariant[];
 }
 
+interface ReviewStats {
+  average: number;
+  total: number;
+}
+
 interface ProductDetailProps {
   slug: string;
   product: Product;
   whatsappNumber: string | null;
   currency: string;
+  reviewStats?: ReviewStats;
 }
 
-export function ProductDetail({ slug, product, whatsappNumber, currency }: ProductDetailProps) {
+export function ProductDetail({ slug, product, whatsappNumber, currency, reviewStats }: ProductDetailProps) {
   const variants = useMemo(() => product.variants ?? [], [product.variants]);
   const hasVariants = variants.length > 0;
 
@@ -200,7 +207,7 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
   };
 
   return (
-    <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
+    <>
       <Link
         href={`/${slug}`}
         className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
@@ -300,6 +307,16 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
           </div>
 
           <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{product.name}</h1>
+
+          {/* Review stars */}
+          {reviewStats && reviewStats.total > 0 && (
+            <a href='#reviews' className='mt-2 inline-flex items-center gap-2 text-sm opacity-70 hover:opacity-100'>
+              <StarsDisplay rating={reviewStats.average} />
+              <span>
+                {reviewStats.average.toFixed(1)} ({reviewStats.total} reseña{reviewStats.total !== 1 ? 's' : ''})
+              </span>
+            </a>
+          )}
 
           {/* SKU */}
           {effectiveSku && <p className='mt-1 text-xs tracking-wide opacity-40'>SKU: {effectiveSku}</p>}
@@ -558,6 +575,6 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

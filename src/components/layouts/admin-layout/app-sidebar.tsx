@@ -15,6 +15,8 @@ import {
   ShoppingCart,
   ChevronRight,
   ExternalLink,
+  MessageSquare,
+  TicketPercent,
   LayoutDashboard,
 } from 'lucide-react';
 
@@ -70,6 +72,16 @@ export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebar
           label: 'Inventario',
           href: `/dashboard/businesses/${activeBusiness.id}/inventory`,
           icon: Warehouse,
+        },
+        {
+          label: 'Reseñas',
+          href: `/dashboard/businesses/${activeBusiness.id}/reviews`,
+          icon: MessageSquare,
+        },
+        {
+          label: 'Cupones',
+          href: `/dashboard/businesses/${activeBusiness.id}/coupons`,
+          icon: TicketPercent,
         },
         {
           label: 'Site Builder',

@@ -25,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { useModifierKey } from '@/hooks/use-os';
 import {
   type CatalogSettingsInput,
   updateCatalogSettingsAction,
@@ -103,11 +104,14 @@ interface PreviewProduct {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
   price: string;
   compareAtPrice: string | null;
   imageUrl: string | null;
   isFeatured: boolean;
   stock: number | null;
+  trackInventory: boolean;
+  brandName: string | null;
 }
 
 interface PreviewBusiness {
@@ -1241,13 +1245,18 @@ function BuilderPreview({
   const radiusFull = br >= 20 ? '9999px' : br > 0 ? `${br * 0.125}rem` : '0';
   const font = FONT_FAMILY[s.font] || FONT_FAMILY.inter;
   const featured = products.filter((p) => p.isFeatured);
-  const cols = s.gridColumns ?? 4;
   const previewTotalPages = Math.ceil(products.length / PREVIEW_PER_PAGE);
   const paginatedPreviewProducts = products.slice((previewPage - 1) * PREVIEW_PER_PAGE, previewPage * PREVIEW_PER_PAGE);
+  const layout = s.layout ?? 'grid';
+  // Preview is always in a narrow container (~400px), so we use mobile-only
+  // grid classes. Tailwind sm:/lg: breakpoints would fire based on viewport width
+  // and break the layout.
   const gridClass =
-    cols === 3
-      ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
-      : 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
+    layout === 'list'
+      ? 'flex flex-col gap-3'
+      : layout === 'magazine'
+        ? 'grid grid-cols-2 gap-3'
+        : 'grid grid-cols-2 gap-3';
 
   const fmt = (v: string) => {
     const n = parseFloat(v);
@@ -1309,15 +1318,6 @@ function BuilderPreview({
             <span className='text-base font-bold tracking-tight'>{business.name}</span>
           </div>
           <div className='flex items-center gap-3'>
-            {business.whatsappNumber && (
-              <span
-                className='inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white'
-                style={{ backgroundColor: '#25D366', borderRadius: radiusFull }}
-              >
-                <Phone className='size-3.5' />
-                WhatsApp
-              </span>
-            )}
             <ShoppingBag className='size-5 opacity-60' />
           </div>
         </div>
@@ -1387,7 +1387,7 @@ function BuilderPreview({
                   {featured.length} producto{featured.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'>
+              <div className='grid grid-cols-2 gap-3'>
                 {featured.slice(0, 6).map((p) => (
                   <PreviewCard key={p.id} product={p} s={s} radiusLg={radiusLg} fmt={fmt} featured />
                 ))}
@@ -1406,8 +1406,16 @@ function BuilderPreview({
             {products.length > 0 ? (
               <>
                 <div className={gridClass}>
-                  {paginatedPreviewProducts.map((p) => (
-                    <PreviewCard key={p.id} product={p} s={s} radiusLg={radiusLg} fmt={fmt} />
+                  {paginatedPreviewProducts.map((p, idx) => (
+                    <PreviewCard
+                      key={p.id}
+                      product={p}
+                      s={s}
+                      radiusLg={radiusLg}
+                      fmt={fmt}
+                      layout={layout}
+                      magazineHero={layout === 'magazine' && idx === 0}
+                    />
                   ))}
                 </div>
                 {previewTotalPages > 1 && (
@@ -1466,9 +1474,7 @@ function BuilderPreview({
           {/* About */}
           {s.aboutEnabled && s.aboutText && (
             <section className='mt-16 pt-16' style={{ borderTop: `1px solid ${s.borderColor}` }}>
-              <div
-                className={s.aboutImageUrl ? 'grid gap-8 lg:grid-cols-2 lg:gap-12' : 'mx-auto max-w-3xl text-center'}
-              >
+              <div className={s.aboutImageUrl ? 'grid gap-8' : 'mx-auto max-w-3xl text-center'}>
                 {s.aboutImageUrl && (
                   <div className='relative aspect-4/3 overflow-hidden' style={{ borderRadius: radiusLg }}>
                     <Image src={s.aboutImageUrl} alt={business.name} fill className='object-cover' />
@@ -1487,9 +1493,9 @@ function BuilderPreview({
       {/* Footer — matches [slug]/layout.tsx */}
       <footer style={{ backgroundColor: s.surfaceColor, borderTop: `1px solid ${s.borderColor}` }}>
         <div className='mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8'>
-          <div className='grid gap-8 sm:grid-cols-2 lg:grid-cols-4'>
+          <div className='grid gap-8'>
             {/* Brand */}
-            <div className='sm:col-span-2 lg:col-span-1'>
+            <div>
               <div className='flex items-center gap-2.5'>
                 {business.logoUrl ? (
                   <Image
@@ -1591,6 +1597,7 @@ function PreviewHero({
   radiusLg: string;
   radiusFull: string;
 }) {
+  const modKey = useModifierKey();
   const title = s.heroTitle || business.name;
   const subtitle = s.heroSubtitle || business.description;
   const hasImage = !!s.heroImageUrl;
@@ -1617,7 +1624,7 @@ function PreviewHero({
           borderRadius: `calc(${radius} * 0.5)`,
         }}
       >
-        ⌘K
+        {modKey}K
       </span>
     </div>
   );
@@ -1805,7 +1812,7 @@ function PreviewCategoryNav({
 }) {
   if (style === 'cards') {
     return (
-      <div className='mb-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4'>
+      <div className='mb-10 grid grid-cols-2 gap-3'>
         <div className='p-4 text-left text-white' style={{ borderRadius: radiusLg, backgroundColor: s.primaryColor }}>
           <span className='text-sm font-semibold'>Todos</span>
         </div>
@@ -1868,21 +1875,30 @@ function PreviewCard({
   radiusLg,
   fmt,
   featured,
+  layout = 'grid',
+  magazineHero = false,
 }: {
   product: PreviewProduct;
   s: Settings;
   radiusLg: string;
   fmt: (v: string) => string;
   featured?: boolean;
+  layout?: string;
+  magazineHero?: boolean;
 }) {
   const isMinimal = s.cardStyle === 'minimal';
   const isBordered = s.cardStyle === 'bordered';
   const isShadow = s.cardStyle === 'shadow';
+  const isList = layout === 'list';
   const radius = s.borderRadius > 0 ? `${s.borderRadius * 0.0625}rem` : '0';
+
+  const stockLabel = s.showStock && p.trackInventory ? ((p.stock ?? 0) > 0 ? `${p.stock} en stock` : 'Agotado') : null;
+  const hasDiscount = p.compareAtPrice && parseFloat(p.compareAtPrice) > parseFloat(p.price);
+  const discountPct = hasDiscount ? Math.round((1 - parseFloat(p.price) / parseFloat(p.compareAtPrice!)) * 100) : 0;
 
   return (
     <div
-      className='flex flex-col overflow-hidden'
+      className={`overflow-hidden ${isList ? 'flex flex-row' : 'flex flex-col'} ${magazineHero ? 'col-span-2 row-span-2' : ''}`}
       style={{
         borderRadius: isMinimal ? '0' : radiusLg,
         backgroundColor: isMinimal ? 'transparent' : s.backgroundColor,
@@ -1891,7 +1907,7 @@ function PreviewCard({
       }}
     >
       <div
-        className={`relative overflow-hidden ${featured ? 'aspect-4/3' : 'aspect-square'}`}
+        className={`relative overflow-hidden ${isList ? 'aspect-square w-28 shrink-0' : featured || magazineHero ? 'aspect-4/3' : 'aspect-square'}`}
         style={{ borderRadius: isMinimal ? radiusLg : '0', backgroundColor: s.surfaceColor }}
       >
         {p.imageUrl ? (
@@ -1901,24 +1917,66 @@ function PreviewCard({
             <ImageIcon className='size-8 opacity-20' />
           </div>
         )}
-        {p.isFeatured && (
+        {/* Badges */}
+        <div className='absolute top-2 left-2 flex flex-col items-start gap-1'>
+          {p.isFeatured && (
+            <span
+              className='px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase'
+              style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
+            >
+              Destacado
+            </span>
+          )}
+          {hasDiscount && (
+            <span
+              className='px-2 py-0.5 text-[10px] font-bold tracking-wide text-white'
+              style={{ backgroundColor: '#ef4444', borderRadius: radius }}
+            >
+              -{discountPct}%
+            </span>
+          )}
+        </div>
+      </div>
+      <div className={`flex flex-1 flex-col ${isMinimal ? 'pt-3' : 'p-3'}`}>
+        {p.brandName && (
           <span
-            className='absolute top-2.5 left-2.5 px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase'
-            style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
+            className='mb-0.5 text-[10px] font-semibold tracking-wide uppercase'
+            style={{ color: s.primaryColor, opacity: 0.6 }}
           >
-            Destacado
+            {p.brandName}
           </span>
         )}
-      </div>
-      <div className={isMinimal ? 'pt-3' : 'p-3.5 sm:p-4'}>
-        <h3 className='line-clamp-2 text-sm leading-snug font-medium'>{p.name}</h3>
-        {s.showPrices && (
-          <div className='mt-auto flex items-baseline gap-2 pt-2'>
-            <span className='text-base font-bold'>{fmt(p.price)}</span>
-            {p.compareAtPrice && parseFloat(p.compareAtPrice) > parseFloat(p.price) && (
-              <span className='text-xs line-through opacity-40'>{fmt(p.compareAtPrice)}</span>
-            )}
-          </div>
+        <h3 className={`leading-snug font-medium ${isList || magazineHero ? 'text-base' : 'line-clamp-2 text-sm'}`}>
+          {p.name}
+        </h3>
+        {(isList || magazineHero) && p.description && (
+          <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50'>{p.description}</p>
+        )}
+        <div className='mt-auto flex flex-wrap items-center gap-2 pt-2'>
+          {s.showPrices && (
+            <div className='flex items-baseline gap-2'>
+              <span className='text-base font-bold'>{fmt(p.price)}</span>
+              {p.compareAtPrice && parseFloat(p.compareAtPrice) > parseFloat(p.price) && (
+                <span className='text-xs line-through opacity-40'>{fmt(p.compareAtPrice)}</span>
+              )}
+            </div>
+          )}
+          {stockLabel && (
+            <span
+              className='text-[11px] font-medium'
+              style={{ color: (p.stock ?? 0) > 0 ? s.primaryColor : '#ef4444', opacity: 0.7 }}
+            >
+              · {stockLabel}
+            </span>
+          )}
+        </div>
+        {isList && (
+          <span
+            className='mt-2 self-start px-4 py-1.5 text-xs font-semibold text-white'
+            style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
+          >
+            Agregar
+          </span>
         )}
       </div>
     </div>

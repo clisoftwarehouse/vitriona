@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
 import { orders, products, orderItems, productVariants, inventoryMovements, orderStatusHistory } from '@/db/schema';
 
 interface OrderItemInput {
@@ -23,6 +24,9 @@ interface CreateOrderInput {
   customerNotes?: string;
   checkoutType: 'whatsapp' | 'internal';
   items: OrderItemInput[];
+  couponId?: string;
+  couponCode?: string;
+  discount?: number;
 }
 
 function generateOrderNumber(): string {
@@ -45,7 +49,8 @@ export async function createOrderAction(input: CreateOrderInput) {
   }
 
   const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
-  const total = subtotal;
+  const discount = input.discount ?? 0;
+  const total = Math.max(0, subtotal - discount);
 
   // Verify stock availability for products with inventory tracking
   for (const item of items) {
@@ -85,7 +90,10 @@ export async function createOrderAction(input: CreateOrderInput) {
       customerEmail: customerEmail?.trim() || null,
       customerNotes: customerNotes?.trim() || null,
       subtotal: subtotal.toFixed(2),
+      discount: discount.toFixed(2),
       total: total.toFixed(2),
+      couponId: input.couponId || null,
+      couponCode: input.couponCode || null,
       status: 'pending',
       checkoutType,
       inventoryDeducted: true,
@@ -170,6 +178,11 @@ export async function createOrderAction(input: CreateOrderInput) {
     toStatus: 'pending',
     note: 'Pedido creado',
   });
+
+  // Increment coupon usage
+  if (input.couponId) {
+    await incrementCouponUsage(input.couponId);
+  }
 
   return { success: true, order };
 }

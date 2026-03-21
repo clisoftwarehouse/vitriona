@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { ProductReviews } from '@/modules/reviews/ui/components/product-reviews';
 import { ProductDetail } from '@/modules/storefront/ui/components/product-detail';
+import { getProductReviews, getProductReviewStats } from '@/modules/reviews/server/actions/review-actions';
 import { getProductBySlug, getBusinessBySlug } from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface ProductPageProps {
@@ -38,12 +40,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductBySlug(business.id, productSlug);
   if (!product) notFound();
 
+  const [reviews, stats] = await Promise.all([getProductReviews(product.id), getProductReviewStats(product.id)]);
+
   return (
-    <ProductDetail
-      slug={slug}
-      product={product}
-      whatsappNumber={business.whatsappNumber}
-      currency={business.currency}
-    />
+    <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
+      <ProductDetail
+        slug={slug}
+        product={product}
+        whatsappNumber={business.whatsappNumber}
+        currency={business.currency}
+        reviewStats={stats}
+      />
+      <ProductReviews productId={product.id} businessId={business.id} reviews={reviews} stats={stats} />
+    </div>
   );
 }

@@ -4,8 +4,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { X, Plus, Search, ImageOff, Sparkles, ArrowRight, ChevronLeft, ShoppingBag, ChevronRight } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Star,
+  Search,
+  ImageOff,
+  Sparkles,
+  ArrowRight,
+  ChevronLeft,
+  ShoppingBag,
+  ChevronRight,
+} from 'lucide-react';
 
+import { useModifierKey } from '@/hooks/use-os';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
 /* ─── Types ─── */
@@ -33,7 +45,11 @@ interface Product {
   isFeatured: boolean;
   categoryId: string | null;
   brandName?: string | null;
+  stock: number | null;
+  trackInventory: boolean;
   images: ProductImage[];
+  avgRating?: number;
+  reviewCount?: number;
 }
 
 interface Business {
@@ -154,11 +170,10 @@ export function StorefrontCatalog({
   const aboutText = settings?.aboutText;
   const aboutImage = settings?.aboutImageUrl;
   const cardStyle = settings?.cardStyle ?? 'default';
+  const layout = settings?.layout ?? 'grid';
   const cols = settings?.gridColumns ?? 4;
   const showPrices = settings?.showPrices ?? true;
-  // showStock will be used when product stock tracking is implemented
-  const _showStock = settings?.showStock ?? false;
-  void _showStock;
+  const showStock = settings?.showStock ?? false;
 
   const featuredProducts = allProducts.filter((p) => p.isFeatured);
   const isFiltering = !!search || !!activeCat;
@@ -169,15 +184,15 @@ export function StorefrontCatalog({
     [products, page]
   );
 
-  // Sync filter state to URL query params (shareable links) without triggering navigation
+  // Sync only category to URL (click-based, no typing). Search is NOT synced to
+  // avoid Next.js intercepting replaceState and triggering server re-renders.
   useEffect(() => {
     const params = new URLSearchParams();
     if (activeCat) params.set('categoria', activeCat);
-    if (search) params.set('buscar', search);
     const qs = params.toString();
     const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
     window.history.replaceState(null, '', newUrl);
-  }, [activeCat, search]);
+  }, [activeCat]);
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
@@ -206,9 +221,13 @@ export function StorefrontCatalog({
   };
 
   const gridClass =
-    cols === 3
-      ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
-      : 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
+    layout === 'list'
+      ? 'flex flex-col gap-3'
+      : layout === 'magazine'
+        ? 'grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5'
+        : cols === 3
+          ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
+          : 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
 
   return (
     <div>
@@ -240,7 +259,7 @@ export function StorefrontCatalog({
           style={{ backgroundColor: 'var(--sf-surface, #f9fafb)', borderBottom: '1px solid var(--sf-border, #e5e7eb)' }}
         >
           <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-            <SearchBar value={search} onChange={handleSearch} />
+            <SearchBar value={search} onChange={handleSearch} autoFocus />
           </div>
         </div>
       )}
@@ -272,7 +291,9 @@ export function StorefrontCatalog({
                   currency={business.currency}
                   onAddToCart={handleAddToCart}
                   cardStyle={cardStyle}
+                  layout='grid'
                   showPrices={showPrices}
+                  showStock={showStock}
                   featured
                 />
               ))}
@@ -304,7 +325,7 @@ export function StorefrontCatalog({
           ) : (
             <>
               <div className={gridClass}>
-                {paginatedProducts.map((product) => (
+                {paginatedProducts.map((product, idx) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -312,7 +333,10 @@ export function StorefrontCatalog({
                     currency={business.currency}
                     onAddToCart={handleAddToCart}
                     cardStyle={cardStyle}
+                    layout={layout}
                     showPrices={showPrices}
+                    showStock={showStock}
+                    magazineHero={layout === 'magazine' && idx === 0}
                   />
                 ))}
               </div>
@@ -608,7 +632,19 @@ function HeroSection({
 
 /* ─── Search Bar ─── */
 
-function SearchBar({ value, onChange, dark }: { value: string; onChange: (v: string) => void; dark?: boolean }) {
+function SearchBar({
+  value,
+  onChange,
+  dark,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  dark?: boolean;
+  autoFocus?: boolean;
+}) {
+  const modKey = useModifierKey();
+
   return (
     <div className='relative w-full'>
       <Search className={`absolute top-1/2 left-4 size-4 -translate-y-1/2 ${dark ? 'text-white/50' : 'opacity-40'}`} />
@@ -617,6 +653,7 @@ function SearchBar({ value, onChange, dark }: { value: string; onChange: (v: str
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder='Buscar productos...'
+        autoFocus={autoFocus}
         className={`w-full py-3 pr-12 pl-11 text-sm shadow-sm transition-all outline-none ${
           dark
             ? 'border border-white/20 bg-white/10 text-white placeholder-white/50 backdrop-blur-sm focus:border-white/40'
@@ -644,7 +681,7 @@ function SearchBar({ value, onChange, dark }: { value: string; onChange: (v: str
             borderRadius: 'calc(var(--sf-radius, 0.75rem) * 0.5)',
           }}
         >
-          ⌘K
+          {modKey}K
         </kbd>
       )}
     </div>
@@ -945,7 +982,10 @@ interface ProductCardProps {
   currency: string;
   featured?: boolean;
   cardStyle: string;
+  layout?: string;
   showPrices?: boolean;
+  showStock?: boolean;
+  magazineHero?: boolean;
   onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }
 
@@ -955,14 +995,24 @@ function ProductCard({
   currency,
   featured,
   cardStyle,
+  layout = 'grid',
   showPrices = true,
+  showStock = false,
+  magazineHero = false,
   onAddToCart,
 }: ProductCardProps) {
   const isBordered = cardStyle === 'bordered';
   const isMinimal = cardStyle === 'minimal';
   const isShadow = cardStyle === 'shadow';
+  const isList = layout === 'list';
 
-  const cardClasses = `group flex flex-col overflow-hidden transition-all ${
+  const borderStyle = isMinimal
+    ? 'none'
+    : isBordered
+      ? '2px solid var(--sf-border, #e5e7eb)'
+      : '1px solid var(--sf-border, #e5e7eb)';
+
+  const cardClasses = `group overflow-hidden transition-all ${isList ? 'flex flex-row' : 'flex flex-col'} ${
     isMinimal
       ? 'bg-transparent'
       : isBordered
@@ -970,7 +1020,10 @@ function ProductCard({
         : isShadow
           ? 'shadow-sm hover:shadow-xl'
           : 'hover:shadow-lg'
-  }`;
+  } ${magazineHero ? 'col-span-2 row-span-2' : ''}`;
+
+  const stockLabel =
+    showStock && product.trackInventory ? ((product.stock ?? 0) > 0 ? `${product.stock} en stock` : 'Agotado') : null;
 
   return (
     <Link
@@ -979,16 +1032,14 @@ function ProductCard({
       style={{
         borderRadius: isMinimal ? '0' : 'var(--sf-radius-lg, 1rem)',
         backgroundColor: isMinimal ? 'transparent' : 'var(--sf-bg, #fff)',
-        border: isMinimal
-          ? 'none'
-          : isBordered
-            ? '2px solid var(--sf-border, #e5e7eb)'
-            : '1px solid var(--sf-border, #e5e7eb)',
+        border: borderStyle,
       }}
     >
       {/* Image */}
       <div
-        className={`relative overflow-hidden ${featured ? 'aspect-4/3' : 'aspect-square'}`}
+        className={`relative overflow-hidden ${
+          isList ? 'aspect-square w-28 shrink-0 sm:w-36' : featured || magazineHero ? 'aspect-4/3' : 'aspect-square'
+        }`}
         style={{
           borderRadius: isMinimal ? 'var(--sf-radius-lg, 1rem)' : '0',
           backgroundColor: 'var(--sf-surface, #f9fafb)',
@@ -1000,7 +1051,13 @@ function ProductCard({
             alt={product.images[0].alt || product.name}
             fill
             sizes={
-              featured ? '(max-width: 640px) 100vw, 33vw' : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
+              isList
+                ? '144px'
+                : magazineHero
+                  ? '(max-width: 640px) 100vw, 66vw'
+                  : featured
+                    ? '(max-width: 640px) 100vw, 33vw'
+                    : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
             }
             className='object-cover transition-transform duration-500 group-hover:scale-105'
           />
@@ -1034,14 +1091,16 @@ function ProductCard({
         </div>
 
         {/* Quick add */}
-        <button
-          onClick={(e) => onAddToCart(e, product)}
-          className='absolute right-2.5 bottom-2.5 flex size-9 items-center justify-center text-white opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
-          style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius-full, 9999px)' }}
-          aria-label={`Agregar ${product.name} al carrito`}
-        >
-          <Plus className='size-4' />
-        </button>
+        {!isList && (
+          <button
+            onClick={(e) => onAddToCart(e, product)}
+            className='absolute right-2.5 bottom-2.5 flex size-9 items-center justify-center text-white opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
+            style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius-full, 9999px)' }}
+            aria-label={`Agregar ${product.name} al carrito`}
+          >
+            <Plus className='size-4' />
+          </button>
+        )}
       </div>
 
       {/* Info */}
@@ -1054,17 +1113,56 @@ function ProductCard({
             {product.brandName}
           </span>
         )}
-        <h3 className='line-clamp-2 text-sm leading-snug font-medium'>{product.name}</h3>
-        {featured && product.description && (
+        <h3 className={`leading-snug font-medium ${isList || magazineHero ? 'text-base' : 'line-clamp-2 text-sm'}`}>
+          {product.name}
+        </h3>
+        {(featured || isList || magazineHero) && product.description && (
           <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50'>{product.description}</p>
         )}
-        {showPrices && (
-          <div className='mt-auto flex items-baseline gap-2 pt-2'>
-            <span className='text-base font-bold'>{formatPrice(product.price, currency)}</span>
-            {hasDiscount(product) && (
-              <span className='text-xs line-through opacity-40'>{formatPrice(product.compareAtPrice!, currency)}</span>
-            )}
+        <div className='mt-auto flex flex-wrap items-center gap-2 pt-2'>
+          {showPrices && (
+            <div className='flex items-baseline gap-2'>
+              <span className='text-base font-bold'>{formatPrice(product.price, currency)}</span>
+              {hasDiscount(product) && (
+                <span className='text-xs line-through opacity-40'>
+                  {formatPrice(product.compareAtPrice!, currency)}
+                </span>
+              )}
+            </div>
+          )}
+          {stockLabel && (
+            <span
+              className='text-[11px] font-medium'
+              style={{ color: (product.stock ?? 0) > 0 ? 'var(--sf-primary, #000)' : '#ef4444', opacity: 0.7 }}
+            >
+              · {stockLabel}
+            </span>
+          )}
+        </div>
+        {(product.reviewCount ?? 0) > 0 && (
+          <div className='mt-1 flex items-center gap-1'>
+            <div className='flex items-center gap-0.5'>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`size-3 ${s <= Math.round(product.avgRating ?? 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`}
+                />
+              ))}
+            </div>
+            <span className='text-[10px] opacity-40'>({product.reviewCount})</span>
           </div>
+        )}
+        {isList && (
+          <button
+            onClick={(e) => onAddToCart(e, product)}
+            className='mt-2 self-start px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90'
+            style={{
+              backgroundColor: 'var(--sf-primary, #000)',
+              borderRadius: 'var(--sf-radius, 0.75rem)',
+            }}
+          >
+            Agregar
+          </button>
         )}
       </div>
     </Link>

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 import { getProductsAction } from '@/modules/products/server/actions/get-products.action';
 import { deleteProductAction } from '@/modules/products/server/actions/delete-product.action';
@@ -20,6 +20,7 @@ export function useProducts(businessId: string, filters: ProductFilters = {}) {
     queryFn: async () => {
       return getProductsAction(businessId, filters);
     },
+    placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
 }
