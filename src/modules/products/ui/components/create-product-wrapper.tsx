@@ -22,11 +22,17 @@ interface Catalog {
   name: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+}
+
 interface CreateProductWrapperProps {
   catalogId?: string;
   businessId: string;
   categories: Category[];
   catalogs?: Catalog[];
+  brands?: Brand[];
   attributes?: AttributeDefinition[];
 }
 
@@ -35,6 +41,7 @@ export function CreateProductWrapper({
   businessId,
   categories,
   catalogs,
+  brands,
   attributes,
 }: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
@@ -48,6 +55,7 @@ export function CreateProductWrapper({
       businessId={businessId}
       categories={categories}
       catalogs={catalogs}
+      brands={brands}
       attributes={attributes}
       onSubmitAction={handleSubmit}
     />

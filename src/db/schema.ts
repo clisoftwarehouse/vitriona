@@ -316,6 +316,22 @@ export const customSections = pgTable('custom_sections', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+// ── Brands ──
+
+export const brands = pgTable('brands', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  logoUrl: text('logo_url'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 export const categories = pgTable('categories', {
   id: text('id')
     .primaryKey()
@@ -324,6 +340,7 @@ export const categories = pgTable('categories', {
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
   catalogId: text('catalog_id').references(() => catalogs.id, { onDelete: 'set null' }),
+  parentId: text('parent_id'),
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   description: text('description'),
@@ -358,6 +375,7 @@ export const products = pgTable('products', {
     .references(() => businesses.id, { onDelete: 'cascade' }),
   catalogId: text('catalog_id').references(() => catalogs.id, { onDelete: 'set null' }),
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  brandId: text('brand_id').references(() => brands.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   description: text('description'),
@@ -588,6 +606,7 @@ export const orderItems = pgTable('order_items', {
     .notNull()
     .references(() => orders.id, { onDelete: 'cascade' }),
   productId: text('product_id').references(() => products.id, { onDelete: 'set null' }),
+  variantId: text('variant_id').references(() => productVariants.id, { onDelete: 'set null' }),
   productName: text('product_name').notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   quantity: integer('quantity').notNull().default(1),
@@ -601,8 +620,50 @@ export const productImages = pgTable('product_images', {
   productId: text('product_id')
     .notNull()
     .references(() => products.id, { onDelete: 'cascade' }),
+  variantId: text('variant_id').references(() => productVariants.id, { onDelete: 'set null' }),
   url: text('url').notNull(),
   alt: text('alt'),
   sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Product Variants ──
+
+export const productVariants = pgTable('product_variants', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  sku: text('sku'),
+  price: numeric('price', { precision: 10, scale: 2 }),
+  stock: integer('stock').notNull().default(0),
+  imageUrl: text('image_url'),
+  options: jsonb('options').$type<Record<string, string>>().notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Product Reviews ──
+
+export const productReviews = pgTable('product_reviews', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  customerName: text('customer_name').notNull(),
+  customerEmail: text('customer_email'),
+  rating: integer('rating').notNull(),
+  title: text('title'),
+  comment: text('comment'),
+  isApproved: boolean('is_approved').notNull().default(false),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });

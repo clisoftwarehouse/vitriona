@@ -26,6 +26,7 @@ export const createProductSchema = z.object({
   sku: z.string().max(100).optional().or(z.literal('')),
   stock: z.number().int().min(0, 'El stock no puede ser negativo').optional(),
   categoryId: z.string().optional().or(z.literal('')),
+  brandId: z.string().optional().or(z.literal('')),
   status: z.enum(['active', 'inactive', 'out_of_stock']),
   isFeatured: z.boolean(),
   type: z.enum(['product', 'service']),
@@ -43,7 +44,6 @@ export const createProductSchema = z.object({
   tags: z.string().optional().or(z.literal('')),
   catalogIds: z.array(z.string()).optional(),
   attributeValues: z.record(z.string(), z.string()).optional(),
-  characteristics: z.array(z.object({ name: z.string().min(1), value: z.string().min(1) })).optional(),
 });
 
 export const updateProductSchema = createProductSchema;

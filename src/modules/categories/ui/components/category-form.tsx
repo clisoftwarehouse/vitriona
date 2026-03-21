@@ -9,17 +9,33 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { createCategorySchema, type CreateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
+
+interface ParentOption {
+  id: string;
+  name: string;
+}
 
 interface CategoryFormProps {
   mode: 'create' | 'edit';
   defaultValues?: Partial<CreateCategoryFormValues>;
+  parentOptions?: ParentOption[];
+  currentCategoryId?: string;
   onSubmitAction: (values: CreateCategoryFormValues) => Promise<{ error?: string; success?: boolean }>;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function CategoryForm({ mode, defaultValues, onSubmitAction, onSuccess, onCancel }: CategoryFormProps) {
+export function CategoryForm({
+  mode,
+  defaultValues,
+  parentOptions = [],
+  currentCategoryId,
+  onSubmitAction,
+  onSuccess,
+  onCancel,
+}: CategoryFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +44,7 @@ export function CategoryForm({ mode, defaultValues, onSubmitAction, onSuccess, o
     defaultValues: {
       name: '',
       description: '',
+      parentId: '',
       ...defaultValues,
     },
   });
@@ -88,6 +105,36 @@ export function CategoryForm({ mode, defaultValues, onSubmitAction, onSuccess, o
               </FormItem>
             )}
           />
+
+          {parentOptions.length > 0 && (
+            <FormField
+              control={form.control}
+              name='parentId'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría padre</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''} disabled={isPending}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Ninguna (raíz)' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='none'>Ninguna (raíz)</SelectItem>
+                      {parentOptions
+                        .filter((p) => p.id !== currentCategoryId)
+                        .map((parent) => (
+                          <SelectItem key={parent.id} value={parent.id}>
+                            {parent.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <div className='flex justify-end gap-3'>
             {onCancel && (

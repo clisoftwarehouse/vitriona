@@ -4,11 +4,11 @@ import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { categories, businesses } from '@/db/schema';
+import { brands, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
-import type { CreateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
+import type { CreateBrandFormValues } from '@/modules/brands/ui/schemas/brand.schemas';
 
-export async function createCategoryAction(businessId: string, values: CreateCategoryFormValues) {
+export async function createBrandAction(businessId: string, values: CreateBrandFormValues) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
@@ -21,27 +21,26 @@ export async function createCategoryAction(businessId: string, values: CreateCat
     if (!business) return { error: 'No autorizado' };
 
     const existing = await db
-      .select({ sortOrder: categories.sortOrder })
-      .from(categories)
-      .where(eq(categories.businessId, business.id))
-      .orderBy(categories.sortOrder);
+      .select({ sortOrder: brands.sortOrder })
+      .from(brands)
+      .where(eq(brands.businessId, business.id))
+      .orderBy(brands.sortOrder);
 
     const nextOrder = existing.length > 0 ? existing[existing.length - 1].sortOrder + 1 : 0;
 
-    const [category] = await db
-      .insert(categories)
+    const [brand] = await db
+      .insert(brands)
       .values({
         businessId: business.id,
         name: values.name,
         slug: generateSlug(values.name),
-        description: values.description || null,
-        parentId: values.parentId || null,
+        logoUrl: values.logoUrl || null,
         sortOrder: nextOrder,
       })
-      .returning({ id: categories.id });
+      .returning({ id: brands.id });
 
-    return { success: true, categoryId: category.id };
+    return { success: true, brandId: brand.id };
   } catch {
-    return { error: 'Ocurrió un error al crear la categoría.' };
+    return { error: 'Ocurrió un error al crear la marca.' };
   }
 }

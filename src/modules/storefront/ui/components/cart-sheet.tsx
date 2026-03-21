@@ -126,7 +126,7 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
             <div className='flex-1 overflow-y-auto'>
               {items.map((item, idx) => (
                 <div
-                  key={item.productId}
+                  key={item.variantId ? `${item.productId}:${item.variantId}` : item.productId}
                   className='flex gap-3 px-5 py-4'
                   style={idx > 0 ? { borderTop: '1px solid var(--sf-border, #e5e7eb)', opacity: 1 } : undefined}
                 >
@@ -155,10 +155,13 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                           style={{ color: 'var(--sf-text, #111827)' }}
                         >
                           {item.name}
+                          {item.variantName && (
+                            <span className='block text-[11px] font-normal opacity-50'>{item.variantName}</span>
+                          )}
                         </Link>
                       </SheetClose>
                       <button
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => removeItem(item.productId, item.variantId)}
                         className='shrink-0 rounded-md p-0.5 opacity-40 transition-opacity hover:opacity-100'
                         style={{ color: '#ef4444' }}
                         aria-label='Eliminar'
@@ -176,14 +179,14 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         }}
                       >
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Minus className='size-3' />
                         </button>
                         <span className='w-8 text-center text-xs font-semibold'>{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Plus className='size-3' />

@@ -4,7 +4,16 @@ import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { orders, products, businesses, orderItems, inventoryMovements, orderStatusHistory } from '@/db/schema';
+import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import {
+  orders,
+  products,
+  businesses,
+  orderItems,
+  productVariants,
+  inventoryMovements,
+  orderStatusHistory,
+} from '@/db/schema';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -42,27 +51,53 @@ async function restoreInventory(orderId: string, orderNumber: string) {
 
     if (!product?.trackInventory) continue;
 
-    const previousStock = product.stock ?? 0;
-    const newStock = previousStock + item.quantity;
+    if (item.variantId) {
+      // Restore variant stock
+      const [variant] = await db
+        .select({ id: productVariants.id, stock: productVariants.stock })
+        .from(productVariants)
+        .where(eq(productVariants.id, item.variantId))
+        .limit(1);
+      if (variant) {
+        const prevStock = variant.stock;
+        const newStock = prevStock + item.quantity;
+        await db.update(productVariants).set({ stock: newStock }).where(eq(productVariants.id, item.variantId));
 
-    await db
-      .update(products)
-      .set({
-        stock: newStock,
-        status: product.status === 'out_of_stock' && newStock > 0 ? 'active' : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(products.id, item.productId));
+        await db.insert(inventoryMovements).values({
+          productId: item.productId,
+          type: 'adjustment',
+          quantity: item.quantity,
+          reason: `Cancelación pedido ${orderNumber} (variante)`,
+          referenceId: orderId,
+          previousStock: prevStock,
+          newStock,
+        });
+      }
+      await syncProductStockWithVariants(item.productId);
+    } else {
+      // Restore product stock
+      const previousStock = product.stock ?? 0;
+      const newStock = previousStock + item.quantity;
 
-    await db.insert(inventoryMovements).values({
-      productId: item.productId,
-      type: 'adjustment',
-      quantity: item.quantity,
-      reason: `Cancelación pedido ${orderNumber}`,
-      referenceId: orderId,
-      previousStock,
-      newStock,
-    });
+      await db
+        .update(products)
+        .set({
+          stock: newStock,
+          status: product.status === 'out_of_stock' && newStock > 0 ? 'active' : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.id, item.productId));
+
+      await db.insert(inventoryMovements).values({
+        productId: item.productId,
+        type: 'adjustment',
+        quantity: item.quantity,
+        reason: `Cancelación pedido ${orderNumber}`,
+        referenceId: orderId,
+        previousStock,
+        newStock,
+      });
+    }
   }
 }
 

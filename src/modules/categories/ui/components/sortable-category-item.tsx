@@ -11,16 +11,18 @@ interface Category {
   id: string;
   name: string;
   description: string | null;
+  parentId: string | null;
   isActive: boolean;
 }
 
 interface SortableCategoryItemProps {
   category: Category;
+  parentName?: string;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export function SortableCategoryItem({ category, onEdit, onDelete }: SortableCategoryItemProps) {
+export function SortableCategoryItem({ category, parentName, onEdit, onDelete }: SortableCategoryItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
 
   const style = {
@@ -45,7 +47,10 @@ export function SortableCategoryItem({ category, onEdit, onDelete }: SortableCat
       </button>
 
       <div className='min-w-0 flex-1'>
-        <p className='truncate text-sm font-medium'>{category.name}</p>
+        <div className='flex items-center gap-1.5'>
+          {parentName && <span className='text-muted-foreground text-xs'>{parentName} /</span>}
+          <p className='truncate text-sm font-medium'>{category.name}</p>
+        </div>
         {category.description && <p className='text-muted-foreground truncate text-xs'>{category.description}</p>}
       </div>
 

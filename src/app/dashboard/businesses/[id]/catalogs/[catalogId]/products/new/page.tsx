@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getBrandsAction } from '@/modules/brands/server/actions/get-brands.action';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
 import { CreateProductWrapper } from '@/modules/products/ui/components/create-product-wrapper';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
@@ -16,12 +17,13 @@ interface NewProductPageProps {
 
 export default async function NewProductPage({ params }: NewProductPageProps) {
   const { id, catalogId } = await params;
-  const [business, catalog, categories, attributes, allCatalogs] = await Promise.all([
+  const [business, catalog, categories, attributes, allCatalogs, brands] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(id),
     getAttributesAction(id),
     getCatalogsAction(id),
+    getBrandsAction(id),
   ]);
 
   if (!business || !catalog) notFound();
@@ -53,6 +55,7 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
             categories={categories}
             attributes={attributes}
             catalogs={allCatalogs}
+            brands={brands}
           />
         </CardContent>
       </Card>

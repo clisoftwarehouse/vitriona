@@ -134,8 +134,8 @@ export function CatalogSections({ slug, currency, catalogs }: CatalogSectionsPro
                       <span
                         className='absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-bold text-white'
                         style={{
-                          backgroundColor: 'var(--sf-primary, #000)',
-                          borderRadius: 'var(--sf-radius, 0.75rem)',
+                          backgroundColor: '#ef4444',
+                          borderRadius: 'max(var(--sf-radius, 0.75rem), 0.375rem)',
                         }}
                       >
                         -{discountPercent(product)}%

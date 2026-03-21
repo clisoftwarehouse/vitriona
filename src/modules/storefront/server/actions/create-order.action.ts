@@ -3,10 +3,12 @@
 import { eq } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
-import { orders, products, orderItems, inventoryMovements, orderStatusHistory } from '@/db/schema';
+import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { orders, products, orderItems, productVariants, inventoryMovements, orderStatusHistory } from '@/db/schema';
 
 interface OrderItemInput {
   productId: string;
+  variantId?: string;
   productName: string;
   unitPrice: string;
   quantity: number;
@@ -53,7 +55,18 @@ export async function createOrderAction(input: CreateOrderInput) {
       .where(eq(products.id, item.productId))
       .limit(1);
 
-    if (product?.trackInventory) {
+    if (!product?.trackInventory) continue;
+
+    if (item.variantId) {
+      const [variant] = await db
+        .select({ id: productVariants.id, stock: productVariants.stock, name: productVariants.name })
+        .from(productVariants)
+        .where(eq(productVariants.id, item.variantId))
+        .limit(1);
+      if (variant && variant.stock < item.quantity) {
+        return { error: `Stock insuficiente para "${variant.name}". Disponible: ${variant.stock}` };
+      }
+    } else {
       const available = product.stock ?? 0;
       if (available < item.quantity) {
         return { error: `Stock insuficiente para "${product.name}". Disponible: ${available}` };
@@ -83,6 +96,7 @@ export async function createOrderAction(input: CreateOrderInput) {
     items.map((item) => ({
       orderId: order.id,
       productId: item.productId,
+      variantId: item.variantId || null,
       productName: item.productName,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
@@ -100,27 +114,53 @@ export async function createOrderAction(input: CreateOrderInput) {
 
     if (!product?.trackInventory) continue;
 
-    const previousStock = product.stock ?? 0;
-    const newStock = Math.max(0, previousStock - item.quantity);
+    if (item.variantId) {
+      // Deduct from variant stock
+      const [variant] = await db
+        .select({ id: productVariants.id, stock: productVariants.stock })
+        .from(productVariants)
+        .where(eq(productVariants.id, item.variantId))
+        .limit(1);
+      if (variant) {
+        const prevStock = variant.stock;
+        const newStock = Math.max(0, prevStock - item.quantity);
+        await db.update(productVariants).set({ stock: newStock }).where(eq(productVariants.id, item.variantId));
 
-    await db
-      .update(products)
-      .set({
-        stock: newStock,
-        status: newStock === 0 ? 'out_of_stock' : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(products.id, item.productId));
+        await db.insert(inventoryMovements).values({
+          productId: item.productId,
+          type: 'order',
+          quantity: item.quantity,
+          reason: `Pedido ${order.orderNumber} (variante)`,
+          referenceId: order.id,
+          previousStock: prevStock,
+          newStock,
+        });
+      }
+      await syncProductStockWithVariants(item.productId);
+    } else {
+      // Deduct from product stock
+      const previousStock = product.stock ?? 0;
+      const newStock = Math.max(0, previousStock - item.quantity);
 
-    await db.insert(inventoryMovements).values({
-      productId: item.productId,
-      type: 'order',
-      quantity: item.quantity,
-      reason: `Pedido ${order.orderNumber}`,
-      referenceId: order.id,
-      previousStock,
-      newStock,
-    });
+      await db
+        .update(products)
+        .set({
+          stock: newStock,
+          status: newStock === 0 ? 'out_of_stock' : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.id, item.productId));
+
+      await db.insert(inventoryMovements).values({
+        productId: item.productId,
+        type: 'order',
+        quantity: item.quantity,
+        reason: `Pedido ${order.orderNumber}`,
+        referenceId: order.id,
+        previousStock,
+        newStock,
+      });
+    }
   }
 
   // Record initial status in history

@@ -32,6 +32,7 @@ interface Category {
   name: string;
   slug: string;
   description: string | null;
+  parentId: string | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -121,7 +122,12 @@ export function CategoriesList({ businessId }: CategoriesListProps) {
             <DialogTitle>Nueva categoría</DialogTitle>
             <DialogDescription>Agrega una categoría para organizar tus productos.</DialogDescription>
           </DialogHeader>
-          <CategoryForm mode='create' onSubmitAction={handleCreate} onSuccess={handleCreateSuccess} />
+          <CategoryForm
+            mode='create'
+            parentOptions={categories.map((c) => ({ id: c.id, name: c.name }))}
+            onSubmitAction={handleCreate}
+            onSuccess={handleCreateSuccess}
+          />
         </DialogContent>
       </Dialog>
 
@@ -135,7 +141,13 @@ export function CategoriesList({ businessId }: CategoriesListProps) {
           {editingCategory && (
             <CategoryForm
               mode='edit'
-              defaultValues={{ name: editingCategory.name, description: editingCategory.description ?? '' }}
+              defaultValues={{
+                name: editingCategory.name,
+                description: editingCategory.description ?? '',
+                parentId: editingCategory.parentId ?? '',
+              }}
+              parentOptions={categories.map((c) => ({ id: c.id, name: c.name }))}
+              currentCategoryId={editingCategory.id}
               onSubmitAction={handleEdit}
               onSuccess={handleEditSuccess}
             />
@@ -180,6 +192,7 @@ export function CategoriesList({ businessId }: CategoriesListProps) {
                 <SortableCategoryItem
                   key={category.id}
                   category={category}
+                  parentName={category.parentId ? categories.find((c) => c.id === category.parentId)?.name : undefined}
                   onEdit={setEditingId}
                   onDelete={(id) => setDeleteTarget(categories.find((c) => c.id === id) ?? null)}
                 />

@@ -29,6 +29,7 @@ export async function updateCategoryAction(categoryId: string, values: UpdateCat
         name: values.name,
         slug: generateSlug(values.name),
         description: values.description || null,
+        parentId: values.parentId || null,
         updatedAt: new Date(),
       })
       .where(eq(categories.id, categoryId));

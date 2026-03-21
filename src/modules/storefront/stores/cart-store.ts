@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   name: string;
   slug: string;
   price: string;
@@ -10,12 +12,16 @@ export interface CartItem {
   quantity: number;
 }
 
+function cartKey(item: { productId: string; variantId?: string }) {
+  return item.variantId ? `${item.productId}:${item.variantId}` : item.productId;
+}
+
 interface CartState {
   items: CartItem[];
   businessSlug: string | null;
   addItem: (item: Omit<CartItem, 'quantity'>, businessSlug: string) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId?: string) => void;
+  updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
   getItemCount: () => number;
   getTotal: () => number;
@@ -36,10 +42,11 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const existing = items.find((i) => i.productId === item.productId);
+        const key = cartKey(item);
+        const existing = items.find((i) => cartKey(i) === key);
         if (existing) {
           set({
-            items: items.map((i) => (i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i)),
+            items: items.map((i) => (cartKey(i) === key ? { ...i, quantity: i.quantity + 1 } : i)),
             businessSlug,
           });
         } else {
@@ -47,17 +54,19 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      removeItem: (productId) => {
-        set({ items: get().items.filter((i) => i.productId !== productId) });
+      removeItem: (productId, variantId) => {
+        const key = cartKey({ productId, variantId });
+        set({ items: get().items.filter((i) => cartKey(i) !== key) });
       },
 
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, quantity, variantId) => {
         if (quantity <= 0) {
-          get().removeItem(productId);
+          get().removeItem(productId, variantId);
           return;
         }
+        const key = cartKey({ productId, variantId });
         set({
-          items: get().items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
+          items: get().items.map((i) => (cartKey(i) === key ? { ...i, quantity } : i)),
         });
       },
 

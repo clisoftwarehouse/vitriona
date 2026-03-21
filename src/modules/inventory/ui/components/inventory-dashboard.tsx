@@ -1,14 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
 import {
+  Plus,
   Search,
   ArrowUp,
   Loader2,
   Package,
   ArrowDown,
   RefreshCw,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -21,9 +24,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { BulkImportDialog } from '@/modules/inventory/ui/components/bulk-import-dialog';
-import { useAdjustStock, useInventoryOverview } from '@/modules/inventory/ui/hooks/use-inventory';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from '@/components/ui/dialog';
+import {
+  useAdjustStock,
+  useInventoryOverview,
+  useAdjustVariantStock,
+} from '@/modules/inventory/ui/hooks/use-inventory';
 
 interface InventoryDashboardProps {
   businessId: string;
@@ -88,22 +95,37 @@ function sortProducts<T extends { name: string; price: string; stock: number | n
 export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
   const { data, isLoading } = useInventoryOverview(businessId);
   const adjustStock = useAdjustStock(businessId);
+  const adjustVariantStock = useAdjustVariantStock(businessId);
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
   const [invSort, setInvSort] = useState<SortOption>('newest');
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustProductId, setAdjustProductId] = useState<string | null>(null);
+  const [adjustVariantId, setAdjustVariantId] = useState<string | null>(null);
   const [adjustType, setAdjustType] = useState<AdjustType>('in');
   const [adjustQty, setAdjustQty] = useState('');
   const [adjustReason, setAdjustReason] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [invPage, setInvPage] = useState(1);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [showVariants, setShowVariants] = useState(true);
 
   const products = useMemo(() => data?.products ?? [], [data?.products]);
+  const variants = useMemo(() => data?.variants ?? [], [data?.variants]);
   const movements = useMemo(() => data?.movements ?? [], [data?.movements]);
 
+  const variantsByProduct = useMemo(() => {
+    const map: Record<string, typeof variants> = {};
+    for (const v of variants) {
+      if (!map[v.productId]) map[v.productId] = [];
+      map[v.productId].push(v);
+    }
+    return map;
+  }, [variants]);
+
   const adjustProduct = products.find((p) => p.id === adjustProductId);
+  const adjustVariant = adjustVariantId ? variants.find((v) => v.id === adjustVariantId) : null;
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -134,8 +156,18 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
     return { total: products.length, totalStock, lowStock, outOfStock };
   }, [products]);
 
-  const openAdjust = (productId: string) => {
+  const toggleExpanded = (productId: string) => {
+    setExpandedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
+
+  const openAdjust = (productId: string, variantId?: string) => {
     setAdjustProductId(productId);
+    setAdjustVariantId(variantId ?? null);
     setAdjustType('in');
     setAdjustQty('');
     setAdjustReason('');
@@ -143,20 +175,32 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
   };
 
   const handleAdjust = () => {
-    if (!adjustProductId) return;
     const qty = parseInt(adjustQty);
     if (!qty || qty < 0) return;
 
-    adjustStock.mutate(
-      { productId: adjustProductId, type: adjustType, quantity: qty, reason: adjustReason || undefined },
-      {
-        onSuccess: () => {
-          toast.success('Stock actualizado');
-          setAdjustOpen(false);
-        },
-        onError: (err) => toast.error(err.message),
-      }
-    );
+    if (adjustVariantId) {
+      adjustVariantStock.mutate(
+        { variantId: adjustVariantId, type: adjustType, quantity: qty, reason: adjustReason || undefined },
+        {
+          onSuccess: () => {
+            toast.success('Stock de variante actualizado');
+            setAdjustOpen(false);
+          },
+          onError: (err) => toast.error(err.message),
+        }
+      );
+    } else if (adjustProductId) {
+      adjustStock.mutate(
+        { productId: adjustProductId, type: adjustType, quantity: qty, reason: adjustReason || undefined },
+        {
+          onSuccess: () => {
+            toast.success('Stock actualizado');
+            setAdjustOpen(false);
+          },
+          onError: (err) => toast.error(err.message),
+        }
+      );
+    }
   };
 
   const formatDate = (d: Date) =>
@@ -173,10 +217,16 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
   return (
     <div className='space-y-6'>
       {/* Header actions */}
-      <div className='flex justify-end'>
+      <div className='flex justify-end gap-2'>
         <Button variant='outline' onClick={() => setImportOpen(true)}>
           <FileSpreadsheet className='size-4' />
           Importar productos
+        </Button>
+        <Button asChild>
+          <Link href={`/dashboard/businesses/${businessId}/products/new`}>
+            <Plus className='size-4' />
+            Nuevo producto
+          </Link>
         </Button>
       </div>
 
@@ -234,6 +284,14 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
               {f === 'all' ? 'Todos' : f === 'low' ? 'Stock bajo' : 'Sin stock'}
             </button>
           ))}
+          <button
+            onClick={() => setShowVariants((v) => !v)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              showVariants ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            Variantes
+          </button>
         </div>
         <Select
           value={invSort}
@@ -270,43 +328,94 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
                 const minStock = product.minStock ?? 0;
                 const isLow = product.trackInventory && stock <= minStock && stock > 0;
                 const isOut = product.trackInventory && stock === 0;
+                const pVariants = variantsByProduct[product.id] ?? [];
+                const hasVariants = pVariants.length > 0;
+                const isExpanded = expandedProducts.has(product.id);
 
                 return (
-                  <div
-                    key={product.id}
-                    className='hover:bg-muted/50 flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors'
-                  >
-                    <div className='min-w-0 flex-1'>
-                      <div className='flex items-center gap-2'>
-                        <span className='truncate text-sm font-medium'>{product.name}</span>
-                        {isLow && (
-                          <Badge variant='outline' className='gap-1 border-yellow-500 text-[10px] text-yellow-600'>
-                            <AlertTriangle className='size-3' />
-                            Bajo
-                          </Badge>
-                        )}
-                        {isOut && (
-                          <Badge variant='destructive' className='text-[10px]'>
-                            Sin stock
-                          </Badge>
-                        )}
+                  <div key={product.id}>
+                    <div className='hover:bg-muted/50 flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors'>
+                      {showVariants && hasVariants ? (
+                        <button
+                          type='button'
+                          onClick={() => toggleExpanded(product.id)}
+                          className='text-muted-foreground hover:text-foreground shrink-0 transition-colors'
+                        >
+                          <ChevronDown className={`size-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                        </button>
+                      ) : (
+                        <div className='w-4 shrink-0' />
+                      )}
+                      <div className='min-w-0 flex-1'>
+                        <div className='flex items-center gap-2'>
+                          <span className='truncate text-sm font-medium'>{product.name}</span>
+                          {hasVariants && (
+                            <Badge variant='secondary' className='text-[10px]'>
+                              {pVariants.length} var.
+                            </Badge>
+                          )}
+                          {isLow && (
+                            <Badge variant='outline' className='gap-1 border-yellow-500 text-[10px] text-yellow-600'>
+                              <AlertTriangle className='size-3' />
+                              Bajo
+                            </Badge>
+                          )}
+                          {isOut && (
+                            <Badge variant='destructive' className='text-[10px]'>
+                              Sin stock
+                            </Badge>
+                          )}
+                        </div>
+                        <p className='text-muted-foreground text-xs'>
+                          {product.sku && `SKU: ${product.sku} · `}
+                          {product.trackInventory ? `Mín: ${minStock}` : 'Sin seguimiento'}
+                        </p>
                       </div>
-                      <p className='text-muted-foreground text-xs'>
-                        {product.sku && `SKU: ${product.sku} · `}
-                        {product.trackInventory ? `Mín: ${minStock}` : 'Sin seguimiento'}
-                      </p>
+                      <div className='text-right'>
+                        <span className='text-lg font-bold tabular-nums'>{product.trackInventory ? stock : '—'}</span>
+                      </div>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => openAdjust(product.id)}
+                        disabled={!product.trackInventory || hasVariants}
+                        title={hasVariants ? 'Ajusta desde las variantes' : undefined}
+                      >
+                        Ajustar
+                      </Button>
                     </div>
-                    <div className='text-right'>
-                      <span className='text-lg font-bold tabular-nums'>{product.trackInventory ? stock : '—'}</span>
-                    </div>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => openAdjust(product.id)}
-                      disabled={!product.trackInventory}
-                    >
-                      Ajustar
-                    </Button>
+                    {/* Variant sub-rows */}
+                    {showVariants && hasVariants && isExpanded && (
+                      <div className='ml-8 space-y-0.5 border-l-2 pl-3'>
+                        {pVariants.map((v) => (
+                          <div
+                            key={v.id}
+                            className='hover:bg-muted/30 flex items-center gap-3 rounded-md px-3 py-1.5 transition-colors'
+                          >
+                            <div className='min-w-0 flex-1'>
+                              <div className='flex items-center gap-1.5'>
+                                <span className='text-muted-foreground text-xs font-medium'>{v.name}</span>
+                                {v.sku && <span className='text-muted-foreground text-[10px]'>SKU: {v.sku}</span>}
+                                {v.stock === 0 && (
+                                  <Badge variant='destructive' className='px-1 py-0 text-[9px]'>
+                                    Sin stock
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <span className='text-sm font-bold tabular-nums'>{v.stock}</span>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              className='h-7 text-xs'
+                              onClick={() => openAdjust(v.productId, v.id)}
+                            >
+                              Ajustar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -378,11 +487,14 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajustar inventario</DialogTitle>
-            <DialogDescription>{adjustProduct?.name}</DialogDescription>
+            <DialogDescription>
+              {adjustVariant ? `${adjustProduct?.name} — ${adjustVariant.name}` : adjustProduct?.name}
+            </DialogDescription>
           </DialogHeader>
           <div className='space-y-4'>
             <p className='text-sm'>
-              Stock actual: <span className='font-bold'>{adjustProduct?.stock ?? 0}</span>
+              Stock actual:{' '}
+              <span className='font-bold'>{adjustVariant ? adjustVariant.stock : (adjustProduct?.stock ?? 0)}</span>
             </p>
             <div className='space-y-1.5'>
               <Label className='text-xs'>Tipo de movimiento</Label>
@@ -435,8 +547,12 @@ export function InventoryDashboard({ businessId }: InventoryDashboardProps) {
               <Button variant='outline' size='sm' onClick={() => setAdjustOpen(false)}>
                 Cancelar
               </Button>
-              <Button size='sm' onClick={handleAdjust} disabled={adjustStock.isPending || !adjustQty}>
-                {adjustStock.isPending ? 'Guardando...' : 'Aplicar'}
+              <Button
+                size='sm'
+                onClick={handleAdjust}
+                disabled={adjustStock.isPending || adjustVariantStock.isPending || !adjustQty}
+              >
+                {adjustStock.isPending || adjustVariantStock.isPending ? 'Guardando...' : 'Aplicar'}
               </Button>
             </div>
           </div>

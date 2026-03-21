@@ -1010,19 +1010,22 @@ function ProductCard({
         )}
 
         {/* Badges */}
-        <div className='absolute top-2.5 left-2.5 flex flex-col gap-1'>
+        <div className='absolute top-2.5 left-2.5 flex flex-col items-start gap-1'>
           {product.isFeatured && (
             <span
               className='px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase'
-              style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius, 0.75rem)' }}
+              style={{
+                backgroundColor: 'var(--sf-primary, #000)',
+                borderRadius: 'max(var(--sf-radius, 0.75rem), 0.375rem)',
+              }}
             >
               Destacado
             </span>
           )}
           {hasDiscount(product) && (
             <span
-              className='bg-red-500 px-2.5 py-1 text-[11px] font-bold text-white'
-              style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+              className='px-2.5 py-1 text-[11px] font-bold tracking-wide text-white'
+              style={{ backgroundColor: '#ef4444', borderRadius: 'max(var(--sf-radius, 0.75rem), 0.375rem)' }}
             >
               -{discountPercent(product)}%
             </span>

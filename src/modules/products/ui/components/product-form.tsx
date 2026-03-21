@@ -1,12 +1,13 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { X, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { addProductVariantAction } from '@/modules/products/server/actions/product-variants.action';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import {
@@ -41,15 +43,23 @@ interface Catalog {
   name: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+}
+
 interface ProductFormProps {
   mode: 'create' | 'edit';
   catalogId?: string;
   businessId: string;
   categories: Category[];
   catalogs?: Catalog[];
+  brands?: Brand[];
   attributes?: AttributeDefinition[];
   defaultValues?: Partial<CreateProductFormValues>;
-  onSubmitAction: (values: CreateProductFormValues) => Promise<{ error?: string; success?: boolean }>;
+  onSubmitAction: (
+    values: CreateProductFormValues
+  ) => Promise<{ error?: string; success?: boolean; productId?: string }>;
 }
 
 export function ProductForm({
@@ -58,6 +68,7 @@ export function ProductForm({
   businessId,
   categories,
   catalogs = [],
+  brands = [],
   attributes = [],
   defaultValues,
   onSubmitAction,
@@ -66,6 +77,10 @@ export function ProductForm({
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Local variant option groups (used during create mode)
+  const [variantGroups, setVariantGroups] = useState<{ name: string; values: string[] }[]>([]);
+  const [variantNewValue, setVariantNewValue] = useState<Record<number, string>>({});
 
   const form = useForm<CreateProductFormValues>({
     resolver: zodResolver(createProductSchema),
@@ -77,6 +92,7 @@ export function ProductForm({
       sku: '',
       stock: 0,
       categoryId: '',
+      brandId: '',
       status: 'active',
       isFeatured: false,
       type: 'product',
@@ -86,10 +102,30 @@ export function ProductForm({
       tags: '',
       catalogIds: catalogId ? [catalogId] : [],
       attributeValues: {},
-      characteristics: [],
       ...defaultValues,
     },
   });
+
+  // Generate all variant combinations from option groups
+  const generateCombinations = (groups: { name: string; values: string[] }[]) => {
+    const valid = groups.filter((g) => g.name.trim() && g.values.length > 0);
+    if (valid.length === 0) return [];
+    const combine = (
+      idx: number,
+      current: Record<string, string>
+    ): { name: string; options: Record<string, string> }[] => {
+      if (idx >= valid.length) {
+        const name = valid.map((g) => current[g.name]).join(' / ');
+        return [{ name, options: { ...current } }];
+      }
+      const results: { name: string; options: Record<string, string> }[] = [];
+      for (const val of valid[idx].values) {
+        results.push(...combine(idx + 1, { ...current, [valid[idx].name]: val }));
+      }
+      return results;
+    };
+    return combine(0, {});
+  };
 
   const onSubmit = (values: CreateProductFormValues) => {
     setError(null);
@@ -99,12 +135,33 @@ export function ProductForm({
         setError(result.error);
         return;
       }
+
+      // Auto-create variants if option groups were defined during creation
+      if (mode === 'create' && result?.productId && variantGroups.length > 0) {
+        const combos = generateCombinations(variantGroups);
+        for (const combo of combos) {
+          await addProductVariantAction(result.productId, {
+            name: combo.name,
+            stock: 0,
+            options: combo.options,
+          });
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      router.push(
-        catalogId
-          ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`
-          : `/dashboard/businesses/${businessId}/products`
-      );
+      if (mode === 'create' && result?.productId) {
+        router.push(
+          catalogId
+            ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products/${result.productId}`
+            : `/dashboard/businesses/${businessId}/products/${result.productId}`
+        );
+      } else {
+        router.push(
+          catalogId
+            ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`
+            : `/dashboard/businesses/${businessId}/products`
+        );
+      }
     });
   };
 
@@ -206,6 +263,35 @@ export function ProductForm({
               )}
             />
           </div>
+
+          {/* ── Brand ── */}
+          {brands.length > 0 && (
+            <FormField
+              control={form.control}
+              name='brandId'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Marca</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''} disabled={isPending}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Sin marca' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='none'>Sin marca</SelectItem>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* ── Catalogs (multi-select) ── */}
           {catalogs.length > 1 && (
@@ -430,71 +516,6 @@ export function ProductForm({
             )}
           </div>
 
-          {/* ── Characteristics (ad-hoc key-value) ── */}
-          <Separator />
-          <div className='space-y-4'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <h3 className='text-sm font-semibold'>Características</h3>
-                <p className='text-muted-foreground text-xs'>
-                  Agrega características como Color, Material, Talla, etc.
-                </p>
-              </div>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                onClick={() => {
-                  const current = form.getValues('characteristics') ?? [];
-                  form.setValue('characteristics', [...current, { name: '', value: '' }]);
-                }}
-                disabled={isPending}
-              >
-                <Plus className='mr-1 size-3.5' />
-                Agregar
-              </Button>
-            </div>
-            {(form.watch('characteristics') ?? []).map((char, idx) => (
-              <div key={idx} className='flex items-center gap-2'>
-                <Input
-                  placeholder='Nombre (ej: Color)'
-                  value={char.name}
-                  onChange={(e) => {
-                    const chars = [...(form.getValues('characteristics') ?? [])];
-                    chars[idx] = { ...chars[idx], name: e.target.value };
-                    form.setValue('characteristics', chars);
-                  }}
-                  disabled={isPending}
-                  className='flex-1'
-                />
-                <Input
-                  placeholder='Valor (ej: Rojo)'
-                  value={char.value}
-                  onChange={(e) => {
-                    const chars = [...(form.getValues('characteristics') ?? [])];
-                    chars[idx] = { ...chars[idx], value: e.target.value };
-                    form.setValue('characteristics', chars);
-                  }}
-                  disabled={isPending}
-                  className='flex-1'
-                />
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='size-8 shrink-0 text-red-500 hover:text-red-600'
-                  onClick={() => {
-                    const chars = (form.getValues('characteristics') ?? []).filter((_, i) => i !== idx);
-                    form.setValue('characteristics', chars);
-                  }}
-                  disabled={isPending}
-                >
-                  <Trash2 className='size-3.5' />
-                </Button>
-              </div>
-            ))}
-          </div>
-
           {/* ── Predefined Attributes ── */}
           {attributes.length > 0 && (
             <>
@@ -565,6 +586,149 @@ export function ProductForm({
                 ))}
               </div>
             </>
+          )}
+
+          {/* ── Variant Option Groups (create mode only) ── */}
+          {mode === 'create' && (
+            <div className='space-y-4'>
+              <Separator />
+              <div>
+                <Label className='text-sm font-semibold'>Variantes del producto</Label>
+                <p className='text-muted-foreground text-xs'>
+                  Define opciones como Talla, Color, etc. Las combinaciones se generarán automáticamente al crear el
+                  producto.
+                </p>
+              </div>
+
+              {variantGroups.length === 0 && (
+                <div className='flex flex-wrap gap-1.5'>
+                  <span className='text-muted-foreground text-xs'>Opciones comunes:</span>
+                  {['Talla', 'Color', 'Material', 'Estilo'].map((preset) => (
+                    <button
+                      key={preset}
+                      type='button'
+                      onClick={() => setVariantGroups((prev) => [...prev, { name: preset, values: [] }])}
+                      className='bg-muted hover:bg-muted/80 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors'
+                      disabled={isPending}
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {variantGroups.map((group, gIdx) => (
+                <div key={gIdx} className='space-y-2 rounded-lg border p-3'>
+                  <div className='flex items-center gap-2'>
+                    <Input
+                      placeholder='Nombre de la opción (ej: Talla)'
+                      value={group.name}
+                      onChange={(e) =>
+                        setVariantGroups((prev) =>
+                          prev.map((g, i) => (i === gIdx ? { ...g, name: e.target.value } : g))
+                        )
+                      }
+                      disabled={isPending}
+                      className='flex-1 text-sm font-medium'
+                    />
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='size-8 shrink-0 text-red-500 hover:text-red-600'
+                      onClick={() => setVariantGroups((prev) => prev.filter((_, i) => i !== gIdx))}
+                      disabled={isPending}
+                    >
+                      <Trash2 className='size-3.5' />
+                    </Button>
+                  </div>
+
+                  <div className='flex flex-wrap gap-1.5'>
+                    {group.values.map((val, vIdx) => (
+                      <Badge key={vIdx} variant='secondary' className='gap-1 pr-1 text-xs'>
+                        {val}
+                        <button
+                          type='button'
+                          onClick={() =>
+                            setVariantGroups((prev) =>
+                              prev.map((g, i) =>
+                                i === gIdx ? { ...g, values: g.values.filter((_, vi) => vi !== vIdx) } : g
+                              )
+                            )
+                          }
+                          className='hover:bg-muted ml-0.5 rounded-full p-0.5'
+                          disabled={isPending}
+                        >
+                          <X className='size-3' />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className='flex items-center gap-2'>
+                    <Input
+                      placeholder={`Agregar valor (ej: ${group.name === 'Talla' ? 'M, L, XL' : group.name === 'Color' ? 'Rojo, Azul' : 'valor'})`}
+                      value={variantNewValue[gIdx] ?? ''}
+                      onChange={(e) => setVariantNewValue((prev) => ({ ...prev, [gIdx]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = (variantNewValue[gIdx] ?? '').trim();
+                          if (!val) return;
+                          setVariantGroups((prev) =>
+                            prev.map((g, i) =>
+                              i === gIdx && !g.values.includes(val) ? { ...g, values: [...g.values, val] } : g
+                            )
+                          );
+                          setVariantNewValue((prev) => ({ ...prev, [gIdx]: '' }));
+                        }
+                      }}
+                      disabled={isPending}
+                      className='flex-1 text-sm'
+                    />
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => {
+                        const val = (variantNewValue[gIdx] ?? '').trim();
+                        if (!val) return;
+                        setVariantGroups((prev) =>
+                          prev.map((g, i) =>
+                            i === gIdx && !g.values.includes(val) ? { ...g, values: [...g.values, val] } : g
+                          )
+                        );
+                        setVariantNewValue((prev) => ({ ...prev, [gIdx]: '' }));
+                      }}
+                      disabled={isPending}
+                    >
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setVariantGroups((prev) => [...prev, { name: '', values: [] }])}
+                disabled={isPending}
+              >
+                <Plus className='mr-1 size-3.5' />
+                Agregar opción
+              </Button>
+
+              {variantGroups.some((g) => g.name.trim() && g.values.length > 0) && (
+                <p className='text-muted-foreground text-xs'>
+                  Se generarán{' '}
+                  <strong>
+                    {generateCombinations(variantGroups.filter((g) => g.name.trim() && g.values.length > 0)).length}
+                  </strong>{' '}
+                  variantes al crear el producto.
+                </p>
+              )}
+            </div>
           )}
 
           <div className='flex justify-end gap-3 pt-2'>

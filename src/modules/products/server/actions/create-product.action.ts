@@ -48,7 +48,8 @@ export async function createProductAction(catalogId: string | undefined, values:
       .values({
         businessId: business.id,
         catalogId: catalogId ?? null,
-        categoryId: values.categoryId || null,
+        categoryId: values.categoryId && values.categoryId !== 'none' ? values.categoryId : null,
+        brandId: values.brandId && values.brandId !== 'none' ? values.brandId : null,
         name: values.name,
         slug: generateSlug(values.name),
         description: values.description || null,
@@ -64,7 +65,6 @@ export async function createProductAction(catalogId: string | undefined, values:
         minStock: values.type === 'service' ? null : (values.minStock ?? 0),
         trackInventory: values.type === 'service' ? false : (values.trackInventory ?? true),
         tags: parsedTags,
-        characteristics: values.characteristics?.filter((c) => c.name.trim() && c.value.trim()) ?? null,
       })
       .returning({ id: products.id });
 

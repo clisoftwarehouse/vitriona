@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   X,
   Tags,
+  Stamp,
   Store,
   Package,
   BookOpen,
@@ -49,6 +50,11 @@ export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebar
           label: 'Categorías',
           href: `/dashboard/businesses/${activeBusiness.id}/categories`,
           icon: Tags,
+        },
+        {
+          label: 'Marcas',
+          href: `/dashboard/businesses/${activeBusiness.id}/brands`,
+          icon: Stamp,
         },
         {
           label: 'Productos',

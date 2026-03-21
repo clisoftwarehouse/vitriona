@@ -5,14 +5,20 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { getBrandsAction } from '@/modules/brands/server/actions/get-brands.action';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
 import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
 import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
-import { getProductImagesAction } from '@/modules/products/server/actions/product-images.action';
+import { ProductVariantsEditor } from '@/modules/products/ui/components/product-variants-editor';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getProductVariantsAction } from '@/modules/products/server/actions/product-variants.action';
 import { getCatalogsAction, getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
+import {
+  getProductImagesAction,
+  getAllProductImagesAction,
+} from '@/modules/products/server/actions/product-images.action';
 import {
   getProductByIdAction,
   getProductCatalogIdsAction,
@@ -25,18 +31,33 @@ interface EditProductPageProps {
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { id, catalogId, productId } = await params;
-  const [business, catalog, categories, product, images, attributes, attrValues, allCatalogs, productCatalogIds] =
-    await Promise.all([
-      getBusinessByIdAction(id),
-      getCatalogByIdAction(catalogId),
-      getCategoriesAction(id),
-      getProductByIdAction(productId),
-      getProductImagesAction(productId),
-      getAttributesAction(id),
-      getProductAttributeValuesAction(productId),
-      getCatalogsAction(id),
-      getProductCatalogIdsAction(productId),
-    ]);
+  const [
+    business,
+    catalog,
+    categories,
+    product,
+    images,
+    allImages,
+    attributes,
+    attrValues,
+    allCatalogs,
+    productCatalogIds,
+    brands,
+    variants,
+  ] = await Promise.all([
+    getBusinessByIdAction(id),
+    getCatalogByIdAction(catalogId),
+    getCategoriesAction(id),
+    getProductByIdAction(productId),
+    getProductImagesAction(productId),
+    getAllProductImagesAction(productId),
+    getAttributesAction(id),
+    getProductAttributeValuesAction(productId),
+    getCatalogsAction(id),
+    getProductCatalogIdsAction(productId),
+    getBrandsAction(id),
+    getProductVariantsAction(productId),
+  ]);
 
   if (!business || !catalog || !product) notFound();
 
@@ -67,6 +88,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
             businessId={id}
             categories={categories}
             catalogs={allCatalogs}
+            brands={brands}
             attributes={attributes}
             defaultValues={{
               name: product.name,
@@ -76,6 +98,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               sku: product.sku ?? '',
               stock: product.stock ?? 0,
               categoryId: product.categoryId ?? '',
+              brandId: product.brandId ?? '',
               status: product.status,
               isFeatured: product.isFeatured,
               type: product.type as 'product' | 'service',
@@ -85,7 +108,6 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               tags: product.tags?.join(', ') ?? '',
               catalogIds: productCatalogIds.length > 0 ? productCatalogIds : [catalogId],
               attributeValues: attrValues,
-              characteristics: product.characteristics ?? [],
             }}
           />
         </CardContent>
@@ -97,6 +119,19 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         </CardHeader>
         <CardContent>
           <ProductImageUpload productId={product.id} initialImages={images} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h3 className='font-semibold'>Variantes</h3>
+        </CardHeader>
+        <CardContent>
+          <ProductVariantsEditor
+            productId={product.id}
+            initialVariants={variants}
+            initialVariantImages={allImages.filter((img) => img.variantId !== null)}
+          />
         </CardContent>
       </Card>
 

@@ -11,6 +11,7 @@ import {
   productImages,
   catalogProducts,
   catalogSettings,
+  productVariants,
   productAttributes,
   productAttributeValues,
 } from '@/db/schema';
@@ -194,11 +195,20 @@ export async function getProductBySlug(businessId: string, productSlug: string) 
 
   if (!product) return null;
 
-  const images = await db
+  const allImages = await db
     .select()
     .from(productImages)
     .where(eq(productImages.productId, product.id))
     .orderBy(asc(productImages.sortOrder));
+
+  const images = allImages.filter((img) => !img.variantId);
+  const variantImagesMap: Record<string, typeof allImages> = {};
+  for (const img of allImages) {
+    if (img.variantId) {
+      if (!variantImagesMap[img.variantId]) variantImagesMap[img.variantId] = [];
+      variantImagesMap[img.variantId].push(img);
+    }
+  }
 
   const category = product.categoryId
     ? await db
@@ -218,11 +228,19 @@ export async function getProductBySlug(businessId: string, productSlug: string) 
     .innerJoin(productAttributes, eq(productAttributeValues.attributeId, productAttributes.id))
     .where(eq(productAttributeValues.productId, product.id));
 
+  const variants = await db
+    .select()
+    .from(productVariants)
+    .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)))
+    .orderBy(asc(productVariants.sortOrder));
+
   return {
     ...product,
     images,
+    variantImagesMap,
     category,
     attributes: attrRows,
     tags: product.tags ?? [],
+    variants,
   };
 }

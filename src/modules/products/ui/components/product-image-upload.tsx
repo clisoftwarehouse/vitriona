@@ -14,6 +14,8 @@ import {
   reorderProductImagesAction,
 } from '@/modules/products/server/actions/product-images.action';
 
+const MAX_PRODUCT_IMAGES = 25;
+
 interface ProductImage {
   id: string;
   url: string;
@@ -80,10 +82,24 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
       if (!files || files.length === 0) return;
 
       setError(null);
+
+      const remaining = MAX_PRODUCT_IMAGES - images.length;
+      if (remaining <= 0) {
+        setError(`Máximo ${MAX_PRODUCT_IMAGES} imágenes por producto.`);
+        return;
+      }
+
+      const filesToUpload = Array.from(files).slice(0, remaining);
+      if (filesToUpload.length < files.length) {
+        setError(
+          `Solo se subirán ${filesToUpload.length} de ${files.length} imágenes (límite: ${MAX_PRODUCT_IMAGES}).`
+        );
+      }
+
       setIsUploading(true);
 
       try {
-        for (const file of Array.from(files)) {
+        for (const file of filesToUpload) {
           if (file.size > 5 * 1024 * 1024) {
             setError(`"${file.name}" excede el límite de 5MB.`);
             continue;
@@ -119,7 +135,7 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
         e.target.value = '';
       }
     },
-    [productId]
+    [productId, images.length]
   );
 
   const handleRemove = (imageId: string) => {
@@ -175,30 +191,33 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
           </SortableContext>
         </DndContext>
 
-        <label
-          className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed transition-colors ${
-            isUploading ? 'pointer-events-none opacity-50' : 'hover:border-primary hover:bg-primary/5'
-          }`}
-        >
-          {isUploading ? (
-            <Loader2 className='text-muted-foreground size-6 animate-spin' />
-          ) : (
-            <Upload className='text-muted-foreground size-6' />
-          )}
-          <span className='text-muted-foreground text-xs'>{isUploading ? 'Subiendo...' : 'Subir'}</span>
-          <input
-            type='file'
-            accept='image/jpeg,image/png,image/webp,image/gif,image/avif'
-            multiple
-            onChange={handleUpload}
-            disabled={isUploading}
-            className='hidden'
-          />
-        </label>
+        {images.length < MAX_PRODUCT_IMAGES && (
+          <label
+            className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed transition-colors ${
+              isUploading ? 'pointer-events-none opacity-50' : 'hover:border-primary hover:bg-primary/5'
+            }`}
+          >
+            {isUploading ? (
+              <Loader2 className='text-muted-foreground size-6 animate-spin' />
+            ) : (
+              <Upload className='text-muted-foreground size-6' />
+            )}
+            <span className='text-muted-foreground text-xs'>{isUploading ? 'Subiendo...' : 'Subir'}</span>
+            <input
+              type='file'
+              accept='image/jpeg,image/png,image/webp,image/gif,image/avif'
+              multiple
+              onChange={handleUpload}
+              disabled={isUploading}
+              className='hidden'
+            />
+          </label>
+        )}
       </div>
 
       <p className='text-muted-foreground text-xs'>
-        JPG, PNG, WebP, GIF o AVIF. Máximo 5MB por imagen. Arrastra para reordenar.
+        {images.length}/{MAX_PRODUCT_IMAGES} imágenes. JPG, PNG, WebP, GIF o AVIF. Máximo 5MB por imagen. Arrastra para
+        reordenar.
       </p>
     </div>
   );

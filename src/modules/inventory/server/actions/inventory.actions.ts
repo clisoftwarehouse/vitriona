@@ -4,7 +4,8 @@ import { eq, and, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { products, businesses, inventoryMovements } from '@/db/schema';
+import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { products, businesses, productVariants, inventoryMovements } from '@/db/schema';
 
 // ── Helpers ──
 
@@ -109,6 +110,20 @@ export async function getInventoryOverviewAction(businessId: string) {
     .from(products)
     .where(and(eq(products.businessId, businessId), eq(products.type, 'product')));
 
+  const allVariants = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      sku: productVariants.sku,
+      stock: productVariants.stock,
+      options: productVariants.options,
+      isActive: productVariants.isActive,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(eq(products.businessId, businessId));
+
   const recentMovements = await db
     .select({
       id: inventoryMovements.id,
@@ -133,7 +148,56 @@ export async function getInventoryOverviewAction(businessId: string) {
     productName: productMap.get(m.productId) ?? 'Producto eliminado',
   }));
 
-  return { products: allProducts, movements: enrichedMovements };
+  return { products: allProducts, variants: allVariants, movements: enrichedMovements };
+}
+
+export async function adjustVariantStockAction(
+  variantId: string,
+  adjustment: { type: 'in' | 'out' | 'adjustment'; quantity: number; reason?: string }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    const [variant] = await db.select().from(productVariants).where(eq(productVariants.id, variantId)).limit(1);
+    if (!variant) return { error: 'Variante no encontrada' };
+
+    const product = await verifyProductOwnership(variant.productId, session.user.id);
+    if (!product) return { error: 'No autorizado' };
+
+    const previousStock = variant.stock;
+    let newStock: number;
+
+    switch (adjustment.type) {
+      case 'in':
+        newStock = previousStock + adjustment.quantity;
+        break;
+      case 'out':
+        newStock = Math.max(0, previousStock - adjustment.quantity);
+        break;
+      case 'adjustment':
+        newStock = adjustment.quantity;
+        break;
+    }
+
+    await db.update(productVariants).set({ stock: newStock }).where(eq(productVariants.id, variantId));
+
+    await db.insert(inventoryMovements).values({
+      productId: variant.productId,
+      type: adjustment.type,
+      quantity: adjustment.type === 'adjustment' ? newStock - previousStock : adjustment.quantity,
+      reason: `${adjustment.reason || ''} (variante: ${variant.name})`.trim(),
+      previousStock,
+      newStock,
+      createdBy: session.user.id,
+    });
+
+    await syncProductStockWithVariants(variant.productId);
+
+    return { success: true, newStock };
+  } catch {
+    return { error: 'Error al ajustar el inventario de la variante.' };
+  }
 }
 
 export async function getLowStockProductsAction(businessId: string) {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Tag,
   Box,
@@ -36,6 +36,16 @@ interface ProductAttribute {
   value: string;
 }
 
+interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string | null;
+  price: string | null;
+  stock: number;
+  imageUrl: string | null;
+  options: Record<string, string>;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -51,10 +61,11 @@ interface Product {
   trackInventory: boolean;
   isFeatured: boolean;
   images: ProductImage[];
+  variantImagesMap?: Record<string, ProductImage[]>;
   category: Category | null;
   attributes?: ProductAttribute[];
   tags?: string[];
-  characteristics?: { name: string; value: string }[] | null;
+  variants?: ProductVariant[];
 }
 
 interface ProductDetailProps {
@@ -65,22 +76,71 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ slug, product, whatsappNumber, currency }: ProductDetailProps) {
+  const variants = useMemo(() => product.variants ?? [], [product.variants]);
+  const hasVariants = variants.length > 0;
+
+  // Build option groups from variants: { "Talla": ["S","M","L"], "Color": ["Rojo","Azul"] }
+  const optionGroups = useMemo(() => {
+    if (!hasVariants) return {} as Record<string, string[]>;
+    const groups: Record<string, Set<string>> = {};
+    for (const v of variants) {
+      for (const [key, val] of Object.entries(v.options)) {
+        if (!groups[key]) groups[key] = new Set();
+        groups[key].add(val);
+      }
+    }
+    return Object.fromEntries(Object.entries(groups).map(([k, s]) => [k, Array.from(s)]));
+  }, [variants, hasVariants]);
+
+  // Selected options state: { "Talla": "M", "Color": "Rojo" }
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    if (!hasVariants) return {};
+    // Default: select first variant's options
+    return { ...variants[0].options };
+  });
+
+  // Find the variant matching current selection
+  const selectedVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    return variants.find((v) => Object.entries(selectedOptions).every(([k, val]) => v.options[k] === val)) ?? null;
+  }, [variants, selectedOptions, hasVariants]);
+
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  // When variant changes, show variant-specific images if available, otherwise fall back to product images
+  const displayImages = useMemo(() => {
+    if (selectedVariant) {
+      const vImages = product.variantImagesMap?.[selectedVariant.id];
+      if (vImages && vImages.length > 0) return vImages;
+      // Fallback: if variant has a single imageUrl, show it first
+      if (selectedVariant.imageUrl) {
+        const varImg = { id: `var-${selectedVariant.id}`, url: selectedVariant.imageUrl, alt: selectedVariant.name };
+        const others = product.images.filter((img) => img.url !== selectedVariant.imageUrl);
+        return [varImg, ...others];
+      }
+    }
+    return product.images;
+  }, [selectedVariant, product.images, product.variantImagesMap]);
+
+  // Effective price/stock based on variant selection
+  const effectivePrice = selectedVariant?.price ?? product.price;
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : product.stock;
+  const effectiveSku = selectedVariant?.sku ?? product.sku;
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
     return new Intl.NumberFormat('es', { style: 'currency', currency }).format(num);
   };
 
-  const hasDiscount = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price);
+  const hasDiscount = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(effectivePrice);
 
   const discount = hasDiscount
-    ? Math.round((1 - parseFloat(product.price) / parseFloat(product.compareAtPrice!)) * 100)
+    ? Math.round((1 - parseFloat(effectivePrice) / parseFloat(product.compareAtPrice!)) * 100)
     : 0;
 
   const whatsappMessage = encodeURIComponent(
-    `Hola! Me interesa el producto: ${product.name} (${formatPrice(product.price)}). ¿Está disponible?`
+    `Hola! Me interesa el producto: ${product.name}${selectedVariant ? ` (${selectedVariant.name})` : ''} (${formatPrice(effectivePrice)}). ¿Está disponible?`
   );
 
   const whatsappUrl = whatsappNumber
@@ -94,15 +154,18 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
       addItem(
         {
           productId: product.id,
+          variantId: selectedVariant?.id,
+          variantName: selectedVariant?.name,
           name: product.name,
           slug: product.slug,
-          price: product.price,
-          imageUrl: product.images[0]?.url ?? null,
+          price: effectivePrice,
+          imageUrl: selectedVariant?.imageUrl ?? product.images[0]?.url ?? null,
         },
         slug
       );
     }
-    toast.success(`${quantity > 1 ? `${quantity}x ` : ''}${product.name} agregado al carrito`);
+    const label = selectedVariant ? `${product.name} (${selectedVariant.name})` : product.name;
+    toast.success(`${quantity > 1 ? `${quantity}x ` : ''}${label} agregado al carrito`);
   };
 
   const handleShare = async () => {
@@ -115,13 +178,19 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
     }
   };
 
-  const isOutOfStock = product.trackInventory && product.stock !== null && product.stock <= 0;
-  const isLowStock = product.trackInventory && product.stock !== null && product.stock > 0 && product.stock <= 5;
-  const maxQty = product.trackInventory && product.stock !== null ? product.stock : 99;
+  const isOutOfStock = product.trackInventory && effectiveStock !== null && effectiveStock <= 0;
+  const isLowStock = product.trackInventory && effectiveStock !== null && effectiveStock > 0 && effectiveStock <= 5;
+  const maxQty = product.trackInventory && effectiveStock !== null ? effectiveStock : 99;
 
-  const allChars = [...(product.characteristics ?? []), ...(product.attributes ?? [])];
+  const allChars = product.attributes ?? [];
   const hasDimensions =
     product.dimensions && (product.dimensions.length || product.dimensions.width || product.dimensions.height);
+
+  const handleSelectOption = (optionName: string, value: string) => {
+    setSelectedOptions((prev) => ({ ...prev, [optionName]: value }));
+    setQuantity(1);
+    setSelectedImage(0);
+  };
 
   return (
     <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
@@ -140,10 +209,10 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
             className='relative aspect-square overflow-hidden'
             style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
           >
-            {product.images[selectedImage] ? (
+            {displayImages[selectedImage] ? (
               <Image
-                src={product.images[selectedImage].url}
-                alt={product.images[selectedImage].alt || product.name}
+                src={displayImages[selectedImage].url}
+                alt={displayImages[selectedImage].alt || product.name}
                 fill
                 sizes='(max-width: 768px) 100vw, 50vw'
                 className='object-cover'
@@ -161,9 +230,9 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
             )}
           </div>
 
-          {product.images.length > 1 && (
+          {displayImages.length > 1 && (
             <div className='flex gap-2 overflow-x-auto pb-1'>
-              {product.images.map((img, idx) => (
+              {displayImages.map((img, idx) => (
                 <button
                   key={img.id}
                   onClick={() => setSelectedImage(idx)}
@@ -214,22 +283,80 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
           <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{product.name}</h1>
 
           {/* SKU */}
-          {product.sku && <p className='mt-1 text-xs tracking-wide opacity-40'>SKU: {product.sku}</p>}
+          {effectiveSku && <p className='mt-1 text-xs tracking-wide opacity-40'>SKU: {effectiveSku}</p>}
 
           {/* Price */}
           <div className='mt-4 flex items-baseline gap-3'>
             <span className='text-3xl font-bold' style={{ color: 'var(--sf-primary, #000)' }}>
-              {formatPrice(product.price)}
+              {formatPrice(effectivePrice)}
             </span>
             {hasDiscount && (
               <span className='text-lg line-through opacity-40'>{formatPrice(product.compareAtPrice!)}</span>
             )}
             {hasDiscount && (
               <span className='rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600'>
-                Ahorra {formatPrice((parseFloat(product.compareAtPrice!) - parseFloat(product.price)).toString())}
+                Ahorra {formatPrice((parseFloat(product.compareAtPrice!) - parseFloat(effectivePrice)).toString())}
               </span>
             )}
           </div>
+
+          {/* ── Amazon-style Variant Selector ── */}
+          {hasVariants && (
+            <div
+              className='mt-6 space-y-4'
+              style={{
+                borderTop: '1px solid var(--sf-border, #e5e7eb)',
+                paddingTop: '1.5rem',
+              }}
+            >
+              {Object.entries(optionGroups).map(([optionName, values]) => (
+                <div key={optionName}>
+                  <span className='mb-2 block text-sm font-semibold'>
+                    {optionName}: <span className='font-normal opacity-70'>{selectedOptions[optionName]}</span>
+                  </span>
+                  <div className='flex flex-wrap gap-2'>
+                    {values.map((value) => {
+                      const isSelected = selectedOptions[optionName] === value;
+                      // Check if this option leads to a valid variant
+                      const testOpts = { ...selectedOptions, [optionName]: value };
+                      const matchingVariant = variants.find((v) =>
+                        Object.entries(testOpts).every(([k, val]) => v.options[k] === val)
+                      );
+                      const isAvailable = matchingVariant && matchingVariant.stock > 0;
+                      const isOutOfStockVariant = matchingVariant && matchingVariant.stock <= 0;
+
+                      return (
+                        <button
+                          key={value}
+                          type='button'
+                          onClick={() => handleSelectOption(optionName, value)}
+                          className='relative px-4 py-2 text-sm font-medium transition-all'
+                          style={{
+                            borderRadius: 'var(--sf-radius, 0.75rem)',
+                            border: isSelected
+                              ? '2px solid var(--sf-primary, #000)'
+                              : '1px solid var(--sf-border, #e5e7eb)',
+                            backgroundColor: isSelected ? 'var(--sf-surface, #f9fafb)' : 'transparent',
+                            opacity: isOutOfStockVariant ? 0.4 : 1,
+                            textDecoration: isOutOfStockVariant ? 'line-through' : 'none',
+                          }}
+                          disabled={!matchingVariant}
+                        >
+                          {value}
+                          {isSelected && isAvailable && (
+                            <span
+                              className='absolute -top-1 -right-1 size-3 rounded-full'
+                              style={{ backgroundColor: 'var(--sf-primary, #000)' }}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Stock availability */}
           {product.trackInventory && product.type !== 'service' && (
@@ -242,7 +369,7 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
               ) : isLowStock ? (
                 <span className='inline-flex items-center gap-1.5 text-sm font-medium text-amber-600'>
                   <AlertTriangle className='size-4' />
-                  ¡Solo quedan {product.stock} unidades!
+                  ¡Solo quedan {effectiveStock} unidades!
                 </span>
               ) : (
                 <span className='inline-flex items-center gap-1.5 text-sm font-medium text-green-600'>

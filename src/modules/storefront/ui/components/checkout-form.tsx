@@ -61,7 +61,8 @@ export function CheckoutForm({
     if (email) msg += `Email: ${email}\n`;
     msg += `\nProductos:\n`;
     items.forEach((item) => {
-      msg += `- ${item.name} x${item.quantity}  ${formatPrice(parseFloat(item.price) * item.quantity)}\n`;
+      const label = item.variantName ? `${item.name} (${item.variantName})` : item.name;
+      msg += `- ${label} x${item.quantity}  ${formatPrice(parseFloat(item.price) * item.quantity)}\n`;
     });
     msg += `\nTotal: ${formatPrice(total)}`;
     if (notes) msg += `\n\nNota: ${notes}`;
@@ -92,7 +93,8 @@ export function CheckoutForm({
         checkoutType: whatsappNumber ? 'whatsapp' : 'internal',
         items: items.map((item) => ({
           productId: item.productId,
-          productName: item.name,
+          variantId: item.variantId,
+          productName: item.variantName ? `${item.name} (${item.variantName})` : item.name,
           unitPrice: item.price,
           quantity: item.quantity,
         })),
@@ -144,7 +146,10 @@ export function CheckoutForm({
           <h2 className='mb-4 text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
           <div className='space-y-3'>
             {items.map((item) => (
-              <div key={item.productId} className='flex items-center gap-3'>
+              <div
+                key={item.variantId ? `${item.productId}:${item.variantId}` : item.productId}
+                className='flex items-center gap-3'
+              >
                 <div
                   className='relative size-12 shrink-0 overflow-hidden'
                   style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
@@ -158,7 +163,12 @@ export function CheckoutForm({
                   )}
                 </div>
                 <div className='min-w-0 flex-1'>
-                  <p className='truncate text-sm font-medium'>{item.name}</p>
+                  <p className='truncate text-sm font-medium'>
+                    {item.name}
+                    {item.variantName && (
+                      <span className='block text-[11px] font-normal opacity-50'>{item.variantName}</span>
+                    )}
+                  </p>
                   <p className='text-xs opacity-50'>x{item.quantity}</p>
                 </div>
                 <span className='text-sm font-medium'>{formatPrice(parseFloat(item.price) * item.quantity)}</span>

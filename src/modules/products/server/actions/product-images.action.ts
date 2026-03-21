@@ -1,11 +1,13 @@
 'use server';
 
 import { del } from '@vercel/blob';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { products, businesses, productImages } from '@/db/schema';
+
+const MAX_PRODUCT_IMAGES = 25;
 
 async function verifyProductOwnership(productId: string, userId: string) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
@@ -21,7 +23,7 @@ async function verifyProductOwnership(productId: string, userId: string) {
   return product;
 }
 
-export async function addProductImageAction(productId: string, url: string, alt?: string) {
+export async function addProductImageAction(productId: string, url: string, alt?: string, variantId?: string) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
@@ -29,11 +31,19 @@ export async function addProductImageAction(productId: string, url: string, alt?
     const product = await verifyProductOwnership(productId, session.user.id);
     if (!product) return { error: 'Producto no encontrado' };
 
+    const whereClause = variantId
+      ? and(eq(productImages.productId, productId), eq(productImages.variantId, variantId))
+      : and(eq(productImages.productId, productId), isNull(productImages.variantId));
+
     const existing = await db
       .select({ sortOrder: productImages.sortOrder })
       .from(productImages)
-      .where(eq(productImages.productId, productId))
+      .where(whereClause)
       .orderBy(productImages.sortOrder);
+
+    if (existing.length >= MAX_PRODUCT_IMAGES) {
+      return { error: `Máximo ${MAX_PRODUCT_IMAGES} imágenes.` };
+    }
 
     const nextOrder = existing.length > 0 ? existing[existing.length - 1].sortOrder + 1 : 0;
 
@@ -41,6 +51,7 @@ export async function addProductImageAction(productId: string, url: string, alt?
       .insert(productImages)
       .values({
         productId,
+        variantId: variantId || null,
         url,
         alt: alt || null,
         sortOrder: nextOrder,
@@ -78,7 +89,30 @@ export async function deleteProductImageAction(imageId: string) {
   }
 }
 
-export async function getProductImagesAction(productId: string) {
+export async function getProductImagesAction(productId: string, variantId?: string) {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  const product = await verifyProductOwnership(productId, session.user.id);
+  if (!product) return [];
+
+  if (variantId) {
+    return db
+      .select()
+      .from(productImages)
+      .where(and(eq(productImages.productId, productId), eq(productImages.variantId, variantId)))
+      .orderBy(productImages.sortOrder);
+  }
+
+  // No variantId = return only main product images (variantId IS NULL)
+  return db
+    .select()
+    .from(productImages)
+    .where(and(eq(productImages.productId, productId), isNull(productImages.variantId)))
+    .orderBy(productImages.sortOrder);
+}
+
+export async function getAllProductImagesAction(productId: string) {
   const session = await auth();
   if (!session?.user?.id) return [];
 
