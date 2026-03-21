@@ -1,6 +1,9 @@
+import { eq } from 'drizzle-orm';
 import type { Metadata } from 'next';
 
 import { auth } from '@/auth';
+import { db } from '@/db/drizzle';
+import { users } from '@/db/schema';
 import { QueryProvider } from '@/components/query-provider';
 import { AdminLayout } from '@/components/layouts/admin-layout';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -20,10 +23,19 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 
   const sidebarBusinesses = businesses.map((b) => ({ id: b.id, name: b.name, slug: b.slug }));
 
+  // Fetch from DB so profile image updates are reflected immediately (JWT session caches the image at sign-in)
+  const [dbUser] = session?.user?.id
+    ? await db
+        .select({ name: users.name, image: users.image })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1)
+    : [null];
+
   const user = {
-    name: session?.user?.name ?? null,
+    name: dbUser?.name ?? session?.user?.name ?? null,
     email: session?.user?.email ?? null,
-    image: session?.user?.image ?? null,
+    image: dbUser?.image ?? session?.user?.image ?? null,
   };
 
   return (

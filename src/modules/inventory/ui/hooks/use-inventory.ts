@@ -18,6 +18,7 @@ export function useInventoryOverview(businessId: string) {
       if (result.error) throw new Error(result.error);
       return { products: result.products!, variants: result.variants!, movements: result.movements! };
     },
+    refetchInterval: 15_000,
   });
 }
 

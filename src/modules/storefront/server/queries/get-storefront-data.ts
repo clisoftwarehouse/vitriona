@@ -4,6 +4,7 @@ import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import {
+  brands,
   catalogs,
   products,
   categories,
@@ -98,9 +99,21 @@ export async function getPublicProducts(businessId: string, categoryId?: string,
     imageMap.set(img.productId, existing);
   }
 
+  // Fetch brand names for products that have brandId
+  const brandIds = [...new Set(productList.map((p) => p.brandId).filter(Boolean))] as string[];
+  const brandMap = new Map<string, string>();
+  if (brandIds.length > 0) {
+    const brandRows = await db
+      .select({ id: brands.id, name: brands.name })
+      .from(brands)
+      .where(inArray(brands.id, brandIds));
+    for (const b of brandRows) brandMap.set(b.id, b.name);
+  }
+
   return productList.map((p) => ({
     ...p,
     images: imageMap.get(p.id) ?? [],
+    brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
   }));
 }
 
@@ -164,6 +177,17 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
     imageMap.set(img.productId, existing);
   }
 
+  // Fetch brand names
+  const brandIds = [...new Set(allProducts.map((p) => p.brandId).filter(Boolean))] as string[];
+  const brandMap = new Map<string, string>();
+  if (brandIds.length > 0) {
+    const brandRows = await db
+      .select({ id: brands.id, name: brands.name })
+      .from(brands)
+      .where(inArray(brands.id, brandIds));
+    for (const b of brandRows) brandMap.set(b.id, b.name);
+  }
+
   // Group products by catalog via join table links
   const productsByCatalog = new Map<string, (typeof allProducts)[number][]>();
   for (const link of allLinks) {
@@ -179,7 +203,11 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
     const totalProducts = productsByCatalog.get(catalog.id)?.length ?? 0;
     return {
       ...catalog,
-      products: catalogProducts.map((p) => ({ ...p, images: imageMap.get(p.id) ?? [] })),
+      products: catalogProducts.map((p) => ({
+        ...p,
+        images: imageMap.get(p.id) ?? [],
+        brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
+      })),
       totalProducts,
     };
   });
@@ -210,14 +238,24 @@ export async function getProductBySlug(businessId: string, productSlug: string) 
     }
   }
 
-  const category = product.categoryId
-    ? await db
-        .select()
-        .from(categories)
-        .where(eq(categories.id, product.categoryId))
-        .limit(1)
-        .then((r) => r[0])
-    : null;
+  const [category, brand] = await Promise.all([
+    product.categoryId
+      ? db
+          .select()
+          .from(categories)
+          .where(eq(categories.id, product.categoryId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : null,
+    product.brandId
+      ? db
+          .select()
+          .from(brands)
+          .where(eq(brands.id, product.brandId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : null,
+  ]);
 
   const attrRows = await db
     .select({
@@ -239,6 +277,7 @@ export async function getProductBySlug(businessId: string, productSlug: string) 
     images,
     variantImagesMap,
     category,
+    brand,
     attributes: attrRows,
     tags: product.tags ?? [],
     variants,

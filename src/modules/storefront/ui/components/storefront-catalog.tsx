@@ -32,6 +32,7 @@ interface Product {
   compareAtPrice: string | null;
   isFeatured: boolean;
   categoryId: string | null;
+  brandName?: string | null;
   images: ProductImage[];
 }
 
@@ -1045,6 +1046,14 @@ function ProductCard({
 
       {/* Info */}
       <div className={`flex flex-1 flex-col ${isMinimal ? 'pt-3' : 'p-3.5 sm:p-4'}`}>
+        {product.brandName && (
+          <span
+            className='mb-0.5 text-[11px] font-semibold tracking-wide uppercase'
+            style={{ color: 'var(--sf-primary, #000)', opacity: 0.6 }}
+          >
+            {product.brandName}
+          </span>
+        )}
         <h3 className='line-clamp-2 text-sm leading-snug font-medium'>{product.name}</h3>
         {featured && product.description && (
           <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50'>{product.description}</p>

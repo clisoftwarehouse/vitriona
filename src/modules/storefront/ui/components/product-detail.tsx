@@ -31,6 +31,12 @@ interface Category {
   name: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
 interface ProductAttribute {
   name: string;
   value: string;
@@ -63,6 +69,7 @@ interface Product {
   images: ProductImage[];
   variantImagesMap?: Record<string, ProductImage[]>;
   category: Category | null;
+  brand?: Brand | null;
   attributes?: ProductAttribute[];
   tags?: string[];
   variants?: ProductVariant[];
@@ -252,8 +259,20 @@ export function ProductDetail({ slug, product, whatsappNumber, currency }: Produ
 
         {/* ── Product Info ── */}
         <div className='flex flex-col'>
-          {/* Category + type badges */}
+          {/* Brand + Category + type badges */}
           <div className='mb-3 flex flex-wrap items-center gap-2'>
+            {product.brand && (
+              <span
+                className='inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold'
+                style={{
+                  borderRadius: 'var(--sf-radius-full, 9999px)',
+                  backgroundColor: 'var(--sf-primary, #000)',
+                  color: '#fff',
+                }}
+              >
+                {product.brand.name}
+              </span>
+            )}
             {product.category && (
               <span
                 className='inline-flex items-center gap-1 px-3 py-1 text-xs font-medium'

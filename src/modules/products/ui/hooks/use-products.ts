@@ -20,6 +20,7 @@ export function useProducts(businessId: string, filters: ProductFilters = {}) {
     queryFn: async () => {
       return getProductsAction(businessId, filters);
     },
+    refetchInterval: 30_000,
   });
 }
 

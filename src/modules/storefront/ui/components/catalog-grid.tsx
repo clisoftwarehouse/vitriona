@@ -23,6 +23,7 @@ interface Product {
   price: string;
   compareAtPrice: string | null;
   isFeatured: boolean;
+  brandName?: string | null;
   images: ProductImage[];
 }
 
@@ -152,6 +153,14 @@ export function CatalogSections({ slug, currency, catalogs }: CatalogSectionsPro
                   </div>
 
                   <div className='p-3'>
+                    {product.brandName && (
+                      <span
+                        className='mb-0.5 block text-[11px] font-semibold tracking-wide uppercase'
+                        style={{ color: 'var(--sf-primary, #000)', opacity: 0.6 }}
+                      >
+                        {product.brandName}
+                      </span>
+                    )}
                     <h3 className='line-clamp-2 text-sm leading-tight font-medium'>{product.name}</h3>
                     <div className='mt-1.5 flex items-center gap-2'>
                       <span className='text-sm font-bold' style={{ color: 'var(--sf-primary, #000)' }}>

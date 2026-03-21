@@ -209,34 +209,34 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
             }
             className='group'
           >
-            <Card className='transition-shadow group-hover:shadow-md'>
-              <CardContent className='p-5'>
-                <div className='flex items-start justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-                      <Package className='text-primary size-5' />
-                    </div>
-                    <div className='min-w-0'>
+            <Card className='h-full transition-shadow group-hover:shadow-md'>
+              <CardContent className='flex h-full flex-col p-5'>
+                <div className='flex items-start gap-3'>
+                  <div className='bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg'>
+                    <Package className='text-primary size-5' />
+                  </div>
+                  <div className='min-w-0 flex-1'>
+                    <div className='flex items-start justify-between gap-2'>
                       <h3 className='flex items-center gap-1.5 truncate font-semibold'>
                         {product.name}
                         {product.isFeatured && <Star className='size-3.5 shrink-0 fill-amber-500 text-amber-500' />}
                       </h3>
-                      <p className='text-muted-foreground text-sm font-medium'>
-                        ${Number(product.price).toFixed(2)}
-                        {product.compareAtPrice && (
-                          <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
-                        )}
-                      </p>
+                      <Badge variant={statusVariants[product.status] ?? 'secondary'} className='shrink-0 text-[10px]'>
+                        {statusLabels[product.status] ?? product.status}
+                      </Badge>
                     </div>
+                    <p className='text-muted-foreground text-sm font-medium'>
+                      ${Number(product.price).toFixed(2)}
+                      {product.compareAtPrice && (
+                        <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
+                      )}
+                    </p>
                   </div>
-                  <Badge variant={statusVariants[product.status] ?? 'secondary'} className='shrink-0 text-[10px]'>
-                    {statusLabels[product.status] ?? product.status}
-                  </Badge>
                 </div>
 
-                {product.description && (
-                  <p className='text-muted-foreground mt-3 line-clamp-2 text-sm'>{product.description}</p>
-                )}
+                <p className='text-muted-foreground mt-3 line-clamp-2 min-h-10 flex-1 text-sm'>
+                  {product.description || ''}
+                </p>
 
                 <div className='mt-3 flex items-center gap-2'>
                   {product.sku && (

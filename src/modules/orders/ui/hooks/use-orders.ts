@@ -18,6 +18,7 @@ export function useOrders(businessId: string) {
       if (result.error || !result.orders) throw new Error(result.error ?? 'Error al cargar pedidos');
       return result.orders;
     },
+    refetchInterval: 15_000,
   });
 }
 

@@ -24,6 +24,7 @@ export async function updateUserProfileAction(values: UpdateProfileFormValues) {
       timezone,
       locale,
       avatarUrl: avatarUrl || null,
+      image: avatarUrl || null,
       updatedAt: new Date(),
     })
     .where(eq(users.id, session.user.id));
