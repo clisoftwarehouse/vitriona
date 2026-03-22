@@ -572,11 +572,14 @@ export const orders = pgTable('orders', {
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
   couponId: text('coupon_id').references(() => coupons.id, { onDelete: 'set null' }),
   couponCode: text('coupon_code'),
+  paymentMethodId: text('payment_method_id').references(() => paymentMethods.id, { onDelete: 'set null' }),
+  paymentMethodName: text('payment_method_name'),
+  paymentDetails: jsonb('payment_details'),
   status: text('status', {
-    enum: ['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'],
+    enum: ['pending_payment', 'payment_verified', 'preparing', 'shipped', 'delivered', 'cancelled'],
   })
     .notNull()
-    .default('pending'),
+    .default('pending_payment'),
   checkoutType: text('checkout_type', { enum: ['whatsapp', 'internal'] })
     .notNull()
     .default('whatsapp'),
@@ -672,6 +675,24 @@ export const productReviews = pgTable('product_reviews', {
 });
 
 // ── Coupons ──
+
+// ── Payment Methods ──
+
+export const paymentMethods = pgTable('payment_methods', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  instructions: text('instructions'),
+  fields: jsonb('fields').$type<{ label: string; value: string }[]>().notNull().default([]),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
 
 export const coupons = pgTable('coupons', {
   id: text('id')

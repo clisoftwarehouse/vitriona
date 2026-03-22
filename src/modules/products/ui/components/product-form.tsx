@@ -148,7 +148,7 @@ export function ProductForm({
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
       if (mode === 'create' && result?.productId) {
         router.push(
           catalogId
@@ -162,6 +162,7 @@ export function ProductForm({
             : `/dashboard/businesses/${businessId}/products`
         );
       }
+      router.refresh();
     });
   };
 

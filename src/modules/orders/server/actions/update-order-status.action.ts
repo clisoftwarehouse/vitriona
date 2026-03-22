@@ -15,7 +15,7 @@ import {
   orderStatusHistory,
 } from '@/db/schema';
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending_payment' | 'payment_verified' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
 // ── Helpers ──
 

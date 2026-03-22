@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrderDetailAction, getOrdersByBusinessAction } from '@/modules/orders/server/actions/get-orders.action';
 import { cancelOrderAction, updateOrderStatusAction } from '@/modules/orders/server/actions/update-order-status.action';
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending_payment' | 'payment_verified' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
 export const orderKeys = {
   all: (businessId: string) => ['orders', businessId] as const,

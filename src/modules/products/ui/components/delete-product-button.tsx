@@ -3,6 +3,7 @@
 import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -27,6 +28,7 @@ interface DeleteProductButtonProps {
 
 export function DeleteProductButton({ productId, productName, businessId, catalogId }: DeleteProductButtonProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -40,11 +42,13 @@ export function DeleteProductButton({ productId, productName, businessId, catalo
         return;
       }
       setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
       router.push(
         catalogId
           ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products`
           : `/dashboard/businesses/${businessId}/products`
       );
+      router.refresh();
     });
   };
 

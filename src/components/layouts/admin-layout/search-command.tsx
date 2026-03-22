@@ -12,6 +12,7 @@ import {
   Settings,
   Warehouse,
   Paintbrush,
+  CreditCard,
   ShoppingCart,
   ExternalLink,
   MessageSquare,
@@ -76,6 +77,7 @@ export function SearchCommand({ activeBusinessId, activeBusinessSlug }: SearchCo
           { icon: Warehouse, label: 'Inventario', href: `${base}/inventory` },
           { icon: MessageSquare, label: 'Reseñas', href: `${base}/reviews` },
           { icon: TicketPercent, label: 'Cupones', href: `${base}/coupons` },
+          { icon: CreditCard, label: 'Métodos de pago', href: `${base}/payment-methods` },
           { icon: Paintbrush, label: 'Site Builder', href: `${base}/builder` },
         ],
       });

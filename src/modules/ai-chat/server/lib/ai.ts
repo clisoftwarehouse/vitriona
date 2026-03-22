@@ -491,7 +491,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
           customerPhone: customerPhone ?? null,
           subtotal: total.toFixed(2),
           total: total.toFixed(2),
-          status: 'pending',
+          status: 'pending_payment',
           checkoutType: 'internal',
         })
         .returning();

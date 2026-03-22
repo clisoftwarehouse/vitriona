@@ -3,7 +3,7 @@
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Eye, Clock, Truck, Loader2, Package, XCircle, CheckCircle } from 'lucide-react';
+import { Eye, Clock, Truck, Loader2, Package, XCircle, BadgeCheck, CheckCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   useUpdateOrderStatus,
 } from '@/modules/orders/ui/hooks/use-orders';
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending_payment' | 'payment_verified' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
 
 interface Order {
   id: string;
@@ -33,6 +33,8 @@ interface Order {
   status: string;
   checkoutType: string;
   createdAt: Date;
+  paymentMethodName: string | null;
+  paymentDetails: unknown;
 }
 
 interface OrdersTableProps {
@@ -43,8 +45,8 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType }
 > = {
-  pending: { label: 'Pendiente', variant: 'outline', icon: Clock },
-  confirmed: { label: 'Confirmado', variant: 'default', icon: CheckCircle },
+  pending_payment: { label: 'Pendiente de pago', variant: 'outline', icon: Clock },
+  payment_verified: { label: 'Pago verificado', variant: 'default', icon: BadgeCheck },
   preparing: { label: 'Preparando', variant: 'secondary', icon: Package },
   shipped: { label: 'Enviado', variant: 'secondary', icon: Truck },
   delivered: { label: 'Entregado', variant: 'default', icon: CheckCircle },
@@ -52,8 +54,8 @@ const STATUS_CONFIG: Record<
 };
 
 const STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['preparing', 'cancelled'],
+  pending_payment: ['payment_verified', 'cancelled'],
+  payment_verified: ['preparing', 'cancelled'],
   preparing: ['shipped', 'delivered'],
   shipped: ['delivered'],
   delivered: [],
@@ -261,6 +263,47 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 </div>
               )}
 
+              {selectedOrder.paymentMethodName && (
+                <div>
+                  <h4 className='mb-1 text-sm font-semibold'>Método de pago</h4>
+                  <p className='text-sm'>{selectedOrder.paymentMethodName}</p>
+                  {(() => {
+                    const details = selectedOrder.paymentDetails as Record<string, string> | null;
+                    if (!details || typeof details !== 'object') return null;
+                    const textEntries = Object.entries(details).filter(([k]) => k !== 'proofImageUrl');
+                    const proofUrl = details.proofImageUrl;
+                    if (textEntries.length === 0 && !proofUrl) return null;
+                    return (
+                      <div className='mt-2 space-y-2'>
+                        {textEntries.length > 0 && (
+                          <div className='bg-muted/50 space-y-1 rounded-lg p-3'>
+                            {textEntries.map(([key, val]) => (
+                              <div key={key} className='flex items-center justify-between text-sm'>
+                                <span className='text-muted-foreground capitalize'>{key}</span>
+                                <span className='font-medium'>{val}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {proofUrl && (
+                          <div>
+                            <p className='text-muted-foreground mb-1 text-xs font-medium'>Comprobante:</p>
+                            <a href={proofUrl} target='_blank' rel='noopener noreferrer'>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={proofUrl}
+                                alt='Comprobante de pago'
+                                className='max-h-52 rounded-lg border object-contain'
+                              />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div>
                 <h4 className='mb-2 text-sm font-semibold'>Productos</h4>
                 <div className='space-y-2'>
@@ -290,9 +333,9 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 <div>
                   <h4 className='mb-2 text-sm font-semibold'>Historial</h4>
                   <div className='relative space-y-3 pl-4'>
-                    <div className='bg-border absolute top-1 bottom-1 left-[7px] w-px' />
+                    <div className='bg-border absolute top-1 bottom-1 left-1.75 w-px' />
                     {statusHistory.map((entry) => {
-                      const cfg = STATUS_CONFIG[entry.toStatus] ?? STATUS_CONFIG.pending;
+                      const cfg = STATUS_CONFIG[entry.toStatus] ?? STATUS_CONFIG.pending_payment;
                       return (
                         <div key={entry.id} className='relative flex items-start gap-2'>
                           <div

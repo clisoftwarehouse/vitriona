@@ -42,6 +42,7 @@ export function DeleteBusinessButton({ businessId, businessName }: DeleteBusines
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ['businesses'] });
       router.push('/dashboard/businesses');
+      router.refresh();
     });
   };
 

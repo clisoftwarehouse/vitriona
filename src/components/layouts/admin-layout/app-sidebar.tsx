@@ -12,6 +12,7 @@ import {
   Settings,
   Warehouse,
   Paintbrush,
+  CreditCard,
   ShoppingCart,
   ChevronRight,
   ExternalLink,
@@ -82,6 +83,11 @@ export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebar
           label: 'Cupones',
           href: `/dashboard/businesses/${activeBusiness.id}/coupons`,
           icon: TicketPercent,
+        },
+        {
+          label: 'Métodos de pago',
+          href: `/dashboard/businesses/${activeBusiness.id}/payment-methods`,
+          icon: CreditCard,
         },
         {
           label: 'Site Builder',

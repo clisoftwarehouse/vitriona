@@ -12,8 +12,8 @@ import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-act
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from '@/components/ui/table';
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
+  pending_payment: 'Pendiente de pago',
+  payment_verified: 'Pago verificado',
   preparing: 'Preparando',
   shipped: 'Enviado',
   delivered: 'Entregado',
@@ -21,8 +21,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_CLASSES: Record<string, string> = {
-  pending: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400',
-  confirmed: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400',
+  pending_payment:
+    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400',
+  payment_verified: 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-400',
   preparing:
     'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400',
   shipped: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-400',

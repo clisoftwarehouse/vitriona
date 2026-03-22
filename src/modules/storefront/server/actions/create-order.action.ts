@@ -27,6 +27,9 @@ interface CreateOrderInput {
   couponId?: string;
   couponCode?: string;
   discount?: number;
+  paymentMethodId?: string;
+  paymentMethodName?: string;
+  paymentDetails?: Record<string, string>;
 }
 
 function generateOrderNumber(): string {
@@ -94,7 +97,10 @@ export async function createOrderAction(input: CreateOrderInput) {
       total: total.toFixed(2),
       couponId: input.couponId || null,
       couponCode: input.couponCode || null,
-      status: 'pending',
+      paymentMethodId: input.paymentMethodId || null,
+      paymentMethodName: input.paymentMethodName || null,
+      paymentDetails: input.paymentDetails || null,
+      status: 'pending_payment',
       checkoutType,
       inventoryDeducted: true,
     })
@@ -175,7 +181,7 @@ export async function createOrderAction(input: CreateOrderInput) {
   await db.insert(orderStatusHistory).values({
     orderId: order.id,
     fromStatus: null,
-    toStatus: 'pending',
+    toStatus: 'pending_payment',
     note: 'Pedido creado',
   });
 

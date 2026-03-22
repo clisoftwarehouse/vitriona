@@ -5,11 +5,18 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useSyncExternalStore } from 'react';
-import { X, Loader2, ImageOff, ArrowLeft, MessageCircle, TicketPercent } from 'lucide-react';
+import { X, Copy, Upload, Loader2, ImageOff, ArrowLeft, CreditCard, MessageCircle, TicketPercent } from 'lucide-react';
 
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 import { validateCouponAction } from '@/modules/coupons/server/actions/coupon-actions';
 import { createOrderAction } from '@/modules/storefront/server/actions/create-order.action';
+
+interface PaymentMethodData {
+  id: string;
+  name: string;
+  instructions: string | null;
+  fields: { label: string; value: string }[];
+}
 
 interface CheckoutFormProps {
   slug: string;
@@ -18,6 +25,7 @@ interface CheckoutFormProps {
   businessName: string;
   whatsappNumber: string | null;
   currency: string;
+  paymentMethods: PaymentMethodData[];
 }
 
 const emptySubscribe = () => () => {};
@@ -37,6 +45,7 @@ export function CheckoutForm({
   businessName,
   whatsappNumber,
   currency,
+  paymentMethods,
 }: CheckoutFormProps) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -49,6 +58,15 @@ export function CheckoutForm({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Payment method state
+  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(
+    paymentMethods.length === 1 ? paymentMethods[0].id : null
+  );
+  const [paymentProof, setPaymentProof] = useState<Record<string, string>>({});
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  const selectedMethod = paymentMethods.find((m) => m.id === selectedMethodId) ?? null;
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -79,6 +97,7 @@ export function CheckoutForm({
     });
     if (appliedCoupon) msg += `\nCupón: ${appliedCoupon.code} (-${formatPrice(discount)})`;
     msg += `\nTotal: ${formatPrice(total)}`;
+    if (selectedMethod) msg += `\n\nMétodo de pago: ${selectedMethod.name}`;
     if (notes) msg += `\n\nNota: ${notes}`;
     return msg;
   };
@@ -115,6 +134,9 @@ export function CheckoutForm({
         couponId: appliedCoupon?.couponId,
         couponCode: appliedCoupon?.code,
         discount,
+        paymentMethodId: selectedMethod?.id,
+        paymentMethodName: selectedMethod?.name,
+        paymentDetails: Object.keys(paymentProof).length > 0 ? paymentProof : undefined,
       });
 
       if (result.error) {
@@ -153,7 +175,7 @@ export function CheckoutForm({
   }
 
   return (
-    <div className='mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8'>
+    <div className={`mx-auto px-4 py-6 sm:px-6 sm:py-8 ${paymentMethods.length > 0 ? 'max-w-6xl' : 'max-w-2xl'}`}>
       <Link
         href={`/${slug}`}
         className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
@@ -165,8 +187,8 @@ export function CheckoutForm({
       <h1 className='mb-8 text-2xl font-bold'>Finalizar pedido</h1>
 
       <form onSubmit={handleSubmit}>
-        <div className='grid gap-8 sm:grid-cols-2'>
-          {/* Customer form */}
+        <div className={`grid gap-8 ${paymentMethods.length > 0 ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          {/* Column 1: Customer data */}
           <div className='space-y-4'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Tus datos</h2>
             <div>
@@ -228,7 +250,168 @@ export function CheckoutForm({
             </div>
           </div>
 
-          {/* Order summary */}
+          {/* Column 2: Payment methods */}
+          {paymentMethods.length > 0 && (
+            <div className='space-y-4'>
+              <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Método de pago</h2>
+              <div className='space-y-2'>
+                {paymentMethods.map((method) => (
+                  <div key={method.id}>
+                    <button
+                      type='button'
+                      onClick={() => {
+                        setSelectedMethodId(method.id);
+                        setPaymentProof({});
+                      }}
+                      className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
+                      style={{
+                        borderRadius: 'var(--sf-radius, 0.75rem)',
+                        border:
+                          selectedMethodId === method.id
+                            ? '2px solid var(--sf-primary, #000)'
+                            : '1px solid var(--sf-border, #e5e7eb)',
+                      }}
+                    >
+                      <CreditCard className='size-4 shrink-0 opacity-50' />
+                      <span className='font-medium'>{method.name}</span>
+                    </button>
+
+                    {selectedMethodId === method.id && (
+                      <div className='mt-2 space-y-3 px-1' style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                        {method.instructions && <p className='text-xs opacity-60'>{method.instructions}</p>}
+                        {method.fields.length > 0 && (
+                          <div className='space-y-1.5'>
+                            <p className='text-xs font-semibold opacity-50'>Datos para el pago:</p>
+                            {method.fields.map((field, i) => (
+                              <div
+                                key={i}
+                                className='flex items-center justify-between rounded-lg px-3 py-2 text-sm'
+                                style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                              >
+                                <span className='opacity-60'>{field.label}</span>
+                                <div className='flex items-center gap-1.5'>
+                                  <span className='font-mono text-xs font-medium'>{field.value}</span>
+                                  <button
+                                    type='button'
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(field.value);
+                                      toast.success(`${field.label} copiado`);
+                                    }}
+                                    className='opacity-40 hover:opacity-100'
+                                  >
+                                    <Copy className='size-3' />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div>
+                          <label className='mb-1 block text-xs font-medium opacity-60'>Nro. de referencia</label>
+                          <input
+                            type='text'
+                            value={paymentProof.reference ?? ''}
+                            onChange={(e) => setPaymentProof({ ...paymentProof, reference: e.target.value })}
+                            placeholder='Ej: 00012345678'
+                            className='w-full px-3 py-2 text-sm outline-none'
+                            style={{
+                              borderRadius: 'var(--sf-radius, 0.75rem)',
+                              border: '1px solid var(--sf-border, #e5e7eb)',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className='mb-1 block text-xs font-medium opacity-60'>
+                            Comprobante de pago (imagen)
+                          </label>
+                          {paymentProof.proofImageUrl ? (
+                            <div
+                              className='relative overflow-hidden'
+                              style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={paymentProof.proofImageUrl}
+                                alt='Comprobante'
+                                className='max-h-48 w-full object-contain'
+                                style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                              />
+                              <button
+                                type='button'
+                                onClick={() => {
+                                  const { proofImageUrl: _removed, ...rest } = paymentProof;
+                                  void _removed;
+                                  setPaymentProof(rest);
+                                }}
+                                className='absolute top-2 right-2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-red-600'
+                              >
+                                <X className='size-3.5' />
+                              </button>
+                            </div>
+                          ) : (
+                            <label
+                              className={`flex cursor-pointer items-center justify-center gap-2 px-3 py-3 text-sm transition-colors ${
+                                uploadingProof ? 'pointer-events-none opacity-50' : ''
+                              }`}
+                              style={{
+                                borderRadius: 'var(--sf-radius, 0.75rem)',
+                                border: '1px dashed var(--sf-border, #e5e7eb)',
+                              }}
+                            >
+                              {uploadingProof ? (
+                                <Loader2 className='size-4 animate-spin opacity-50' />
+                              ) : (
+                                <Upload className='size-4 opacity-50' />
+                              )}
+                              <span className='opacity-60'>{uploadingProof ? 'Subiendo...' : 'Subir comprobante'}</span>
+                              <input
+                                type='file'
+                                accept='image/jpeg,image/png,image/webp'
+                                className='hidden'
+                                disabled={uploadingProof}
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  if (file.size > 3 * 1024 * 1024) {
+                                    toast.error('La imagen no debe exceder 3MB');
+                                    return;
+                                  }
+                                  setUploadingProof(true);
+                                  try {
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    const res = await fetch('/api/upload-payment-proof', {
+                                      method: 'POST',
+                                      body: formData,
+                                    });
+                                    if (!res.ok) {
+                                      const err = await res.json();
+                                      toast.error(err.error || 'Error al subir imagen');
+                                      return;
+                                    }
+                                    const blob = await res.json();
+                                    setPaymentProof((prev) => ({ ...prev, proofImageUrl: blob.url }));
+                                  } catch {
+                                    toast.error('Error al subir la imagen');
+                                  } finally {
+                                    setUploadingProof(false);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+                          <p className='mt-1 text-[10px] opacity-40'>JPG, PNG o WebP. Máx 3MB.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Column 3: Order summary */}
           <div>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
             <div className='mt-4 space-y-3'>
@@ -345,33 +528,33 @@ export function CheckoutForm({
                 <span className='text-lg font-bold'>{formatPrice(total)}</span>
               </div>
             </div>
+
+            {/* Submit button inside summary column */}
+            <button
+              type='submit'
+              disabled={isPending}
+              className='mt-6 flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50'
+              style={{
+                backgroundColor: 'var(--sf-primary, #000)',
+                borderRadius: 'var(--sf-radius, 0.75rem)',
+              }}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Procesando...
+                </>
+              ) : whatsappNumber ? (
+                <>
+                  <MessageCircle className='size-4' />
+                  Enviar pedido por WhatsApp
+                </>
+              ) : (
+                'Confirmar pedido'
+              )}
+            </button>
           </div>
         </div>
-
-        {/* Submit button full width */}
-        <button
-          type='submit'
-          disabled={isPending}
-          className='mt-8 flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50'
-          style={{
-            backgroundColor: 'var(--sf-primary, #000)',
-            borderRadius: 'var(--sf-radius, 0.75rem)',
-          }}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className='size-4 animate-spin' />
-              Procesando...
-            </>
-          ) : whatsappNumber ? (
-            <>
-              <MessageCircle className='size-4' />
-              Enviar pedido por WhatsApp
-            </>
-          ) : (
-            'Confirmar pedido'
-          )}
-        </button>
       </form>
     </div>
   );

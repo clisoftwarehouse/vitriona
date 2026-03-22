@@ -92,6 +92,7 @@ export function CatalogForm({ mode, businessId, defaultValues, onSubmitAction }:
         return;
       }
       router.push(`/dashboard/businesses/${businessId}/catalogs`);
+      router.refresh();
     });
   };
 
