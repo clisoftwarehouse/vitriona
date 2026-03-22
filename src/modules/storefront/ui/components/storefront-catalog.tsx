@@ -495,7 +495,7 @@ function HeroSection({
                 className='mb-4 inline-flex w-fit items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium'
                 style={{
                   backgroundColor: 'var(--sf-primary, #000)',
-                  color: '#fff',
+                  color: 'var(--sf-primary-contrast, #fff)',
                   borderRadius: 'var(--sf-radius-full, 9999px)',
                 }}
               >
@@ -508,8 +508,12 @@ function HeroSection({
             <div className='mt-8 flex flex-wrap gap-3'>
               <Link
                 href={primaryHref}
-                className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-105'
-                style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius-full, 9999px)' }}
+                className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-transform hover:scale-105'
+                style={{
+                  backgroundColor: 'var(--sf-primary, #000)',
+                  color: 'var(--sf-primary-contrast, #fff)',
+                  borderRadius: 'var(--sf-radius-full, 9999px)',
+                }}
               >
                 {ctaPrimaryText} <ArrowRight className='size-4' />
               </Link>
@@ -571,7 +575,7 @@ function HeroSection({
                   }
                 : {
                     backgroundColor: 'var(--sf-primary, #000)',
-                    color: '#fff',
+                    color: 'var(--sf-primary-contrast, #fff)',
                     borderRadius: 'var(--sf-radius-full, 9999px)',
                   }
             }
@@ -597,7 +601,7 @@ function HeroSection({
                 ? { backgroundColor: '#fff', color: '#000', borderRadius: 'var(--sf-radius-full, 9999px)' }
                 : {
                     backgroundColor: 'var(--sf-primary, #000)',
-                    color: '#fff',
+                    color: 'var(--sf-primary-contrast, #fff)',
                     borderRadius: 'var(--sf-radius-full, 9999px)',
                   }
             }
@@ -708,7 +712,7 @@ function CategoryNav({ categories, activeCategory, style, onCategoryClick }: Cat
           style={{
             borderRadius: 'var(--sf-radius-lg, 1rem)',
             backgroundColor: !activeCategory ? 'var(--sf-primary, #000)' : 'var(--sf-surface, #f9fafb)',
-            color: !activeCategory ? '#fff' : 'inherit',
+            color: !activeCategory ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
           }}
         >
           <span className='text-sm font-semibold'>Todos</span>
@@ -721,7 +725,7 @@ function CategoryNav({ categories, activeCategory, style, onCategoryClick }: Cat
             style={{
               borderRadius: 'var(--sf-radius-lg, 1rem)',
               backgroundColor: activeCategory === cat.id ? 'var(--sf-primary, #000)' : 'var(--sf-surface, #f9fafb)',
-              color: activeCategory === cat.id ? '#fff' : 'inherit',
+              color: activeCategory === cat.id ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
             }}
           >
             {cat.imageUrl && (
@@ -747,7 +751,7 @@ function CategoryNav({ categories, activeCategory, style, onCategoryClick }: Cat
           style={{
             borderRadius: 'var(--sf-radius-full, 9999px)',
             backgroundColor: !activeCategory ? 'var(--sf-primary, #000)' : 'transparent',
-            color: !activeCategory ? '#fff' : 'inherit',
+            color: !activeCategory ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
             borderColor: !activeCategory ? 'var(--sf-primary, #000)' : 'var(--sf-border, #e5e7eb)',
           }}
         >
@@ -761,7 +765,7 @@ function CategoryNav({ categories, activeCategory, style, onCategoryClick }: Cat
             style={{
               borderRadius: 'var(--sf-radius-full, 9999px)',
               backgroundColor: activeCategory === cat.id ? 'var(--sf-primary, #000)' : 'transparent',
-              color: activeCategory === cat.id ? '#fff' : 'inherit',
+              color: activeCategory === cat.id ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
               borderColor: activeCategory === cat.id ? 'var(--sf-primary, #000)' : 'var(--sf-border, #e5e7eb)',
             }}
           >
@@ -954,7 +958,7 @@ function Pagination({
             style={{
               borderRadius: 'var(--sf-radius, 0.75rem)',
               backgroundColor: p === page ? 'var(--sf-primary, #000)' : 'transparent',
-              color: p === page ? '#fff' : 'inherit',
+              color: p === page ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
               border: p === page ? 'none' : '1px solid var(--sf-border, #e5e7eb)',
             }}
           >
@@ -1071,9 +1075,10 @@ function ProductCard({
         <div className='absolute top-2.5 left-2.5 flex flex-col items-start gap-1'>
           {product.isFeatured && (
             <span
-              className='px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase'
+              className='px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase'
               style={{
                 backgroundColor: 'var(--sf-primary, #000)',
+                color: 'var(--sf-primary-contrast, #fff)',
                 borderRadius: 'max(var(--sf-radius, 0.75rem), 0.375rem)',
               }}
             >
@@ -1094,8 +1099,12 @@ function ProductCard({
         {!isList && (
           <button
             onClick={(e) => onAddToCart(e, product)}
-            className='absolute right-2.5 bottom-2.5 flex size-9 items-center justify-center text-white opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
-            style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius-full, 9999px)' }}
+            className='absolute right-2.5 bottom-2.5 flex size-9 items-center justify-center opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
+            style={{
+              backgroundColor: 'var(--sf-primary, #000)',
+              color: 'var(--sf-primary-contrast, #fff)',
+              borderRadius: 'var(--sf-radius-full, 9999px)',
+            }}
             aria-label={`Agregar ${product.name} al carrito`}
           >
             <Plus className='size-4' />
@@ -1155,9 +1164,10 @@ function ProductCard({
         {isList && (
           <button
             onClick={(e) => onAddToCart(e, product)}
-            className='mt-2 self-start px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90'
+            className='mt-2 self-start px-4 py-1.5 text-xs font-semibold transition-colors hover:opacity-90'
             style={{
               backgroundColor: 'var(--sf-primary, #000)',
+              color: 'var(--sf-primary-contrast, #fff)',
               borderRadius: 'var(--sf-radius, 0.75rem)',
             }}
           >

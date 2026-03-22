@@ -175,7 +175,9 @@ export function CheckoutForm({
   }
 
   return (
-    <div className={`mx-auto px-4 py-6 sm:px-6 sm:py-8 ${paymentMethods.length > 0 ? 'max-w-6xl' : 'max-w-2xl'}`}>
+    <div
+      className={`mx-auto overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8 ${paymentMethods.length > 0 ? 'max-w-6xl' : 'max-w-2xl'}`}
+    >
       <Link
         href={`/${slug}`}
         className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
@@ -189,7 +191,7 @@ export function CheckoutForm({
       <form onSubmit={handleSubmit}>
         <div className={`grid gap-8 ${paymentMethods.length > 0 ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
           {/* Column 1: Customer data */}
-          <div className='space-y-4'>
+          <div className='min-w-0 space-y-4'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Tus datos</h2>
             <div>
               <label htmlFor='name' className='mb-1 block text-sm font-medium opacity-70'>
@@ -252,7 +254,7 @@ export function CheckoutForm({
 
           {/* Column 2: Payment methods */}
           {paymentMethods.length > 0 && (
-            <div className='space-y-4'>
+            <div className='min-w-0 space-y-4'>
               <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Método de pago</h2>
               <div className='space-y-2'>
                 {paymentMethods.map((method) => (
@@ -285,12 +287,12 @@ export function CheckoutForm({
                             {method.fields.map((field, i) => (
                               <div
                                 key={i}
-                                className='flex items-center justify-between rounded-lg px-3 py-2 text-sm'
+                                className='flex items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm'
                                 style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
                               >
-                                <span className='opacity-60'>{field.label}</span>
-                                <div className='flex items-center gap-1.5'>
-                                  <span className='font-mono text-xs font-medium'>{field.value}</span>
+                                <span className='shrink-0 opacity-60'>{field.label}</span>
+                                <div className='flex min-w-0 items-center gap-1.5'>
+                                  <span className='truncate font-mono text-xs font-medium'>{field.value}</span>
                                   <button
                                     type='button'
                                     onClick={() => {
@@ -412,7 +414,7 @@ export function CheckoutForm({
           )}
 
           {/* Column 3: Order summary */}
-          <div>
+          <div className='min-w-0'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
             <div className='mt-4 space-y-3'>
               {items.map((item) => (

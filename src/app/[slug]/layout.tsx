@@ -118,9 +118,13 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
               ) : (
                 <div
                   className='flex size-9 items-center justify-center'
-                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-primary, #000)' }}
+                  style={{
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    backgroundColor: 'var(--sf-primary, #000)',
+                    color: 'var(--sf-primary-contrast, #fff)',
+                  }}
                 >
-                  <Store className='size-4.5 text-white' />
+                  <Store className='size-4.5' />
                 </div>
               )}
               <span className='text-base font-bold tracking-tight'>{business.name}</span>
@@ -170,9 +174,13 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                   ) : (
                     <div
                       className='flex size-8 items-center justify-center'
-                      style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-primary, #000)' }}
+                      style={{
+                        borderRadius: 'var(--sf-radius, 0.75rem)',
+                        backgroundColor: 'var(--sf-primary, #000)',
+                        color: 'var(--sf-primary-contrast, #fff)',
+                      }}
                     >
-                      <Store className='size-4 text-white' />
+                      <Store className='size-4' />
                     </div>
                   )}
                   <span className='font-bold'>{business.name}</span>

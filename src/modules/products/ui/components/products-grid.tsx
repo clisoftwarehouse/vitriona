@@ -211,7 +211,7 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
             </div>
           )}
 
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3'>
             {paginatedProducts.map((product) => (
               <Link
                 key={product.id}
@@ -222,17 +222,19 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
                 }
                 className='group'
               >
-                <Card className='h-full transition-shadow group-hover:shadow-md'>
-                  <CardContent className='flex h-full flex-col p-5'>
-                    <div className='flex items-start gap-3'>
-                      <div className='bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg'>
-                        <Package className='text-primary size-5' />
+                <Card className='h-full overflow-hidden transition-shadow group-hover:shadow-md'>
+                  <CardContent className='flex h-full flex-col p-4 sm:p-5'>
+                    <div className='flex items-center gap-3'>
+                      <div className='bg-primary/10 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10'>
+                        <Package className='text-primary size-4 sm:size-5' />
                       </div>
                       <div className='min-w-0 flex-1'>
-                        <div className='flex items-start justify-between gap-2'>
-                          <h3 className='flex items-center gap-1.5 truncate font-semibold'>
+                        <div className='flex items-center justify-between gap-2'>
+                          <h3 className='min-w-0 flex-1 truncate text-sm font-semibold sm:text-base'>
                             {product.name}
-                            {product.isFeatured && <Star className='size-3.5 shrink-0 fill-amber-500 text-amber-500' />}
+                            {product.isFeatured && (
+                              <Star className='ml-1 inline size-3 shrink-0 fill-amber-500 text-amber-500 sm:size-3.5' />
+                            )}
                           </h3>
                           <Badge
                             variant={statusVariants[product.status] ?? 'secondary'}
@@ -241,30 +243,23 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
                             {statusLabels[product.status] ?? product.status}
                           </Badge>
                         </div>
-                        <p className='text-muted-foreground text-sm font-medium'>
-                          ${Number(product.price).toFixed(2)}
-                          {product.compareAtPrice && (
-                            <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
+                        <div className='mt-0.5 flex items-center gap-2'>
+                          <span className='text-muted-foreground text-sm font-medium'>
+                            ${Number(product.price).toFixed(2)}
+                            {product.compareAtPrice && (
+                              <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
+                            )}
+                          </span>
+                          {product.sku && (
+                            <span className='text-muted-foreground hidden text-xs sm:inline'>SKU: {product.sku}</span>
                           )}
-                        </p>
+                          {product.stock !== null && (
+                            <Badge variant='outline' className='text-[10px]'>
+                              Stock: {product.stock}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-
-                    <p className='text-muted-foreground mt-3 line-clamp-2 min-h-10 flex-1 text-sm'>
-                      {product.description || ''}
-                    </p>
-
-                    <div className='mt-3 flex items-center gap-2'>
-                      {product.sku && (
-                        <Badge variant='outline' className='text-xs'>
-                          SKU: {product.sku}
-                        </Badge>
-                      )}
-                      {product.stock !== null && (
-                        <Badge variant='outline' className='text-xs'>
-                          Stock: {product.stock}
-                        </Badge>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

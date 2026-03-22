@@ -330,6 +330,15 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
 
 /* ─── Helpers ─── */
 
+function contrastColor(hex: string): string {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
 const FONT_FAMILY: Record<string, string> = {
   inter: '"Inter", sans-serif',
   playfair: '"Playfair Display", serif',
@@ -435,22 +444,22 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
   return (
     <div className='fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-950'>
       {/* Top Bar */}
-      <div className='flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-neutral-800'>
-        <div className='flex items-center gap-3'>
+      <div className='flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 sm:px-4 dark:border-neutral-800'>
+        <div className='flex min-w-0 items-center gap-2 sm:gap-3'>
           <Button variant='ghost' size='icon-sm' asChild>
             <Link href={`/dashboard/businesses/${businessId}`}>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
-          <div>
-            <p className='text-sm font-semibold dark:text-white'>Site Builder</p>
-            <p className='text-muted-foreground text-xs'>{previewData.business.name}</p>
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-semibold dark:text-white'>Site Builder</p>
+            <p className='text-muted-foreground hidden text-xs sm:block'>{previewData.business.name}</p>
           </div>
         </div>
 
-        <div className='flex items-center gap-2'>
-          {/* Device toggle */}
-          <div className='flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 dark:border-neutral-700'>
+        <div className='flex shrink-0 items-center gap-1.5 sm:gap-2'>
+          {/* Device toggle — hidden on mobile since preview is hidden */}
+          <div className='hidden items-center gap-1 rounded-lg border border-gray-200 p-0.5 lg:flex dark:border-neutral-700'>
             <button
               onClick={() => setPreviewDevice('desktop')}
               className={`rounded-md p-1.5 transition-colors ${previewDevice === 'desktop' ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-50 dark:hover:bg-neutral-800'}`}
@@ -467,22 +476,26 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
 
           <Button variant='outline' size='sm' asChild>
             <a href={`/${businessSlug}`} target='_blank' rel='noopener noreferrer'>
-              <Eye className='mr-1.5 size-3.5' />
-              Ver tienda
+              <Eye className='size-3.5 sm:mr-1.5' />
+              <span className='hidden sm:inline'>Ver tienda</span>
             </a>
           </Button>
 
           <Button size='sm' onClick={handlePublish} disabled={isPending}>
-            {isPending ? <Loader2 className='mr-1.5 size-3.5 animate-spin' /> : <Check className='mr-1.5 size-3.5' />}
-            {hasUnsaved ? 'Publicar cambios' : 'Publicado'}
+            {isPending ? (
+              <Loader2 className='size-3.5 animate-spin sm:mr-1.5' />
+            ) : (
+              <Check className='size-3.5 sm:mr-1.5' />
+            )}
+            <span className='hidden sm:inline'>{hasUnsaved ? 'Publicar cambios' : 'Publicado'}</span>
           </Button>
         </div>
       </div>
 
       {/* Main content */}
       <div className='flex flex-1 overflow-hidden'>
-        {/* Sidebar */}
-        <aside className='flex w-80 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/50 dark:border-neutral-800 dark:bg-neutral-900'>
+        {/* Sidebar — full width on mobile, fixed width on desktop */}
+        <aside className='flex w-full shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/50 lg:w-80 dark:border-neutral-800 dark:bg-neutral-900'>
           {/* Section tabs */}
           <div className='flex border-b border-gray-200 bg-white dark:border-neutral-800 dark:bg-neutral-950'>
             {sections.map((s) => (
@@ -511,8 +524,8 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
           </div>
         </aside>
 
-        {/* Preview */}
-        <div className='flex flex-1 items-center justify-center bg-gray-100 p-6 dark:bg-neutral-950'>
+        {/* Preview — hidden on mobile */}
+        <div className='hidden flex-1 items-center justify-center bg-gray-100 p-6 lg:flex dark:bg-neutral-950'>
           <div
             className={`h-full overflow-hidden rounded-xl border border-gray-200 shadow-2xl transition-all dark:border-neutral-700 ${
               previewDevice === 'mobile' ? 'w-97.5' : 'w-full'
@@ -1696,8 +1709,12 @@ function PreviewHero({
           <div className='flex flex-col justify-center'>
             {s.heroBadgeText && (
               <div
-                className='mb-4 inline-flex w-fit items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white'
-                style={{ backgroundColor: s.primaryColor, borderRadius: radiusFull }}
+                className='mb-4 inline-flex w-fit items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium'
+                style={{
+                  backgroundColor: s.primaryColor,
+                  color: contrastColor(s.primaryColor),
+                  borderRadius: radiusFull,
+                }}
               >
                 <Sparkles className='size-3.5' />
                 {s.heroBadgeText}
@@ -1707,15 +1724,22 @@ function PreviewHero({
             {subtitle && <p className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'>{subtitle}</p>}
             <div className='mt-8 flex flex-wrap gap-3'>
               <span
-                className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white'
-                style={{ backgroundColor: s.primaryColor, borderRadius: radiusFull }}
+                className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold'
+                style={{
+                  backgroundColor: s.primaryColor,
+                  color: contrastColor(s.primaryColor),
+                  borderRadius: radiusFull,
+                }}
               >
                 {s.heroCtaPrimaryText || 'Ver productos'} <ArrowRight className='size-4' />
               </span>
               {s.heroCtaSecondaryText && (
                 <span
                   className='inline-flex items-center gap-2 border px-6 py-3 text-sm font-semibold opacity-70'
-                  style={{ borderColor: 'currentColor', borderRadius: radiusFull }}
+                  style={{
+                    borderColor: 'currentColor',
+                    borderRadius: radiusFull,
+                  }}
                 >
                   {s.heroCtaSecondaryText}
                 </span>
@@ -1749,11 +1773,12 @@ function PreviewHero({
         {s.heroBadgeText && (
           <div
             className='mb-5 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium'
-            style={
-              hasImage
-                ? { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: radiusFull, backdropFilter: 'blur(8px)' }
-                : { backgroundColor: s.primaryColor, color: '#fff', borderRadius: radiusFull }
-            }
+            style={{
+              backgroundColor: hasImage ? 'rgba(255,255,255,0.2)' : s.primaryColor,
+              color: hasImage ? 'rgba(255,255,255,0.4)' : contrastColor(s.primaryColor),
+              borderRadius: radiusFull,
+              backdropFilter: hasImage ? 'blur(8px)' : undefined,
+            }}
           >
             <Sparkles className='size-3.5' />
             {s.heroBadgeText}
@@ -1762,7 +1787,7 @@ function PreviewHero({
         <h1 className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'>{title}</h1>
         {subtitle && (
           <p
-            className={`mx-auto mt-4 max-w-2xl text-base leading-relaxed sm:text-lg ${hasImage ? 'text-white/80' : 'opacity-60'}`}
+            className={`mx-auto mt-4 max-w-2xl text-base leading-relaxed ${hasImage ? 'text-white/80' : 'opacity-60'}`}
           >
             {subtitle}
           </p>
@@ -1770,22 +1795,22 @@ function PreviewHero({
         <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <span
             className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold'
-            style={
-              hasImage
-                ? { backgroundColor: '#fff', color: '#000', borderRadius: radiusFull }
-                : { backgroundColor: s.primaryColor, color: '#fff', borderRadius: radiusFull }
-            }
+            style={{
+              backgroundColor: hasImage ? '#fff' : s.primaryColor,
+              color: hasImage ? '#000' : contrastColor(s.primaryColor),
+              borderRadius: radiusFull,
+            }}
           >
             {s.heroCtaPrimaryText || 'Ver productos'} <ChevronRight className='size-4' />
           </span>
           {s.heroCtaSecondaryText && (
             <span
               className='inline-flex items-center gap-2 border px-6 py-3 text-sm font-semibold'
-              style={
-                hasImage
-                  ? { borderColor: 'rgba(255,255,255,0.3)', color: '#fff', borderRadius: radiusFull }
-                  : { borderColor: 'currentColor', opacity: 0.7, borderRadius: radiusFull }
-              }
+              style={{
+                borderColor: hasImage ? 'rgba(255,255,255,0.3)' : 'currentColor',
+                color: hasImage ? '#fff' : undefined,
+                borderRadius: radiusFull,
+              }}
             >
               {s.heroCtaSecondaryText}
             </span>
@@ -1813,7 +1838,14 @@ function PreviewCategoryNav({
   if (style === 'cards') {
     return (
       <div className='mb-10 grid grid-cols-2 gap-3'>
-        <div className='p-4 text-left text-white' style={{ borderRadius: radiusLg, backgroundColor: s.primaryColor }}>
+        <div
+          className='p-4 text-left'
+          style={{
+            borderRadius: radiusLg,
+            backgroundColor: s.primaryColor,
+            color: contrastColor(s.primaryColor),
+          }}
+        >
           <span className='text-sm font-semibold'>Todos</span>
         </div>
         {categories.map((c) => (
