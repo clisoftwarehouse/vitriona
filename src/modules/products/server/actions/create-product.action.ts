@@ -8,7 +8,11 @@ import { generateSlug } from '@/modules/businesses/lib/slug';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 
-export async function createProductAction(catalogId: string | undefined, values: CreateProductFormValues) {
+export async function createProductAction(
+  catalogId: string | undefined,
+  values: CreateProductFormValues,
+  businessIdParam?: string
+) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
@@ -23,6 +27,8 @@ export async function createProductAction(catalogId: string | undefined, values:
       const [catalog] = await db.select().from(catalogs).where(eq(catalogs.id, values.catalogIds[0])).limit(1);
       if (!catalog) return { error: 'Catálogo no encontrado' };
       businessId = catalog.businessId;
+    } else if (businessIdParam) {
+      businessId = businessIdParam;
     } else {
       return { error: 'Se requiere al menos un catálogo o businessId.' };
     }
@@ -69,12 +75,14 @@ export async function createProductAction(catalogId: string | undefined, values:
       .returning({ id: products.id });
 
     // Link product to catalog(s)
-    await db.insert(catalogProducts).values(
-      catalogIds.map((catId) => ({
-        catalogId: catId,
-        productId: product.id,
-      }))
-    );
+    if (catalogIds.length > 0) {
+      await db.insert(catalogProducts).values(
+        catalogIds.map((catId) => ({
+          catalogId: catId,
+          productId: product.id,
+        }))
+      );
+    }
 
     // Save attribute values
     if (values.attributeValues) {

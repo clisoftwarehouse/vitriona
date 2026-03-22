@@ -17,12 +17,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CURRENCIES, LOCALE_OPTIONS, BUSINESS_CATEGORIES } from '@/modules/businesses/constants';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
+import { setActiveBusinessAction } from '@/modules/businesses/server/actions/set-active-business.action';
 import { createBusinessSchema, type CreateBusinessFormValues } from '@/modules/businesses/ui/schemas/business.schemas';
 
 interface BusinessFormProps {
   mode: 'create' | 'edit';
   defaultValues?: Partial<CreateBusinessFormValues>;
-  onSubmitAction: (values: CreateBusinessFormValues) => Promise<{ error?: string; success?: boolean }>;
+  onSubmitAction: (
+    values: CreateBusinessFormValues
+  ) => Promise<{ error?: string; success?: boolean; businessId?: string }>;
 }
 
 export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFormProps) {
@@ -78,7 +81,11 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['businesses'] });
-      router.push('/dashboard/businesses');
+      if (mode === 'create' && result.businessId) {
+        await setActiveBusinessAction(result.businessId);
+      }
+      router.refresh();
+      router.push('/dashboard');
     });
   };
 

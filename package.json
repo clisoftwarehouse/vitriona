@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:truncate": "tsx scripts/truncate-all.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

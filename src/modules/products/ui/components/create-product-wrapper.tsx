@@ -45,7 +45,7 @@ export function CreateProductWrapper({
   attributes,
 }: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
-    return createProductAction(catalogId, values);
+    return createProductAction(catalogId, values, businessId);
   };
 
   return (
