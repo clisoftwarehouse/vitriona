@@ -26,11 +26,15 @@ import {
   updatePaymentMethodAction,
 } from '@/modules/payment-methods/server/actions/payment-method-actions';
 
+type VerificationMethod = 'phone' | 'email' | 'document_id' | 'custom';
+
 interface PaymentMethod {
   id: string;
   name: string;
   instructions: string | null;
   fields: { label: string; value: string }[];
+  verificationMethod: VerificationMethod | null;
+  verificationLabel: string | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -54,6 +58,8 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
   const [formName, setFormName] = useState('');
   const [formInstructions, setFormInstructions] = useState('');
   const [formFields, setFormFields] = useState<{ label: string; value: string }[]>([]);
+  const [formVerification, setFormVerification] = useState<VerificationMethod>('phone');
+  const [formVerificationLabel, setFormVerificationLabel] = useState('');
 
   const loadMethods = async () => {
     const data = await getPaymentMethodsAction(businessId);
@@ -71,6 +77,8 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
     setFormName('');
     setFormInstructions('');
     setFormFields([{ label: '', value: '' }]);
+    setFormVerification('phone');
+    setFormVerificationLabel('');
     setDialogOpen(true);
   };
 
@@ -79,6 +87,8 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
     setFormName(method.name);
     setFormInstructions(method.instructions ?? '');
     setFormFields(method.fields.length > 0 ? [...method.fields] : [{ label: '', value: '' }]);
+    setFormVerification(method.verificationMethod ?? 'phone');
+    setFormVerificationLabel(method.verificationLabel ?? '');
     setDialogOpen(true);
   };
 
@@ -99,6 +109,8 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
         name: formName,
         instructions: formInstructions,
         fields,
+        verificationMethod: formVerification,
+        verificationLabel: formVerification === 'custom' ? formVerificationLabel : undefined,
       });
       if (res.error) {
         toast.error(res.error);
@@ -113,6 +125,8 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
         name: formName,
         instructions: formInstructions,
         fields,
+        verificationMethod: formVerification,
+        verificationLabel: formVerification === 'custom' ? formVerificationLabel : undefined,
       });
       if (res.error) {
         toast.error(res.error);
@@ -296,6 +310,43 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
               <Button variant='outline' size='sm' className='mt-2' onClick={addField}>
                 <Plus className='mr-1 size-3' /> Agregar campo
               </Button>
+            </div>
+            <div>
+              <Label>Verificación del pago (chatbot)</Label>
+              <p className='text-muted-foreground mb-2 text-xs'>
+                Dato que el chatbot solicitará al cliente para verificar su pago.
+              </p>
+              <div className='flex flex-wrap gap-2'>
+                {(
+                  [
+                    { value: 'phone', label: 'Teléfono' },
+                    { value: 'email', label: 'Correo electrónico' },
+                    { value: 'document_id', label: 'Cédula / ID' },
+                    { value: 'custom', label: 'Personalizado' },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type='button'
+                    onClick={() => setFormVerification(opt.value)}
+                    className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                      formVerification === opt.value
+                        ? 'border-primary bg-primary/10 text-primary font-medium'
+                        : 'border-border text-muted-foreground hover:border-primary/50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {formVerification === 'custom' && (
+                <Input
+                  className='mt-2'
+                  placeholder='Ej: Número de referencia, RIF...'
+                  value={formVerificationLabel}
+                  onChange={(e) => setFormVerificationLabel(e.target.value)}
+                />
+              )}
             </div>
           </div>
           <DialogFooter>

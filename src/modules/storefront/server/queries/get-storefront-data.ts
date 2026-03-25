@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and, asc, avg, count, inArray } from 'drizzle-orm';
+import { eq, and, asc, avg, sql, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import {
@@ -130,12 +130,28 @@ export async function getPublicProducts(businessId: string, categoryId?: string,
     });
   }
 
+  // Fetch variant counts to know which products have variants
+  const variantCountRows = await db
+    .select({
+      productId: productVariants.productId,
+      variantCount: sql<number>`COUNT(*)`,
+    })
+    .from(productVariants)
+    .where(inArray(productVariants.productId, productIds))
+    .groupBy(productVariants.productId);
+
+  const variantCountMap = new Map<string, number>();
+  for (const r of variantCountRows) {
+    variantCountMap.set(r.productId, Number(r.variantCount));
+  }
+
   return productList.map((p) => ({
     ...p,
     images: imageMap.get(p.id) ?? [],
     brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
     avgRating: reviewMap.get(p.id)?.avgRating ?? 0,
     reviewCount: reviewMap.get(p.id)?.reviewCount ?? 0,
+    hasVariants: (variantCountMap.get(p.id) ?? 0) > 0,
   }));
 }
 
@@ -210,6 +226,24 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
     for (const b of brandRows) brandMap.set(b.id, b.name);
   }
 
+  // Fetch variant counts
+  const variantCountRows =
+    productIds.length > 0
+      ? await db
+          .select({
+            productId: productVariants.productId,
+            variantCount: sql<number>`COUNT(*)`,
+          })
+          .from(productVariants)
+          .where(inArray(productVariants.productId, productIds))
+          .groupBy(productVariants.productId)
+      : [];
+
+  const variantCountMap = new Map<string, number>();
+  for (const r of variantCountRows) {
+    variantCountMap.set(r.productId, Number(r.variantCount));
+  }
+
   // Group products by catalog via join table links
   const productsByCatalog = new Map<string, (typeof allProducts)[number][]>();
   for (const link of allLinks) {
@@ -229,6 +263,7 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
         ...p,
         images: imageMap.get(p.id) ?? [],
         brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
+        hasVariants: (variantCountMap.get(p.id) ?? 0) > 0,
       })),
       totalProducts,
     };

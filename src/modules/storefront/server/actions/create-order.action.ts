@@ -63,7 +63,21 @@ export async function createOrderAction(input: CreateOrderInput) {
       .where(eq(products.id, item.productId))
       .limit(1);
 
-    if (!product?.trackInventory) continue;
+    if (!product) continue;
+
+    // If product has variants, require a variantId to avoid deducting from global stock
+    if (!item.variantId) {
+      const [hasVariants] = await db
+        .select({ id: productVariants.id })
+        .from(productVariants)
+        .where(eq(productVariants.productId, item.productId))
+        .limit(1);
+      if (hasVariants) {
+        return { error: `"${product.name}" tiene variantes. Selecciona una variante antes de ordenar.` };
+      }
+    }
+
+    if (!product.trackInventory) continue;
 
     if (item.variantId) {
       const [variant] = await db

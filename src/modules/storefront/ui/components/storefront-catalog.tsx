@@ -48,6 +48,7 @@ interface Product {
   stock: number | null;
   trackInventory: boolean;
   images: ProductImage[];
+  hasVariants: boolean;
   avgRating?: number;
   reviewCount?: number;
 }
@@ -207,6 +208,14 @@ export function StorefrontCatalog({
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Products with variants must go through the product detail page
+    // to select a specific variant before adding to cart
+    if (product.hasVariants) {
+      window.location.href = `/${slug}/producto/${product.slug}`;
+      return;
+    }
+
     addItem(
       {
         productId: product.id,

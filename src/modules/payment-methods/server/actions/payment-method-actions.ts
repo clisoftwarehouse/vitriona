@@ -46,6 +46,8 @@ interface CreatePaymentMethodInput {
   name: string;
   instructions?: string;
   fields: { label: string; value: string }[];
+  verificationMethod?: 'phone' | 'email' | 'document_id' | 'custom';
+  verificationLabel?: string;
 }
 
 export async function createPaymentMethodAction(input: CreatePaymentMethodInput) {
@@ -67,6 +69,8 @@ export async function createPaymentMethodAction(input: CreatePaymentMethodInput)
         name: input.name.trim(),
         instructions: input.instructions?.trim() || null,
         fields: input.fields,
+        verificationMethod: input.verificationMethod ?? 'phone',
+        verificationLabel: input.verificationLabel?.trim() || null,
         sortOrder: existing.length,
       })
       .returning();
@@ -82,6 +86,8 @@ interface UpdatePaymentMethodInput {
   name: string;
   instructions?: string;
   fields: { label: string; value: string }[];
+  verificationMethod?: 'phone' | 'email' | 'document_id' | 'custom';
+  verificationLabel?: string;
 }
 
 export async function updatePaymentMethodAction(input: UpdatePaymentMethodInput) {
@@ -101,6 +107,8 @@ export async function updatePaymentMethodAction(input: UpdatePaymentMethodInput)
         name: input.name.trim(),
         instructions: input.instructions?.trim() || null,
         fields: input.fields,
+        verificationMethod: input.verificationMethod ?? 'phone',
+        verificationLabel: input.verificationLabel?.trim() || null,
         updatedAt: new Date(),
       })
       .where(eq(paymentMethods.id, input.id));

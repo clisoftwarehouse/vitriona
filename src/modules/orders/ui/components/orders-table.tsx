@@ -263,14 +263,43 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 </div>
               )}
 
-              {selectedOrder.paymentMethodName && (
+              {(selectedOrder.paymentMethodName || selectedOrder.paymentDetails != null) && (
                 <div>
                   <h4 className='mb-1 text-sm font-semibold'>Método de pago</h4>
-                  <p className='text-sm'>{selectedOrder.paymentMethodName}</p>
+                  <div className='flex items-center gap-2'>
+                    {selectedOrder.paymentMethodName && <p className='text-sm'>{selectedOrder.paymentMethodName}</p>}
+                    {(() => {
+                      const d = selectedOrder.paymentDetails as Record<string, string> | null;
+                      if (d?.source === 'chatbot')
+                        return (
+                          <Badge variant='outline' className='text-[10px]'>
+                            🤖 Chatbot
+                          </Badge>
+                        );
+                      return null;
+                    })()}
+                  </div>
                   {(() => {
                     const details = selectedOrder.paymentDetails as Record<string, string> | null;
                     if (!details || typeof details !== 'object') return null;
-                    const textEntries = Object.entries(details).filter(([k]) => k !== 'proofImageUrl');
+
+                    const PAYMENT_DETAIL_LABELS: Record<string, string> = {
+                      verification_type: 'Tipo de verificación',
+                      verification_value: 'Identificación del cliente',
+                      reference: 'Referencia de pago',
+                      source: 'Origen',
+                      proofImageUrl: '',
+                    };
+                    const VERIFICATION_TYPE_LABELS: Record<string, string> = {
+                      phone: 'Teléfono',
+                      email: 'Correo electrónico',
+                      document_id: 'Cédula / ID',
+                      custom: 'Personalizado',
+                    };
+
+                    const textEntries = Object.entries(details).filter(
+                      ([k, v]) => k !== 'proofImageUrl' && k !== 'source' && v
+                    );
                     const proofUrl = details.proofImageUrl;
                     if (textEntries.length === 0 && !proofUrl) return null;
                     return (
@@ -279,8 +308,10 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                           <div className='bg-muted/50 space-y-1 rounded-lg p-3'>
                             {textEntries.map(([key, val]) => (
                               <div key={key} className='flex items-center justify-between text-sm'>
-                                <span className='text-muted-foreground capitalize'>{key}</span>
-                                <span className='font-medium'>{val}</span>
+                                <span className='text-muted-foreground'>{PAYMENT_DETAIL_LABELS[key] ?? key}</span>
+                                <span className='font-medium'>
+                                  {key === 'verification_type' ? (VERIFICATION_TYPE_LABELS[val] ?? val) : val}
+                                </span>
                               </div>
                             ))}
                           </div>

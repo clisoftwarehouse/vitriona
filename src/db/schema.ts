@@ -688,6 +688,10 @@ export const paymentMethods = pgTable('payment_methods', {
   name: text('name').notNull(),
   instructions: text('instructions'),
   fields: jsonb('fields').$type<{ label: string; value: string }[]>().notNull().default([]),
+  verificationMethod: text('verification_method', {
+    enum: ['phone', 'email', 'document_id', 'custom'],
+  }).default('phone'),
+  verificationLabel: text('verification_label'),
   isActive: boolean('is_active').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
