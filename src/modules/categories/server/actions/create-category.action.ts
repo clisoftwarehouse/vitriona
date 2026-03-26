@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { categories, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { revalidateCategoriesCache } from '@/lib/cache-revalidation';
 import type { CreateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
 
 export async function createCategoryAction(businessId: string, values: CreateCategoryFormValues) {
@@ -39,6 +40,8 @@ export async function createCategoryAction(businessId: string, values: CreateCat
         sortOrder: nextOrder,
       })
       .returning({ id: categories.id });
+
+    revalidateCategoriesCache(business.id);
 
     return { success: true, categoryId: category.id };
   } catch {

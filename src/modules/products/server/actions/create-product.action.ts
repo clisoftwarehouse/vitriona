@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
 
@@ -97,6 +98,8 @@ export async function createProductAction(
         );
       }
     }
+
+    revalidateProductsCache(business.id);
 
     return { success: true, productId: product.id };
   } catch {

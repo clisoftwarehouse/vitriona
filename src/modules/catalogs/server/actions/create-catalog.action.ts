@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { revalidateCatalogsCache } from '@/lib/cache-revalidation';
 import { catalogs, businesses, catalogSettings } from '@/db/schema';
 import type { CreateCatalogFormValues } from '@/modules/catalogs/ui/schemas/catalog.schemas';
 
@@ -40,6 +41,8 @@ export async function createCatalogAction(businessId: string, values: CreateCata
       .returning({ id: catalogs.id });
 
     await db.insert(catalogSettings).values({ catalogId: catalog.id });
+
+    revalidateCatalogsCache(businessId);
 
     return { success: true, catalogId: catalog.id };
   } catch {

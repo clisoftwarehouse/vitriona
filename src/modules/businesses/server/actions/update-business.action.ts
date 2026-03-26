@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { businesses } from '@/db/schema';
+import { revalidateAllStorefrontCache } from '@/lib/cache-revalidation';
 import { ensureUniqueSlug } from '@/modules/businesses/server/lib/slug';
 import type { UpdateBusinessFormValues } from '@/modules/businesses/ui/schemas/business.schemas';
 
@@ -53,6 +54,8 @@ export async function updateBusinessAction(businessId: string, values: UpdateBus
         updatedAt: new Date(),
       })
       .where(eq(businesses.id, businessId));
+
+    revalidateAllStorefrontCache(businessId, slug);
 
     return { success: true };
   } catch {

@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import { products, businesses, catalogProducts } from '@/db/schema';
 
 export async function getBusinessProductsWithCatalogStatus(businessId: string, catalogId: string) {
@@ -81,6 +82,8 @@ export async function syncCatalogProductsAction(catalogId: string, businessId: s
       .delete(catalogProducts)
       .where(and(eq(catalogProducts.catalogId, catalogId), eq(catalogProducts.productId, productId)));
   }
+
+  revalidateProductsCache(businessId);
 
   return { success: true };
 }

@@ -1,5 +1,5 @@
-'use server';
-
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { eq, and, asc, avg, sql, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
@@ -18,48 +18,92 @@ import {
   productAttributeValues,
 } from '@/db/schema';
 
-export async function getBusinessBySlug(slug: string) {
-  const [business] = await db
-    .select()
-    .from(businesses)
-    .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true)))
-    .limit(1);
+// ── Cache durations (seconds) ────────────────────────────────────────────────
+const CACHE_SHORT = 30; // 30s – for data that changes often (products, stock)
+const CACHE_MEDIUM = 120; // 2min – for semi-static data (categories, catalogs)
+const CACHE_LONG = 300; // 5min – for rarely changing data (business info, settings)
 
-  return business ?? null;
-}
+// ── Business by slug ─────────────────────────────────────────────────────────
+export const getBusinessBySlug = cache((slug: string) =>
+  unstable_cache(
+    async () => {
+      const [business] = await db
+        .select()
+        .from(businesses)
+        .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true)))
+        .limit(1);
+      return business ?? null;
+    },
+    [`business-by-slug-${slug}`],
+    { revalidate: CACHE_LONG, tags: [`business-${slug}`] }
+  )()
+);
 
-export async function getDefaultCatalog(businessId: string) {
-  const [catalog] = await db
-    .select()
-    .from(catalogs)
-    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true), eq(catalogs.isDefault, true)))
-    .limit(1);
+// ── Default catalog ──────────────────────────────────────────────────────────
+export const getDefaultCatalog = cache((businessId: string) =>
+  unstable_cache(
+    async () => {
+      const [catalog] = await db
+        .select()
+        .from(catalogs)
+        .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true), eq(catalogs.isDefault, true)))
+        .limit(1);
 
-  if (catalog) return catalog;
+      if (catalog) return catalog;
 
-  const [firstCatalog] = await db
-    .select()
-    .from(catalogs)
-    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
-    .limit(1);
+      const [firstCatalog] = await db
+        .select()
+        .from(catalogs)
+        .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
+        .limit(1);
 
-  return firstCatalog ?? null;
-}
+      return firstCatalog ?? null;
+    },
+    [`default-catalog-${businessId}`],
+    { revalidate: CACHE_MEDIUM, tags: [`catalogs-${businessId}`] }
+  )()
+);
 
-export async function getCatalogSettings(catalogId: string) {
-  const [settings] = await db.select().from(catalogSettings).where(eq(catalogSettings.catalogId, catalogId)).limit(1);
-  return settings ?? null;
-}
+// ── Catalog settings ─────────────────────────────────────────────────────────
+export const getCatalogSettings = cache((catalogId: string) =>
+  unstable_cache(
+    async () => {
+      const [settings] = await db
+        .select()
+        .from(catalogSettings)
+        .where(eq(catalogSettings.catalogId, catalogId))
+        .limit(1);
+      return settings ?? null;
+    },
+    [`catalog-settings-${catalogId}`],
+    { revalidate: CACHE_LONG, tags: [`catalog-settings-${catalogId}`] }
+  )()
+);
 
-export async function getPublicCategories(catalogId: string, businessId: string) {
-  return db
-    .select()
-    .from(categories)
-    .where(and(eq(categories.businessId, businessId), eq(categories.isActive, true)))
-    .orderBy(asc(categories.sortOrder));
-}
+// ── Public categories ────────────────────────────────────────────────────────
+export const getPublicCategories = cache((catalogId: string, businessId: string) =>
+  unstable_cache(
+    async () => {
+      return db
+        .select()
+        .from(categories)
+        .where(and(eq(categories.businessId, businessId), eq(categories.isActive, true)))
+        .orderBy(asc(categories.sortOrder));
+    },
+    [`public-categories-${businessId}`],
+    { revalidate: CACHE_MEDIUM, tags: [`categories-${businessId}`] }
+  )()
+);
 
-export async function getPublicProducts(businessId: string, categoryId?: string, catalogId?: string) {
+export const getPublicProducts = cache((businessId: string, categoryId?: string, catalogId?: string) =>
+  unstable_cache(
+    async () => _getPublicProducts(businessId, categoryId, catalogId),
+    [`public-products-${businessId}-${categoryId ?? 'all'}-${catalogId ?? 'all'}`],
+    { revalidate: CACHE_SHORT, tags: [`products-${businessId}`] }
+  )()
+);
+
+async function _getPublicProducts(businessId: string, categoryId?: string, catalogId?: string) {
   const conditions = [eq(products.businessId, businessId), eq(products.status, 'active')];
 
   // If a specific catalog is requested, filter through the join table
@@ -155,25 +199,46 @@ export async function getPublicProducts(businessId: string, categoryId?: string,
   }));
 }
 
-export async function getActiveCatalogs(businessId: string) {
-  return db
-    .select()
-    .from(catalogs)
-    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
-    .orderBy(asc(catalogs.sortOrder));
-}
+export const getActiveCatalogs = cache((businessId: string) =>
+  unstable_cache(
+    async () => {
+      return db
+        .select()
+        .from(catalogs)
+        .where(and(eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
+        .orderBy(asc(catalogs.sortOrder));
+    },
+    [`active-catalogs-${businessId}`],
+    { revalidate: CACHE_MEDIUM, tags: [`catalogs-${businessId}`] }
+  )()
+);
 
-export async function getCatalogBySlug(businessId: string, catalogSlug: string) {
-  const [catalog] = await db
-    .select()
-    .from(catalogs)
-    .where(and(eq(catalogs.businessId, businessId), eq(catalogs.slug, catalogSlug), eq(catalogs.isActive, true)))
-    .limit(1);
+// ── Catalog by slug ──────────────────────────────────────────────────────────
+export const getCatalogBySlug = cache((businessId: string, catalogSlug: string) =>
+  unstable_cache(
+    async () => {
+      const [catalog] = await db
+        .select()
+        .from(catalogs)
+        .where(and(eq(catalogs.businessId, businessId), eq(catalogs.slug, catalogSlug), eq(catalogs.isActive, true)))
+        .limit(1);
+      return catalog ?? null;
+    },
+    [`catalog-by-slug-${businessId}-${catalogSlug}`],
+    { revalidate: CACHE_MEDIUM, tags: [`catalogs-${businessId}`] }
+  )()
+);
 
-  return catalog ?? null;
-}
+// ── Catalogs with preview products ───────────────────────────────────────────
+export const getCatalogsWithPreviewProducts = cache((businessId: string, limit = 6) =>
+  unstable_cache(
+    async () => _getCatalogsWithPreviewProducts(businessId, limit),
+    [`catalogs-preview-${businessId}-${limit}`],
+    { revalidate: CACHE_SHORT, tags: [`products-${businessId}`, `catalogs-${businessId}`] }
+  )()
+);
 
-export async function getCatalogsWithPreviewProducts(businessId: string, limit = 6) {
+async function _getCatalogsWithPreviewProducts(businessId: string, limit = 6) {
   const catalogList = await db
     .select()
     .from(catalogs)
@@ -254,12 +319,12 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
     productsByCatalog.set(link.catalogId, existing);
   }
 
-  return catalogList.map((catalog) => {
-    const catalogProducts = (productsByCatalog.get(catalog.id) ?? []).slice(0, limit);
-    const totalProducts = productsByCatalog.get(catalog.id)?.length ?? 0;
+  return catalogList.map((cat) => {
+    const catProducts = (productsByCatalog.get(cat.id) ?? []).slice(0, limit);
+    const totalProducts = productsByCatalog.get(cat.id)?.length ?? 0;
     return {
-      ...catalog,
-      products: catalogProducts.map((p) => ({
+      ...cat,
+      products: catProducts.map((p) => ({
         ...p,
         images: imageMap.get(p.id) ?? [],
         brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
@@ -270,7 +335,16 @@ export async function getCatalogsWithPreviewProducts(businessId: string, limit =
   });
 }
 
-export async function getProductBySlug(businessId: string, productSlug: string) {
+// ── Product by slug ──────────────────────────────────────────────────────────
+export const getProductBySlug = cache((businessId: string, productSlug: string) =>
+  unstable_cache(
+    async () => _getProductBySlug(businessId, productSlug),
+    [`product-by-slug-${businessId}-${productSlug}`],
+    { revalidate: CACHE_SHORT, tags: [`products-${businessId}`, `product-${productSlug}`] }
+  )()
+);
+
+async function _getProductBySlug(businessId: string, productSlug: string) {
   // Find the product by slug within this business
   const [product] = await db
     .select()

@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { catalogs, businesses } from '@/db/schema';
+import { revalidateCatalogsCache } from '@/lib/cache-revalidation';
 import type { UpdateCatalogFormValues } from '@/modules/catalogs/ui/schemas/catalog.schemas';
 
 export async function updateCatalogAction(catalogId: string, values: UpdateCatalogFormValues) {
@@ -42,6 +43,8 @@ export async function updateCatalogAction(catalogId: string, values: UpdateCatal
         updatedAt: new Date(),
       })
       .where(eq(catalogs.id, catalogId));
+
+    revalidateCatalogsCache(catalog.businessId);
 
     return { success: true };
   } catch {

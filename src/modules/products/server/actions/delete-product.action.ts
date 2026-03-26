@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { products, businesses } from '@/db/schema';
+import { revalidateProductsCache } from '@/lib/cache-revalidation';
 
 export async function deleteProductAction(productId: string) {
   try {
@@ -22,6 +23,8 @@ export async function deleteProductAction(productId: string) {
     if (!business) return { error: 'No autorizado' };
 
     await db.delete(products).where(eq(products.id, productId));
+
+    revalidateProductsCache(product.businessId);
 
     return { success: true };
   } catch {

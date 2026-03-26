@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { categories, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { revalidateCategoriesCache } from '@/lib/cache-revalidation';
 import type { UpdateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
 
 export async function updateCategoryAction(categoryId: string, values: UpdateCategoryFormValues) {
@@ -33,6 +34,8 @@ export async function updateCategoryAction(categoryId: string, values: UpdateCat
         updatedAt: new Date(),
       })
       .where(eq(categories.id, categoryId));
+
+    revalidateCategoriesCache(category.businessId);
 
     return { success: true };
   } catch {

@@ -4,6 +4,7 @@ import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { revalidateCatalogSettingsCache } from '@/lib/cache-revalidation';
 import { brands, catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
@@ -101,6 +102,8 @@ export async function updateCatalogSettingsAction(catalogId: string, values: Cat
     } else {
       await db.insert(catalogSettings).values({ catalogId, ...values });
     }
+
+    revalidateCatalogSettingsCache(catalogId);
 
     return { success: true };
   } catch {
