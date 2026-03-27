@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import {
+  X,
   Bot,
   Zap,
   Menu,
@@ -21,6 +25,8 @@ import {
 } from 'lucide-react';
 
 function Navbar() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <header className='bg-background/80 fixed top-0 right-0 left-0 z-50 border-b border-white/10 backdrop-blur-xl'>
       <nav className='mx-auto flex h-16 max-w-7xl items-center justify-between px-6'>
@@ -46,23 +52,65 @@ function Navbar() {
         </div>
         <div className='flex items-center gap-3'>
           <Link
-            href='/auth/login'
-            className='text-muted-foreground hover:text-foreground hidden text-sm font-medium transition-colors sm:inline-flex'
-          >
-            Iniciar sesión
-          </Link>
-          <Link
             href='/auth/register'
-            className='bg-primary text-primary-foreground inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-90'
+            className='bg-primary text-primary-foreground hidden h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-90 sm:inline-flex'
           >
             Empezar gratis
             <ArrowRight className='size-3.5' />
           </Link>
-          <button className='text-muted-foreground hover:bg-accent inline-flex size-9 items-center justify-center rounded-lg md:hidden'>
-            <Menu className='size-5' />
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className='text-muted-foreground hover:bg-accent inline-flex size-9 items-center justify-center rounded-lg md:hidden'
+            aria-label='Toggle menu'
+          >
+            {mobileMenuOpen ? <X className='size-5' /> : <Menu className='size-5' />}
           </button>
         </div>
       </nav>
+
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className='bg-background border-border absolute top-16 right-0 left-0 border-b shadow-lg md:hidden'>
+          <div className='flex flex-col px-6 py-4'>
+            <a
+              href='#features'
+              onClick={() => setMobileMenuOpen(false)}
+              className='text-foreground hover:bg-accent rounded-lg px-4 py-3 text-sm font-medium transition-colors'
+            >
+              Funcionalidades
+            </a>
+            <a
+              href='#how-it-works'
+              onClick={() => setMobileMenuOpen(false)}
+              className='text-foreground hover:bg-accent rounded-lg px-4 py-3 text-sm font-medium transition-colors'
+            >
+              Cómo funciona
+            </a>
+            <a
+              href='#pricing'
+              onClick={() => setMobileMenuOpen(false)}
+              className='text-foreground hover:bg-accent rounded-lg px-4 py-3 text-sm font-medium transition-colors'
+            >
+              Precios
+            </a>
+            <a
+              href='#faq'
+              onClick={() => setMobileMenuOpen(false)}
+              className='text-foreground hover:bg-accent rounded-lg px-4 py-3 text-sm font-medium transition-colors'
+            >
+              FAQ
+            </a>
+            <Link
+              href='/auth/register'
+              onClick={() => setMobileMenuOpen(false)}
+              className='bg-primary text-primary-foreground mt-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90'
+            >
+              Empezar gratis
+              <ArrowRight className='size-3.5' />
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -197,6 +245,9 @@ const FEATURES = [
 ];
 
 function Features() {
+  const [showAll, setShowAll] = useState(false);
+  const featuresToShow = showAll ? FEATURES : FEATURES.slice(0, 4);
+
   return (
     <section id='features' className='py-20 md:py-28'>
       <div className='mx-auto max-w-7xl px-6'>
@@ -209,22 +260,33 @@ function Features() {
           </p>
         </div>
         <div className='mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
-          {FEATURES.map((feature) => {
+          {featuresToShow.map((feature) => {
             const Icon = feature.icon;
             return (
               <div
                 key={feature.title}
                 className='group border-border/50 bg-card hover:border-primary/20 hover:shadow-primary/5 rounded-2xl border p-6 transition-all hover:shadow-lg'
               >
-                <div className='bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground flex size-11 items-center justify-center rounded-xl transition-colors'>
-                  <Icon className='size-5' />
+                <div className='bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground inline-flex size-12 items-center justify-center rounded-xl transition-colors'>
+                  <Icon className='size-6' />
                 </div>
-                <h3 className='mt-4 text-base font-semibold'>{feature.title}</h3>
+                <h3 className='mt-4 text-lg font-semibold'>{feature.title}</h3>
                 <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>{feature.description}</p>
               </div>
             );
           })}
         </div>
+        {!showAll && (
+          <div className='mt-8 text-center sm:hidden'>
+            <button
+              onClick={() => setShowAll(true)}
+              className='border-border hover:bg-accent inline-flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-medium transition-colors'
+            >
+              Ver más funcionalidades
+              <ChevronDown className='size-4' />
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -268,7 +330,7 @@ function HowItWorks() {
         <div className='mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4'>
           {STEPS.map((item) => (
             <div key={item.step} className='relative'>
-              <span className='text-primary/10 text-5xl font-black'>{item.step}</span>
+              <span className='text-primary/30 text-5xl font-black'>{item.step}</span>
               <h3 className='mt-2 text-lg font-semibold'>{item.title}</h3>
               <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>{item.description}</p>
             </div>
