@@ -4,6 +4,7 @@ import { eq, and, avg, desc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { rateLimitAction } from '@/lib/rate-limit';
 import { businesses, productReviews } from '@/db/schema';
 
 /* ─── Public: get approved reviews for a product ─── */
@@ -45,6 +46,9 @@ export async function submitReviewAction(input: {
   comment?: string;
 }) {
   try {
+    const rl = await rateLimitAction(input.businessId, 'submit-review', 5, 60);
+    if (!rl.success) return { error: 'Demasiados intentos. Espera un momento.' };
+
     if (!input.customerName.trim()) return { error: 'El nombre es requerido' };
     if (input.rating < 1 || input.rating > 5) return { error: 'La calificación debe ser entre 1 y 5' };
 

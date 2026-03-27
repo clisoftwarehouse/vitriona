@@ -1,11 +1,22 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import crypto from 'crypto';
+import { eq, and, sql, gte } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
+import { rateLimitAction } from '@/lib/rate-limit';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
 import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
-import { orders, products, orderItems, productVariants, inventoryMovements, orderStatusHistory } from '@/db/schema';
+import {
+  orders,
+  catalogs,
+  products,
+  businesses,
+  orderItems,
+  productVariants,
+  inventoryMovements,
+  orderStatusHistory,
+} from '@/db/schema';
 
 interface OrderItemInput {
   productId: string;
@@ -35,13 +46,17 @@ interface CreateOrderInput {
 function generateOrderNumber(): string {
   const now = new Date();
   const date = now.toISOString().slice(2, 10).replace(/-/g, '');
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const rand = crypto.randomBytes(4).toString('hex').toUpperCase();
   return `ORD-${date}-${rand}`;
 }
 
 export async function createOrderAction(input: CreateOrderInput) {
   const { businessId, catalogId, customerName, customerPhone, customerEmail, customerNotes, checkoutType, items } =
     input;
+
+  // Rate limit: 10 orders per minute per businessId (storefront)
+  const rl = await rateLimitAction(businessId, 'create-order', 10, 60);
+  if (!rl.success) return { error: 'Demasiados pedidos. Intenta de nuevo en un momento.' };
 
   if (!customerName.trim()) {
     return { error: 'El nombre es requerido' };
@@ -51,21 +66,37 @@ export async function createOrderAction(input: CreateOrderInput) {
     return { error: 'El carrito está vacío' };
   }
 
-  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
-  const discount = input.discount ?? 0;
-  const total = Math.max(0, subtotal - discount);
+  if (items.length > 100) {
+    return { error: 'El carrito tiene demasiados artículos' };
+  }
 
-  // Verify stock availability for products with inventory tracking
+  // --- VULN-05 fix: Validate business and catalog exist and are active ---
+  const [business] = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(and(eq(businesses.id, businessId), eq(businesses.isActive, true)))
+    .limit(1);
+  if (!business) return { error: 'Negocio no encontrado' };
+
+  const [catalog] = await db
+    .select({ id: catalogs.id })
+    .from(catalogs)
+    .where(and(eq(catalogs.id, catalogId), eq(catalogs.businessId, businessId), eq(catalogs.isActive, true)))
+    .limit(1);
+  if (!catalog) return { error: 'Catálogo no encontrado' };
+
+  // Validate all products belong to this business
   for (const item of items) {
+    if (item.quantity <= 0 || item.quantity > 9999) return { error: 'Cantidad inválida' };
+
     const [product] = await db
-      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
+      .select({ id: products.id, businessId: products.businessId })
       .from(products)
-      .where(eq(products.id, item.productId))
+      .where(and(eq(products.id, item.productId), eq(products.businessId, businessId), eq(products.status, 'active')))
       .limit(1);
+    if (!product) return { error: `Producto no encontrado o no disponible` };
 
-    if (!product) continue;
-
-    // If product has variants, require a variantId to avoid deducting from global stock
+    // If product has variants, require a variantId
     if (!item.variantId) {
       const [hasVariants] = await db
         .select({ id: productVariants.id })
@@ -73,35 +104,91 @@ export async function createOrderAction(input: CreateOrderInput) {
         .where(eq(productVariants.productId, item.productId))
         .limit(1);
       if (hasVariants) {
-        return { error: `"${product.name}" tiene variantes. Selecciona una variante antes de ordenar.` };
-      }
-    }
-
-    if (!product.trackInventory) continue;
-
-    if (item.variantId) {
-      const [variant] = await db
-        .select({ id: productVariants.id, stock: productVariants.stock, name: productVariants.name })
-        .from(productVariants)
-        .where(eq(productVariants.id, item.variantId))
-        .limit(1);
-      if (variant && variant.stock < item.quantity) {
-        return { error: `Stock insuficiente para "${variant.name}". Disponible: ${variant.stock}` };
-      }
-    } else {
-      const available = product.stock ?? 0;
-      if (available < item.quantity) {
-        return { error: `Stock insuficiente para "${product.name}". Disponible: ${available}` };
+        return { error: `"${item.productName}" tiene variantes. Selecciona una variante antes de ordenar.` };
       }
     }
   }
+
+  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
+  const discount = input.discount ?? 0;
+  const total = Math.max(0, subtotal - discount);
+
+  // --- VULN-03 fix: Atomic stock deduction with SQL WHERE stock >= quantity ---
+  // First, attempt to atomically deduct all stock. If any fails, we roll back the ones that succeeded.
+  const deducted: { productId: string; variantId?: string; quantity: number; previousStock: number }[] = [];
+
+  for (const item of items) {
+    const [product] = await db
+      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .limit(1);
+
+    if (!product?.trackInventory) continue;
+
+    if (item.variantId) {
+      // Atomic variant stock deduction
+      const [updated] = await db
+        .update(productVariants)
+        .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
+        .where(and(eq(productVariants.id, item.variantId), gte(productVariants.stock, item.quantity)))
+        .returning({ id: productVariants.id, stock: productVariants.stock });
+
+      if (!updated) {
+        // Rollback previously deducted items
+        await rollbackDeductions(deducted);
+        const [v] = await db
+          .select({ name: productVariants.name, stock: productVariants.stock })
+          .from(productVariants)
+          .where(eq(productVariants.id, item.variantId))
+          .limit(1);
+        return { error: `Stock insuficiente para "${v?.name ?? item.productName}". Disponible: ${v?.stock ?? 0}` };
+      }
+      deducted.push({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        previousStock: (updated.stock ?? 0) + item.quantity,
+      });
+    } else {
+      // Atomic product stock deduction
+      const [updated] = await db
+        .update(products)
+        .set({
+          stock: sql`${products.stock} - ${item.quantity}`,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(products.id, item.productId), gte(products.stock, item.quantity)))
+        .returning({ id: products.id, stock: products.stock });
+
+      if (!updated) {
+        await rollbackDeductions(deducted);
+        return { error: `Stock insuficiente para "${product.name}". Disponible: ${product.stock ?? 0}` };
+      }
+
+      const newStock = updated.stock ?? 0;
+
+      // Mark out_of_stock if needed
+      if (newStock === 0) {
+        await db.update(products).set({ status: 'out_of_stock' }).where(eq(products.id, item.productId));
+      }
+
+      deducted.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        previousStock: newStock + item.quantity,
+      });
+    }
+  }
+
+  const orderNumber = generateOrderNumber();
 
   const [order] = await db
     .insert(orders)
     .values({
       businessId,
       catalogId,
-      orderNumber: generateOrderNumber(),
+      orderNumber,
       customerName: customerName.trim(),
       customerPhone: customerPhone?.trim() || null,
       customerEmail: customerEmail?.trim() || null,
@@ -132,62 +219,19 @@ export async function createOrderAction(input: CreateOrderInput) {
     }))
   );
 
-  // Deduct inventory
-  for (const item of items) {
-    const [product] = await db
-      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory })
-      .from(products)
-      .where(eq(products.id, item.productId))
-      .limit(1);
-
-    if (!product?.trackInventory) continue;
-
-    if (item.variantId) {
-      // Deduct from variant stock
-      const [variant] = await db
-        .select({ id: productVariants.id, stock: productVariants.stock })
-        .from(productVariants)
-        .where(eq(productVariants.id, item.variantId))
-        .limit(1);
-      if (variant) {
-        const prevStock = variant.stock;
-        const newStock = Math.max(0, prevStock - item.quantity);
-        await db.update(productVariants).set({ stock: newStock }).where(eq(productVariants.id, item.variantId));
-
-        await db.insert(inventoryMovements).values({
-          productId: item.productId,
-          type: 'order',
-          quantity: item.quantity,
-          reason: `Pedido ${order.orderNumber} (variante)`,
-          referenceId: order.id,
-          previousStock: prevStock,
-          newStock,
-        });
-      }
-      await syncProductStockWithVariants(item.productId);
-    } else {
-      // Deduct from product stock
-      const previousStock = product.stock ?? 0;
-      const newStock = Math.max(0, previousStock - item.quantity);
-
-      await db
-        .update(products)
-        .set({
-          stock: newStock,
-          status: newStock === 0 ? 'out_of_stock' : undefined,
-          updatedAt: new Date(),
-        })
-        .where(eq(products.id, item.productId));
-
-      await db.insert(inventoryMovements).values({
-        productId: item.productId,
-        type: 'order',
-        quantity: item.quantity,
-        reason: `Pedido ${order.orderNumber}`,
-        referenceId: order.id,
-        previousStock,
-        newStock,
-      });
+  // Record inventory movements
+  for (const d of deducted) {
+    await db.insert(inventoryMovements).values({
+      productId: d.productId,
+      type: 'order',
+      quantity: d.quantity,
+      reason: `Pedido ${orderNumber}${d.variantId ? ' (variante)' : ''}`,
+      referenceId: order.id,
+      previousStock: d.previousStock,
+      newStock: d.previousStock - d.quantity,
+    });
+    if (d.variantId) {
+      await syncProductStockWithVariants(d.productId);
     }
   }
 
@@ -205,4 +249,23 @@ export async function createOrderAction(input: CreateOrderInput) {
   }
 
   return { success: true, order };
+}
+
+/** Rollback stock deductions that already succeeded if a later item fails. */
+async function rollbackDeductions(
+  deducted: { productId: string; variantId?: string; quantity: number }[]
+): Promise<void> {
+  for (const d of deducted) {
+    if (d.variantId) {
+      await db
+        .update(productVariants)
+        .set({ stock: sql`${productVariants.stock} + ${d.quantity}` })
+        .where(eq(productVariants.id, d.variantId));
+    } else {
+      await db
+        .update(products)
+        .set({ stock: sql`${products.stock} + ${d.quantity}`, status: 'active', updatedAt: new Date() })
+        .where(eq(products.id, d.productId));
+    }
+  }
 }

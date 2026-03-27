@@ -3,9 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { X, Plus, Trash2 } from 'lucide-react';
-import { useState, useTransition } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useTransition } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -57,6 +57,7 @@ interface ProductFormProps {
   brands?: Brand[];
   attributes?: AttributeDefinition[];
   defaultValues?: Partial<CreateProductFormValues>;
+  hasVariants?: boolean;
   onSubmitAction: (
     values: CreateProductFormValues
   ) => Promise<{ error?: string; success?: boolean; productId?: string }>;
@@ -71,12 +72,18 @@ export function ProductForm({
   brands = [],
   attributes = [],
   defaultValues,
+  hasVariants = false,
   onSubmitAction,
 }: ProductFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [variantsLocked, setVariantsLocked] = useState(false);
+
+  useEffect(() => {
+    setVariantsLocked(hasVariants);
+  }, [hasVariants]);
 
   // Local variant option groups (used during create mode)
   const [variantGroups, setVariantGroups] = useState<{ name: string; values: string[] }[]>([]);
@@ -394,11 +401,14 @@ export function ProductForm({
                           type='number'
                           min='0'
                           placeholder='0'
-                          disabled={isPending}
+                          disabled={isPending || variantsLocked}
                           value={field.value ?? 0}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          onChange={(e) => {
+                            if (!variantsLocked) field.onChange(parseInt(e.target.value) || 0);
+                          }}
                         />
                       </FormControl>
+                      {variantsLocked && <FormDescription>El stock se calcula desde las variantes.</FormDescription>}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -732,7 +742,7 @@ export function ProductForm({
             </div>
           )}
 
-          <div className='flex justify-end gap-3 pt-2'>
+          <div className='flex justify-end gap-3'>
             <Button type='button' variant='outline' onClick={() => router.back()} disabled={isPending}>
               Cancelar
             </Button>

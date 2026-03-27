@@ -36,6 +36,7 @@ interface EditProductWrapperProps {
   brands?: Brand[];
   attributes?: AttributeDefinition[];
   defaultValues: Partial<CreateProductFormValues>;
+  hasVariants?: boolean;
 }
 
 export function EditProductWrapper({
@@ -47,6 +48,7 @@ export function EditProductWrapper({
   brands,
   attributes,
   defaultValues,
+  hasVariants,
 }: EditProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return updateProductAction(productId, values);
@@ -62,6 +64,7 @@ export function EditProductWrapper({
       brands={brands}
       attributes={attributes}
       defaultValues={defaultValues}
+      hasVariants={hasVariants}
       onSubmitAction={handleSubmit}
     />
   );

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/drizzle';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 import { generateChatResponse } from '@/modules/ai-chat/server/lib/ai';
 import { appendMessages, getConversationHistory } from '@/modules/ai-chat/server/lib/redis';
 import { businesses, chatbotConfigs, chatbotKnowledgeFiles, chatbotKnowledgeEntries } from '@/db/schema';
@@ -9,11 +10,22 @@ import { businesses, chatbotConfigs, chatbotKnowledgeFiles, chatbotKnowledgeEntr
 export async function POST(request: Request, { params }: { params: Promise<{ businessId: string }> }) {
   try {
     const { businessId } = await params;
+
+    const ip = getClientIp(request);
+    const rl = await rateLimit(`chat:${ip}:${businessId}`, 20, 60);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Demasiados mensajes. Intenta de nuevo en un momento.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { sessionId, chatInput } = body as { sessionId: string; chatInput: string };
 
     if (!sessionId || !chatInput?.trim()) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
+    }
+
+    if (chatInput.length > 2000) {
+      return NextResponse.json({ error: 'El mensaje es demasiado largo' }, { status: 400 });
     }
 
     const [config] = await db.select().from(chatbotConfigs).where(eq(chatbotConfigs.businessId, businessId)).limit(1);

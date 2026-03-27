@@ -5,10 +5,13 @@ import { eq, gt, and } from 'drizzle-orm';
 import { db } from '@/db/drizzle';
 import { users } from '@/db/schema';
 import { hashPassword } from '@/modules/auth/server/lib/password';
-import type { ResetPasswordFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
+import { resetPasswordSchema, type ResetPasswordFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
 export async function resetPasswordAction(values: ResetPasswordFormValues, email: string, resetToken: string) {
   try {
+    const parsed = resetPasswordSchema.safeParse(values);
+    if (!parsed.success) return { error: 'Datos inválidos' };
+
     const [user] = await db
       .select({ id: users.id })
       .from(users)
@@ -23,7 +26,7 @@ export async function resetPasswordAction(values: ResetPasswordFormValues, email
 
     if (!user) return { error: 'El enlace de restablecimiento es inválido o ha expirado' };
 
-    const hashedPassword = await hashPassword(values.password);
+    const hashedPassword = await hashPassword(parsed.data.password);
 
     await db
       .update(users)

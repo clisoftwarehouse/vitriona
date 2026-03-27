@@ -1,6 +1,7 @@
 import { put } from '@vercel/blob';
 
 import { auth } from '@/auth';
+import { sanitizeFileName, validateImageFile } from '@/lib/file-validation';
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +26,12 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Tipo de archivo no permitido' }, { status: 400 });
     }
 
-    const blob = await put(file.name, file, {
+    const isValid = await validateImageFile(file);
+    if (!isValid) {
+      return Response.json({ error: 'El contenido del archivo no coincide con el tipo declarado' }, { status: 400 });
+    }
+
+    const blob = await put(sanitizeFileName(file.name), file, {
       access: 'public',
       addRandomSuffix: true,
     });

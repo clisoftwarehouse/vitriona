@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 import { OTP_CONFIG } from '@/modules/auth/constants';
 
-export const generateOtp = (): string => Math.floor(100000 + Math.random() * 900000).toString();
+export const generateOtp = (): string => crypto.randomInt(100000, 999999).toString();
 
 export const hashOtp = (otp: string): string => crypto.createHash('sha256').update(otp).digest('hex');
 

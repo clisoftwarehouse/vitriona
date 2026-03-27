@@ -7,11 +7,18 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { signIn } from '@/auth';
 import { db } from '@/db/drizzle';
 import { users } from '@/db/schema';
+import { rateLimitAction } from '@/lib/rate-limit';
 import { AUTH_ROUTES } from '@/modules/auth/constants';
-import type { LoginFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 import { resendOtpAction } from '@/modules/auth/server/actions/resend-otp.action';
+import { loginSchema, type LoginFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
 export async function loginAction(values: LoginFormValues) {
+  const parsed = loginSchema.safeParse(values);
+  if (!parsed.success) return { error: 'Datos inválidos' };
+
+  const rl = await rateLimitAction(parsed.data.email, 'login', 10, 60);
+  if (!rl.success) return { error: 'Demasiados intentos. Espera un momento antes de intentar de nuevo.' };
+
   const [user] = await db
     .select({ emailVerified: users.emailVerified, name: users.name })
     .from(users)

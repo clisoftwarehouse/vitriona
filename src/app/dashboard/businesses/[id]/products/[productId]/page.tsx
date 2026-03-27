@@ -1,7 +1,10 @@
 import Link from 'next/link';
+import { eq } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
+import { db } from '@/db/drizzle';
+import { productVariants } from '@/db/schema';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -59,6 +62,14 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
 
   if (!business || !product) notFound();
 
+  // Direct DB check for variant count (bypasses action ownership check)
+  const variantRows = await db
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(eq(productVariants.productId, productId))
+    .limit(1);
+  const hasVariants = variantRows.length > 0;
+
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex items-center gap-3'>
@@ -75,7 +86,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         </div>
       </div>
 
-      <Card>
+      <Card className='pb-4'>
         <CardHeader>
           <h3 className='font-semibold'>Información del producto</h3>
         </CardHeader>
@@ -87,6 +98,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
             catalogs={allCatalogs}
             brands={brands}
             attributes={attributes}
+            hasVariants={hasVariants}
             defaultValues={{
               name: product.name,
               description: product.description ?? '',

@@ -10,6 +10,14 @@ export interface StorefrontTheme {
   borderRadius: number;
 }
 
+/**
+ * Sanitize a CSS value to prevent CSS injection.
+ * Only allows hex colors, CSS keywords, numbers, and known safe patterns.
+ */
+function sanitizeCssValue(value: string): string {
+  return value.replace(/[^a-zA-Z0-9#(),.\-_%\s]/g, '');
+}
+
 const FONT_MAP: Record<string, string> = {
   inter: '"Inter", sans-serif',
   playfair: '"Playfair Display", serif',
@@ -81,15 +89,15 @@ export function StorefrontThemeStyle({ theme }: { theme: StorefrontTheme }) {
   const radiusFull = br >= 20 ? '9999px' : br > 0 ? `${br * 0.125}rem` : '0';
 
   const css = `:root {
-  --sf-primary: ${theme.primaryColor};
-  --sf-primary-contrast: ${contrastColor(theme.primaryColor)};
-  --sf-primary-hsl: ${hexToHsl(theme.primaryColor)};
-  --sf-accent: ${theme.accentColor};
-  --sf-accent-hsl: ${hexToHsl(theme.accentColor)};
-  --sf-bg: ${theme.backgroundColor};
-  --sf-surface: ${theme.surfaceColor};
-  --sf-text: ${theme.textColor};
-  --sf-border: ${theme.borderColor};
+  --sf-primary: ${sanitizeCssValue(theme.primaryColor)};
+  --sf-primary-contrast: ${sanitizeCssValue(contrastColor(theme.primaryColor))};
+  --sf-primary-hsl: ${sanitizeCssValue(hexToHsl(theme.primaryColor))};
+  --sf-accent: ${sanitizeCssValue(theme.accentColor)};
+  --sf-accent-hsl: ${sanitizeCssValue(hexToHsl(theme.accentColor))};
+  --sf-bg: ${sanitizeCssValue(theme.backgroundColor)};
+  --sf-surface: ${sanitizeCssValue(theme.surfaceColor)};
+  --sf-text: ${sanitizeCssValue(theme.textColor)};
+  --sf-border: ${sanitizeCssValue(theme.borderColor)};
   --sf-font: ${fontFamily};
   --sf-radius: ${radius};
   --sf-radius-lg: ${radiusLg};

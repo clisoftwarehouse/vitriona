@@ -6,8 +6,9 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
-import { products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
+import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
 import type { UpdateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
+import { products, businesses, catalogProducts, productVariants, productAttributeValues } from '@/db/schema';
 
 export async function updateProductAction(productId: string, values: UpdateProductFormValues) {
   try {
@@ -31,6 +32,14 @@ export async function updateProductAction(productId: string, values: UpdateProdu
           .filter(Boolean)
       : null;
 
+    // Check if product has variants — if so, stock is managed by variant sync
+    const [variantCheck] = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, productId))
+      .limit(1);
+    const hasVariants = !!variantCheck;
+
     await db
       .update(products)
       .set({
@@ -42,7 +51,8 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         price: values.price,
         compareAtPrice: values.compareAtPrice || null,
         sku: values.sku || null,
-        stock: values.type === 'service' ? null : (values.stock ?? 0),
+        // Don't overwrite stock when product has variants — it's managed by syncProductStockWithVariants
+        ...(hasVariants ? {} : { stock: values.type === 'service' ? null : (values.stock ?? 0) }),
         status: values.status,
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
@@ -54,6 +64,11 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId));
+
+    // Re-sync stock from variants if they exist
+    if (hasVariants) {
+      await syncProductStockWithVariants(productId);
+    }
 
     // Sync catalog assignments if provided
     if (values.catalogIds && values.catalogIds.length > 0) {

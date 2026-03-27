@@ -41,7 +41,7 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
         </div>
       </div>
 
-      <Card>
+      <Card className='pb-4'>
         <CardHeader>
           <h3 className='font-semibold'>Información del producto</h3>
         </CardHeader>

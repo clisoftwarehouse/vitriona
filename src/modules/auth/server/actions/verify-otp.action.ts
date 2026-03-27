@@ -5,13 +5,16 @@ import { eq, gt, and, isNull } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { users, otpTokens } from '@/db/schema';
-import type { VerifyOtpFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 import { type OtpPurpose, RESET_TOKEN_EXPIRY_MINUTES } from '@/modules/auth/constants';
+import { verifyOtpSchema, type VerifyOtpFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
 const hashOtp = (otp: string) => crypto.createHash('sha256').update(otp).digest('hex');
 
 export async function verifyOtpAction(values: VerifyOtpFormValues, email: string, purpose: OtpPurpose) {
   try {
+    const parsed = verifyOtpSchema.safeParse(values);
+    if (!parsed.success) return { error: 'Código inválido' };
+
     const [token] = await db
       .select()
       .from(otpTokens)

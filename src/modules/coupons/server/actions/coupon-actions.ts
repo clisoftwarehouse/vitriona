@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
@@ -194,15 +194,8 @@ export async function validateCouponAction(businessId: string, code: string, ord
 /* ─── Internal: increment coupon usage (called after successful order) ─── */
 
 export async function incrementCouponUsage(couponId: string) {
-  const [coupon] = await db
-    .select({ usageCount: coupons.usageCount })
-    .from(coupons)
-    .where(eq(coupons.id, couponId))
-    .limit(1);
-  if (coupon) {
-    await db
-      .update(coupons)
-      .set({ usageCount: coupon.usageCount + 1 })
-      .where(eq(coupons.id, couponId));
-  }
+  await db
+    .update(coupons)
+    .set({ usageCount: sql`${coupons.usageCount} + 1` })
+    .where(eq(coupons.id, couponId));
 }

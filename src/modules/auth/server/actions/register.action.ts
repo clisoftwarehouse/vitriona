@@ -4,14 +4,21 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { users, otpTokens } from '@/db/schema';
+import { rateLimitAction } from '@/lib/rate-limit';
 import { sendOtpEmail } from '@/modules/auth/server/email/resend';
 import { hashPassword } from '@/modules/auth/server/lib/password';
-import type { RegisterFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 import { hashOtp, generateOtp, otpExpiresAt } from '@/modules/auth/server/lib/otp';
+import { registerSchema, type RegisterFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
 export async function registerAction(values: RegisterFormValues) {
   try {
-    const { email, name, password } = values;
+    const parsed = registerSchema.safeParse(values);
+    if (!parsed.success) return { error: 'Datos inválidos' };
+
+    const rl = await rateLimitAction(parsed.data.email, 'register', 5, 60);
+    if (!rl.success) return { error: 'Demasiados intentos. Espera un momento.' };
+
+    const { email, name, password } = parsed.data;
 
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 

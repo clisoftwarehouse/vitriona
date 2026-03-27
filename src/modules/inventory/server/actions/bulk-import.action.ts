@@ -17,10 +17,16 @@ interface BulkProductRow {
   type?: 'product' | 'service';
 }
 
+const MAX_BULK_IMPORT_ROWS = 500;
+
 export async function bulkImportProductsAction(businessId: string, rows: BulkProductRow[]) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
+
+    if (rows.length > MAX_BULK_IMPORT_ROWS) {
+      return { error: `Máximo ${MAX_BULK_IMPORT_ROWS} productos por importación` };
+    }
 
     const [business] = await db
       .select({ id: businesses.id })
