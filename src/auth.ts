@@ -18,7 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     authenticatorsTable: authenticators,
   }),
   providers: [
-    ...authConfig.providers.filter((p) => p.id !== 'credentials'),
+    ...authConfig.providers,
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },

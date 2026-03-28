@@ -1,6 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
-import Credentials from 'next-auth/providers/credentials';
 
 import { AUTH_ROUTES, PROTECTED_ROUTES } from '@/modules/auth/constants';
 
@@ -10,7 +9,6 @@ export const authConfig = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    Credentials({ credentials: {}, authorize: async () => null }),
   ],
   pages: {
     signIn: AUTH_ROUTES.LOGIN,
