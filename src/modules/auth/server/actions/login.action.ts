@@ -13,27 +13,27 @@ import { resendOtpAction } from '@/modules/auth/server/actions/resend-otp.action
 import { loginSchema, type LoginFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
 export async function loginAction(values: LoginFormValues) {
-  const parsed = loginSchema.safeParse(values);
-  if (!parsed.success) return { error: 'Datos inválidos' };
-
-  const rl = await rateLimitAction(parsed.data.email, 'login', 10, 60);
-  if (!rl.success) return { error: 'Demasiados intentos. Espera un momento antes de intentar de nuevo.' };
-
-  const [user] = await db
-    .select({ emailVerified: users.emailVerified, name: users.name })
-    .from(users)
-    .where(eq(users.email, values.email))
-    .limit(1);
-
-  if (user && !user.emailVerified) {
-    await resendOtpAction(values.email, 'email_verification', user.name ?? undefined);
-    return {
-      redirect: `${AUTH_ROUTES.VERIFY_OTP}?email=${encodeURIComponent(values.email)}&purpose=email_verification`,
-    };
-  }
-
   try {
-    await signIn('credentials', { ...values, redirectTo: '/dashboard' });
+    const parsed = loginSchema.safeParse(values);
+    if (!parsed.success) return { error: 'Datos inválidos' };
+
+    const rl = await rateLimitAction(parsed.data.email, 'login', 10, 60);
+    if (!rl.success) return { error: 'Demasiados intentos. Espera un momento antes de intentar de nuevo.' };
+
+    const [user] = await db
+      .select({ emailVerified: users.emailVerified, name: users.name })
+      .from(users)
+      .where(eq(users.email, parsed.data.email))
+      .limit(1);
+
+    if (user && !user.emailVerified) {
+      await resendOtpAction(parsed.data.email, 'email_verification', user.name ?? undefined);
+      return {
+        redirect: `${AUTH_ROUTES.VERIFY_OTP}?email=${encodeURIComponent(parsed.data.email)}&purpose=email_verification`,
+      };
+    }
+
+    await signIn('credentials', { ...parsed.data, redirectTo: '/dashboard' });
   } catch (error) {
     if (isRedirectError(error)) throw error;
     if (error instanceof AuthError) {

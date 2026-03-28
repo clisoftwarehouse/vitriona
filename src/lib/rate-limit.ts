@@ -69,5 +69,10 @@ export async function rateLimitAction(
   limit: number,
   windowSeconds: number
 ): Promise<RateLimitResult> {
-  return rateLimit(`${action}:${identifier}`, limit, windowSeconds);
+  try {
+    return await rateLimit(`${action}:${identifier}`, limit, windowSeconds);
+  } catch {
+    // If Redis is unavailable, allow the request through
+    return { success: true, remaining: limit, resetInSeconds: windowSeconds };
+  }
 }
