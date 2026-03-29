@@ -128,13 +128,13 @@ export function AppSidebar({ onClose, businesses, activeBusinessId }: AppSidebar
 
   return (
     <aside className='bg-sidebar border-sidebar-border flex h-full w-72 shrink-0 flex-col border-r md:w-56'>
-      <div className='border-sidebar-border flex items-center justify-between border-b px-4 py-4'>
-        <div className='flex items-center gap-2.5'>
-          <div className='bg-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
-            <span className='text-primary-foreground text-sm font-bold'>V</span>
-          </div>
-          <span className='text-sidebar-foreground text-sm font-semibold'>Vitriona</span>
-        </div>
+      <div className='border-sidebar-border flex items-center justify-between border-b px-4 py-3.5'>
+        <Link href='/' className='flex w-full items-center justify-center'>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src='/images/vitriona-logo-dark.png' className='hidden h-9 w-auto dark:block' alt='Vitriona' />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src='/images/vitriona-logo-light.png' className='block h-9 w-auto dark:hidden' alt='Vitriona' />
+        </Link>
         <button
           onClick={onClose}
           className='text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors md:hidden'
