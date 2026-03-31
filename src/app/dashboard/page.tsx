@@ -5,6 +5,8 @@ import { Package, TrendingUp, DollarSign, TrendingDown, ArrowUpRight, ShoppingCa
 import { auth } from '@/auth';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { TopProducts } from '@/modules/dashboard/ui/components/top-products';
+import { RevenueChart } from '@/modules/dashboard/ui/components/revenue-chart';
 import { DashboardGreeting } from '@/modules/dashboard/ui/components/dashboard-greeting';
 import { getDashboardStats } from '@/modules/dashboard/server/queries/get-dashboard-stats';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -58,6 +60,9 @@ const DashboardPage = async () => {
   const stats = data?.stats;
   const recentOrders = data?.recentOrders ?? [];
   const currency = data?.currency ?? 'USD';
+
+  const dailyRevenue = data?.dailyRevenue ?? [];
+  const topSellingProducts = data?.topSellingProducts ?? [];
 
   const revenueChange = stats ? pctChange(stats.revenue.current, stats.revenue.previous) : '0%';
   const ordersChange = stats ? pctChange(stats.orders.current, stats.orders.previous) : '0%';
@@ -130,6 +135,13 @@ const DashboardPage = async () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className='grid grid-cols-1 gap-4 lg:grid-cols-3'>
+        <div className='lg:col-span-2'>
+          <RevenueChart data={dailyRevenue} currency={currency} />
+        </div>
+        <TopProducts products={topSellingProducts} currency={currency} />
       </div>
 
       <Card className='gap-0 py-0'>

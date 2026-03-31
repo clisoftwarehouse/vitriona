@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Plus, Store } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -51,9 +52,21 @@ export default async function BusinessesPage() {
                 <CardContent className='flex flex-1 flex-col p-5'>
                   <div className='flex items-start justify-between'>
                     <div className='flex items-center gap-3'>
-                      <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-                        <Store className='text-primary size-5' />
-                      </div>
+                      {business.logoUrl ? (
+                        <div className='relative size-10 shrink-0 overflow-hidden rounded-lg'>
+                          <Image
+                            src={business.logoUrl}
+                            alt={business.name}
+                            fill
+                            className='object-cover'
+                            sizes='40px'
+                          />
+                        </div>
+                      ) : (
+                        <div className='bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg'>
+                          <Store className='text-primary size-5' />
+                        </div>
+                      )}
                       <div>
                         <h3 className='font-semibold'>{business.name}</h3>
                         <p className='text-muted-foreground text-xs'>{business.slug}.vitriona.app</p>

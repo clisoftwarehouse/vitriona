@@ -90,7 +90,9 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         <CardHeader>
           <h3 className='font-semibold'>Información del producto</h3>
         </CardHeader>
-        <CardContent>
+        <CardContent className='space-y-8'>
+          <ProductImageUpload productId={product.id} initialImages={images} />
+          <Separator />
           <EditProductWrapper
             productId={product.id}
             businessId={id}
@@ -119,15 +121,6 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               attributeValues: attrValues,
             }}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h3 className='font-semibold'>Imágenes</h3>
-        </CardHeader>
-        <CardContent>
-          <ProductImageUpload productId={product.id} initialImages={images} />
         </CardContent>
       </Card>
 

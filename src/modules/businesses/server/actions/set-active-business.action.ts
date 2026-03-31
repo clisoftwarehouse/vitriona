@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { businesses } from '@/db/schema';
+import { businesses, userPreferences } from '@/db/schema';
 
 const ACTIVE_BUSINESS_COOKIE = 'active_business_id';
 
@@ -35,7 +35,20 @@ export async function setActiveBusinessAction(businessId: string) {
 
 export async function getActiveBusinessId(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(ACTIVE_BUSINESS_COOKIE)?.value ?? null;
+  const fromCookie = cookieStore.get(ACTIVE_BUSINESS_COOKIE)?.value;
+  if (fromCookie) return fromCookie;
+
+  // Fallback: check user_preferences.defaultBusinessId
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const [prefs] = await db
+    .select({ defaultBusinessId: userPreferences.defaultBusinessId })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, session.user.id))
+    .limit(1);
+
+  return prefs?.defaultBusinessId ?? null;
 }
 
 export async function getActiveBusinessAction() {

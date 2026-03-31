@@ -17,11 +17,19 @@ interface DashboardShellProps {
   user: ShellUser;
   businesses: SidebarBusiness[];
   activeBusinessId: string | null;
+  initialSidebarCollapsed?: boolean;
   children: React.ReactNode;
 }
 
-export function AdminLayout({ user, businesses, activeBusinessId, children }: DashboardShellProps) {
+export function AdminLayout({
+  user,
+  businesses,
+  activeBusinessId,
+  initialSidebarCollapsed = false,
+  children,
+}: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed);
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -33,7 +41,13 @@ export function AdminLayout({ user, businesses, activeBusinessId, children }: Da
       )}
 
       <div className={cn('md:relative md:flex', sidebarOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden md:flex')}>
-        <AppSidebar onClose={closeSidebar} businesses={businesses} activeBusinessId={activeBusinessId} />
+        <AppSidebar
+          onClose={closeSidebar}
+          businesses={businesses}
+          activeBusinessId={activeBusinessId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        />
       </div>
 
       <div className='flex min-w-0 flex-1 flex-col overflow-hidden'>

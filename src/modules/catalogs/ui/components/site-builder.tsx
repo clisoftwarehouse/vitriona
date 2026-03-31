@@ -98,6 +98,7 @@ interface Settings {
   announcementLink: string;
   announcementDismissable: boolean;
   announcementIcon: string;
+  googleAnalyticsId: string;
 }
 
 interface PreviewProduct {
@@ -325,6 +326,7 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     announcementLink: (raw?.announcementLink as string) ?? '',
     announcementDismissable: (raw?.announcementDismissable as boolean) ?? false,
     announcementIcon: (raw?.announcementIcon as string) ?? '',
+    googleAnalyticsId: (raw?.googleAnalyticsId as string) ?? '',
   };
 }
 
@@ -347,6 +349,16 @@ const FONT_FAMILY: Record<string, string> = {
   roboto: '"Roboto", sans-serif',
   'space-grotesk': '"Space Grotesk", sans-serif',
   outfit: '"Outfit", sans-serif',
+};
+
+const GOOGLE_FONTS_URL: Record<string, string> = {
+  inter: 'Inter:wght@400;500;600;700',
+  playfair: 'Playfair+Display:wght@400;500;600;700',
+  'dm-sans': 'DM+Sans:wght@400;500;600;700',
+  poppins: 'Poppins:wght@400;500;600;700',
+  roboto: 'Roboto:wght@400;500;700',
+  'space-grotesk': 'Space+Grotesk:wght@400;500;600;700',
+  outfit: 'Outfit:wght@400;500;600;700',
 };
 
 function buildPayload(settings: Settings): CatalogSettingsInput {
@@ -391,6 +403,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     seoCanonicalUrl: settings.seoCanonicalUrl || null,
     seoKeywords: settings.seoKeywords || null,
     faviconUrl: settings.faviconUrl || null,
+    googleAnalyticsId: settings.googleAnalyticsId || null,
     socialInstagram: settings.socialInstagram || null,
     socialFacebook: settings.socialFacebook || null,
     socialTwitter: settings.socialTwitter || null,
@@ -1171,6 +1184,15 @@ function SeoPanel({ settings, update }: PanelProps) {
       />
       <ImageUploadField label='Favicon' value={settings.faviconUrl} onChange={(v) => update('faviconUrl', v)} />
 
+      <SectionDivider title='Analytics' />
+      <FieldGroup label='Google Analytics ID'>
+        <Input
+          value={settings.googleAnalyticsId}
+          onChange={(e) => update('googleAnalyticsId', e.target.value)}
+          placeholder='G-XXXXXXXXXX'
+        />
+      </FieldGroup>
+
       <SectionDivider title='Redes sociales' />
       <FieldGroup label='Instagram'>
         <Input
@@ -1286,11 +1308,18 @@ function BuilderPreview({
     s.socialEmail ||
     s.socialPhone;
 
+  const googleFontParam = GOOGLE_FONTS_URL[s.font];
+  const fontImportCss =
+    googleFontParam && s.font !== 'inter'
+      ? `@import url('https://fonts.googleapis.com/css2?family=${googleFontParam}&display=swap');`
+      : '';
+
   return (
     <div
       className='flex size-full flex-col overflow-y-auto scroll-smooth'
       style={{ backgroundColor: s.backgroundColor, color: s.textColor, fontFamily: font }}
     >
+      {fontImportCss && <style dangerouslySetInnerHTML={{ __html: fontImportCss }} />}
       {/* Announcement */}
       {s.announcementEnabled && s.announcementText && (
         <div

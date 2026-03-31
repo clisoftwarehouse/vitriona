@@ -5,7 +5,7 @@ import { eq, and, avg, desc, count } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { rateLimitAction } from '@/lib/rate-limit';
-import { businesses, productReviews } from '@/db/schema';
+import { businesses, notifications, productReviews } from '@/db/schema';
 
 /* ─── Public: get approved reviews for a product ─── */
 
@@ -62,6 +62,24 @@ export async function submitReviewAction(input: {
       comment: input.comment?.trim() || null,
       isApproved: false,
     });
+
+    // Notify business owner
+    const [biz] = await db
+      .select({ userId: businesses.userId })
+      .from(businesses)
+      .where(eq(businesses.id, input.businessId))
+      .limit(1);
+    if (biz?.userId) {
+      const stars = '★'.repeat(input.rating) + '☆'.repeat(5 - input.rating);
+      await db.insert(notifications).values({
+        userId: biz.userId,
+        businessId: input.businessId,
+        type: 'new_review',
+        title: 'Nueva reseña recibida',
+        description: `${input.customerName.trim()} dejó ${stars} — pendiente de aprobación`,
+        href: `/dashboard/businesses/${input.businessId}/reviews`,
+      });
+    }
 
     return { success: true };
   } catch {

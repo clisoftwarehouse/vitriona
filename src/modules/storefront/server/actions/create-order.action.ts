@@ -13,6 +13,7 @@ import {
   products,
   businesses,
   orderItems,
+  notifications,
   productVariants,
   inventoryMovements,
   orderStatusHistory,
@@ -41,6 +42,9 @@ interface CreateOrderInput {
   paymentMethodId?: string;
   paymentMethodName?: string;
   paymentDetails?: Record<string, string>;
+  deliveryMethodId?: string;
+  deliveryMethodName?: string;
+  shippingCost?: number;
 }
 
 function generateOrderNumber(): string {
@@ -85,6 +89,13 @@ export async function createOrderAction(input: CreateOrderInput) {
     .limit(1);
   if (!catalog) return { error: 'Catálogo no encontrado' };
 
+  // Get business owner for notifications
+  const [businessOwner] = await db
+    .select({ userId: businesses.userId })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
   // Validate all products belong to this business
   for (const item of items) {
     if (item.quantity <= 0 || item.quantity > 9999) return { error: 'Cantidad inválida' };
@@ -111,7 +122,8 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
   const discount = input.discount ?? 0;
-  const total = Math.max(0, subtotal - discount);
+  const shippingCost = input.shippingCost ?? 0;
+  const total = Math.max(0, subtotal - discount + shippingCost);
 
   // --- VULN-03 fix: Atomic stock deduction with SQL WHERE stock >= quantity ---
   // First, attempt to atomically deduct all stock. If any fails, we roll back the ones that succeeded.
@@ -173,6 +185,18 @@ export async function createOrderAction(input: CreateOrderInput) {
         await db.update(products).set({ status: 'out_of_stock' }).where(eq(products.id, item.productId));
       }
 
+      // Low stock notification
+      if (newStock <= 5 && newStock >= 0 && businessOwner?.userId) {
+        await db.insert(notifications).values({
+          userId: businessOwner.userId,
+          businessId,
+          type: 'low_stock',
+          title: newStock === 0 ? 'Producto agotado' : 'Stock bajo',
+          description: `"${product.name}" tiene ${newStock} unidades disponibles`,
+          href: `/dashboard/businesses/${businessId}/products`,
+        });
+      }
+
       deducted.push({
         productId: item.productId,
         quantity: item.quantity,
@@ -201,6 +225,9 @@ export async function createOrderAction(input: CreateOrderInput) {
       paymentMethodId: input.paymentMethodId || null,
       paymentMethodName: input.paymentMethodName || null,
       paymentDetails: input.paymentDetails || null,
+      deliveryMethodId: input.deliveryMethodId || null,
+      deliveryMethodName: input.deliveryMethodName || null,
+      shippingCost: shippingCost.toFixed(2),
       status: 'pending_payment',
       checkoutType,
       inventoryDeducted: true,
@@ -246,6 +273,19 @@ export async function createOrderAction(input: CreateOrderInput) {
   // Increment coupon usage
   if (input.couponId) {
     await incrementCouponUsage(input.couponId);
+  }
+
+  // Create notification for business owner
+  if (businessOwner?.userId) {
+    const fmtTotal = new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(total);
+    await db.insert(notifications).values({
+      userId: businessOwner.userId,
+      businessId,
+      type: 'new_order',
+      title: 'Nueva orden recibida',
+      description: `${customerName.trim()} realizó un pedido por ${fmtTotal}`,
+      href: `/dashboard/businesses/${businessId}/orders/${order.id}`,
+    });
   }
 
   return { success: true, order };

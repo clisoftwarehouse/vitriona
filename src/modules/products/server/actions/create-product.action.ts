@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { generateSku } from '@/modules/products/lib/generate-sku';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
@@ -35,7 +36,7 @@ export async function createProductAction(
     }
 
     const [business] = await db
-      .select({ id: businesses.id })
+      .select({ id: businesses.id, slug: businesses.slug })
       .from(businesses)
       .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
@@ -62,7 +63,7 @@ export async function createProductAction(
         description: values.description || null,
         price: values.price,
         compareAtPrice: values.compareAtPrice || null,
-        sku: values.sku || null,
+        sku: values.sku || generateSku(business.slug),
         stock: values.type === 'service' ? null : (values.stock ?? 0),
         status: values.status,
         isFeatured: values.isFeatured,

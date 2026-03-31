@@ -131,5 +131,75 @@ export async function getDashboardStats(businessId: string) {
     firstProductName: firstItems[o.id] ?? null,
   }));
 
-  return { stats, recentOrders: recentOrdersWithProduct, currency: biz.currency };
+  // Daily revenue for last 30 days
+  const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+  const dailyRevenueRows = await db
+    .select({
+      day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
+      revenue: sum(orders.total),
+      orderCount: count(),
+    })
+    .from(orders)
+    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, thirtyDaysAgo), ne(orders.status, 'cancelled')))
+    .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`)
+    .orderBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`);
+
+  // Fill in missing days with 0
+  const dailyRevenue: { date: string; revenue: number; orders: number }[] = [];
+  const revenueMap = new Map(dailyRevenueRows.map((r) => [r.day, r]));
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    const row = revenueMap.get(key);
+    dailyRevenue.push({
+      date: key,
+      revenue: row?.revenue ? parseFloat(row.revenue) : 0,
+      orders: row?.orderCount ?? 0,
+    });
+  }
+
+  // Top selling products (by quantity sold, last 30 days)
+  const topProducts = await db
+    .select({
+      productName: orderItems.productName,
+      totalQty: sum(orderItems.quantity),
+      totalRevenue: sum(orderItems.subtotal),
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, thirtyDaysAgo), ne(orders.status, 'cancelled')))
+    .groupBy(orderItems.productName)
+    .orderBy(desc(sum(orderItems.quantity)))
+    .limit(5);
+
+  const topSellingProducts = topProducts.map((p) => ({
+    name: p.productName,
+    quantity: p.totalQty ? parseInt(p.totalQty as string) : 0,
+    revenue: p.totalRevenue ? parseFloat(p.totalRevenue as string) : 0,
+  }));
+
+  // Orders by status
+  const ordersByStatus = await db
+    .select({
+      status: orders.status,
+      count: count(),
+    })
+    .from(orders)
+    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, startOfMonth)))
+    .groupBy(orders.status);
+
+  const statusBreakdown = ordersByStatus.map((r) => ({
+    status: r.status,
+    count: r.count,
+  }));
+
+  return {
+    stats,
+    recentOrders: recentOrdersWithProduct,
+    currency: biz.currency,
+    dailyRevenue,
+    topSellingProducts,
+    statusBreakdown,
+  };
 }

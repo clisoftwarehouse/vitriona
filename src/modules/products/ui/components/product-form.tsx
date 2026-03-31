@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Wand2, Trash2 } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useTransition } from 'react';
@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { generateSku } from '@/modules/products/lib/generate-sku';
 import { addProductVariantAction } from '@/modules/products/server/actions/product-variants.action';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
@@ -379,9 +380,21 @@ export function ProductForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>SKU</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder='ABC-001' disabled={isPending} />
-                </FormControl>
+                <div className='flex gap-2'>
+                  <FormControl>
+                    <Input {...field} placeholder='ABC-001' disabled={isPending} />
+                  </FormControl>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='icon'
+                    className='shrink-0'
+                    disabled={isPending}
+                    onClick={() => form.setValue('sku', generateSku())}
+                  >
+                    <Wand2 className='size-4' />
+                  </Button>
+                </div>
                 <FormMessage />
               </FormItem>
             )}

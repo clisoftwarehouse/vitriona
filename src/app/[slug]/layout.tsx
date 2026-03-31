@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Mail, Phone, Store, MapPin } from 'lucide-react';
 
 import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
+import { GoogleAnalytics } from '@/modules/storefront/ui/components/google-analytics';
 import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
 import { StorefrontThemeStyle } from '@/modules/storefront/ui/components/storefront-theme';
 import {
@@ -64,6 +65,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
   return (
     <>
       <StorefrontThemeStyle theme={theme} />
+      {settings?.googleAnalyticsId && <GoogleAnalytics measurementId={settings.googleAnalyticsId} />}
       <div
         className='flex min-h-dvh flex-col scroll-smooth'
         style={{

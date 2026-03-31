@@ -293,6 +293,9 @@ export const catalogSettings = pgTable('catalog_settings', {
   seoCanonicalUrl: text('seo_canonical_url'),
   seoKeywords: text('seo_keywords'),
   faviconUrl: text('favicon_url'),
+
+  // ── Analytics ──
+  googleAnalyticsId: text('google_analytics_id'),
 });
 
 export const customSections = pgTable('custom_sections', {
@@ -575,6 +578,9 @@ export const orders = pgTable('orders', {
   paymentMethodId: text('payment_method_id').references(() => paymentMethods.id, { onDelete: 'set null' }),
   paymentMethodName: text('payment_method_name'),
   paymentDetails: jsonb('payment_details'),
+  deliveryMethodId: text('delivery_method_id').references(() => deliveryMethods.id, { onDelete: 'set null' }),
+  deliveryMethodName: text('delivery_method_name'),
+  shippingCost: numeric('shipping_cost', { precision: 10, scale: 2 }).notNull().default('0'),
   status: text('status', {
     enum: ['pending_payment', 'payment_verified', 'preparing', 'shipped', 'delivered', 'cancelled'],
   })
@@ -696,6 +702,40 @@ export const paymentMethods = pgTable('payment_methods', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const deliveryMethods = pgTable('delivery_methods', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
+  estimatedTime: text('estimated_time'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const notifications = pgTable('notifications', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  businessId: text('business_id').references(() => businesses.id, { onDelete: 'cascade' }),
+  type: text('type', {
+    enum: ['new_order', 'order_status', 'low_stock', 'new_review', 'system'],
+  }).notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  href: text('href'),
+  read: boolean('read').notNull().default(false),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const coupons = pgTable('coupons', {

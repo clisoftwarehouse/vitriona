@@ -5,7 +5,19 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useSyncExternalStore } from 'react';
-import { X, Copy, Upload, Loader2, ImageOff, ArrowLeft, CreditCard, MessageCircle, TicketPercent } from 'lucide-react';
+import {
+  X,
+  Copy,
+  Clock,
+  Truck,
+  Upload,
+  Loader2,
+  ImageOff,
+  ArrowLeft,
+  CreditCard,
+  MessageCircle,
+  TicketPercent,
+} from 'lucide-react';
 
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 import { validateCouponAction } from '@/modules/coupons/server/actions/coupon-actions';
@@ -18,6 +30,14 @@ interface PaymentMethodData {
   fields: { label: string; value: string }[];
 }
 
+interface DeliveryMethodData {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  estimatedTime: string | null;
+}
+
 interface CheckoutFormProps {
   slug: string;
   businessId: string;
@@ -26,6 +46,7 @@ interface CheckoutFormProps {
   whatsappNumber: string | null;
   currency: string;
   paymentMethods: PaymentMethodData[];
+  deliveryMethods: DeliveryMethodData[];
 }
 
 const emptySubscribe = () => () => {};
@@ -46,6 +67,7 @@ export function CheckoutForm({
   whatsappNumber,
   currency,
   paymentMethods,
+  deliveryMethods,
 }: CheckoutFormProps) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -68,6 +90,13 @@ export function CheckoutForm({
 
   const selectedMethod = paymentMethods.find((m) => m.id === selectedMethodId) ?? null;
 
+  // Delivery method state
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
+    deliveryMethods.length === 1 ? deliveryMethods[0].id : null
+  );
+  const selectedDelivery = deliveryMethods.find((d) => d.id === selectedDeliveryId) ?? null;
+  const shippingCost = selectedDelivery ? parseFloat(selectedDelivery.price) : 0;
+
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -81,7 +110,7 @@ export function CheckoutForm({
 
   const subtotal = hydrated ? getTotal() : 0;
   const discount = appliedCoupon?.discount ?? 0;
-  const total = Math.max(0, subtotal - discount);
+  const total = Math.max(0, subtotal - discount + shippingCost);
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
@@ -97,7 +126,9 @@ export function CheckoutForm({
     });
     if (appliedCoupon) msg += `\nCupón: ${appliedCoupon.code} (-${formatPrice(discount)})`;
     msg += `\nTotal: ${formatPrice(total)}`;
+    if (shippingCost > 0) msg += `\nEnvío: ${formatPrice(shippingCost)}`;
     if (selectedMethod) msg += `\n\nMétodo de pago: ${selectedMethod.name}`;
+    if (selectedDelivery) msg += `\nEntrega: ${selectedDelivery.name}`;
     if (notes) msg += `\n\nNota: ${notes}`;
     return msg;
   };
@@ -137,6 +168,9 @@ export function CheckoutForm({
         paymentMethodId: selectedMethod?.id,
         paymentMethodName: selectedMethod?.name,
         paymentDetails: Object.keys(paymentProof).length > 0 ? paymentProof : undefined,
+        deliveryMethodId: selectedDelivery?.id,
+        deliveryMethodName: selectedDelivery?.name,
+        shippingCost,
       });
 
       if (result.error) {
@@ -176,7 +210,7 @@ export function CheckoutForm({
 
   return (
     <div
-      className={`mx-auto overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8 ${paymentMethods.length > 0 ? 'max-w-6xl' : 'max-w-2xl'}`}
+      className={`mx-auto overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8 ${paymentMethods.length > 0 || deliveryMethods.length > 0 ? 'max-w-6xl' : 'max-w-2xl'}`}
     >
       <Link
         href={`/${slug}`}
@@ -189,7 +223,9 @@ export function CheckoutForm({
       <h1 className='mb-8 text-2xl font-bold'>Finalizar pedido</h1>
 
       <form onSubmit={handleSubmit}>
-        <div className={`grid gap-8 ${paymentMethods.length > 0 ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        <div
+          className={`grid gap-8 ${paymentMethods.length > 0 || deliveryMethods.length > 0 ? 'lg:grid-cols-[1fr_1fr_1fr]' : 'sm:grid-cols-2'}`}
+        >
           {/* Column 1: Customer data */}
           <div className='min-w-0 space-y-4'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Tus datos</h2>
@@ -413,6 +449,47 @@ export function CheckoutForm({
             </div>
           )}
 
+          {/* Delivery methods */}
+          {deliveryMethods.length > 0 && (
+            <div className='min-w-0 space-y-4'>
+              <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Método de entrega</h2>
+              <div className='space-y-2'>
+                {deliveryMethods.map((dm) => (
+                  <button
+                    key={dm.id}
+                    type='button'
+                    onClick={() => setSelectedDeliveryId(dm.id)}
+                    className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
+                    style={{
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                      border:
+                        selectedDeliveryId === dm.id
+                          ? '2px solid var(--sf-primary, #000)'
+                          : '1px solid var(--sf-border, #e5e7eb)',
+                    }}
+                  >
+                    <Truck className='size-4 shrink-0 opacity-50' />
+                    <div className='min-w-0 flex-1'>
+                      <div className='flex items-center justify-between'>
+                        <span className='font-medium'>{dm.name}</span>
+                        <span className='shrink-0 font-semibold'>
+                          {parseFloat(dm.price) === 0 ? 'Gratis' : formatPrice(parseFloat(dm.price))}
+                        </span>
+                      </div>
+                      {dm.description && <p className='mt-0.5 text-xs opacity-50'>{dm.description}</p>}
+                      {dm.estimatedTime && (
+                        <p className='mt-0.5 flex items-center gap-1 text-xs opacity-40'>
+                          <Clock className='size-3' />
+                          {dm.estimatedTime}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Column 3: Order summary */}
           <div className='min-w-0'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
@@ -520,6 +597,12 @@ export function CheckoutForm({
                 <div className='flex items-center justify-between text-sm text-green-600'>
                   <span>Descuento</span>
                   <span>-{formatPrice(discount)}</span>
+                </div>
+              )}
+              {shippingCost > 0 && (
+                <div className='flex items-center justify-between text-sm opacity-60'>
+                  <span>Envío</span>
+                  <span>{formatPrice(shippingCost)}</span>
                 </div>
               )}
               <div

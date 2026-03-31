@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { products, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
+import { generateSku } from '@/modules/products/lib/generate-sku';
 
 interface BulkProductRow {
   name: string;
@@ -29,7 +30,7 @@ export async function bulkImportProductsAction(businessId: string, rows: BulkPro
     }
 
     const [business] = await db
-      .select({ id: businesses.id })
+      .select({ id: businesses.id, slug: businesses.slug })
       .from(businesses)
       .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
@@ -52,7 +53,7 @@ export async function bulkImportProductsAction(businessId: string, rows: BulkPro
         slug: generateSlug(row.name.trim()),
         description: row.description?.trim() || null,
         price: row.price || '0',
-        sku: row.sku?.trim() || null,
+        sku: row.sku?.trim() || generateSku(business.slug),
         stock: isService ? null : (row.stock ?? 0),
         type: row.type ?? 'product',
         trackInventory: !isService,

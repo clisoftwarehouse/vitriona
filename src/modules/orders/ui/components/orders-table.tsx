@@ -35,6 +35,10 @@ interface Order {
   createdAt: Date;
   paymentMethodName: string | null;
   paymentDetails: unknown;
+  deliveryMethodName: string | null;
+  shippingCost: string;
+  discount: string;
+  subtotal: string;
 }
 
 interface OrdersTableProps {
@@ -263,6 +267,13 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 </div>
               )}
 
+              {selectedOrder.deliveryMethodName && (
+                <div>
+                  <h4 className='mb-1 text-sm font-semibold'>Método de entrega</h4>
+                  <p className='text-sm'>{selectedOrder.deliveryMethodName}</p>
+                </div>
+              )}
+
               {(selectedOrder.paymentMethodName || selectedOrder.paymentDetails != null) && (
                 <div>
                   <h4 className='mb-1 text-sm font-semibold'>Método de pago</h4>
@@ -353,9 +364,27 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                     ))
                   )}
                 </div>
-                <div className='mt-3 flex items-center justify-between border-t pt-3'>
-                  <span className='font-semibold'>Total</span>
-                  <span className='text-lg font-bold'>{formatPrice(selectedOrder.total)}</span>
+                <div className='mt-3 space-y-1 border-t pt-3'>
+                  <div className='flex items-center justify-between text-sm opacity-60'>
+                    <span>Subtotal</span>
+                    <span>{formatPrice(selectedOrder.subtotal)}</span>
+                  </div>
+                  {parseFloat(selectedOrder.discount) > 0 && (
+                    <div className='flex items-center justify-between text-sm text-green-600'>
+                      <span>Descuento</span>
+                      <span>-{formatPrice(selectedOrder.discount)}</span>
+                    </div>
+                  )}
+                  {parseFloat(selectedOrder.shippingCost) > 0 && (
+                    <div className='flex items-center justify-between text-sm opacity-60'>
+                      <span>Envío</span>
+                      <span>{formatPrice(selectedOrder.shippingCost)}</span>
+                    </div>
+                  )}
+                  <div className='flex items-center justify-between pt-1'>
+                    <span className='font-semibold'>Total</span>
+                    <span className='text-lg font-bold'>{formatPrice(selectedOrder.total)}</span>
+                  </div>
                 </div>
               </div>
 

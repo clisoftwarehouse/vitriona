@@ -73,6 +73,7 @@ export type CatalogSettingsInput = {
   seoCanonicalUrl?: string | null;
   seoKeywords?: string | null;
   faviconUrl?: string | null;
+  googleAnalyticsId?: string | null;
 };
 
 export async function updateCatalogSettingsAction(catalogId: string, values: CatalogSettingsInput) {

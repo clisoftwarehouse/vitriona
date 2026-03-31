@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { useMemo, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Upload, Loader2, Download, ImageIcon, FileSpreadsheet } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -226,23 +226,53 @@ export function BulkImportDialog({ open, onOpenChange, businessId }: BulkImportD
 
         {/* ── Step 1: Upload ── */}
         {step === 'upload' && (
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className='hover:border-primary/50 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed py-12 transition-colors'
-          >
-            <FileSpreadsheet className='text-muted-foreground size-10' />
-            <p className='text-sm font-medium'>Arrastra tu archivo aquí</p>
-            <p className='text-muted-foreground text-xs'>CSV, XLS o XLSX</p>
-            <label className='cursor-pointer'>
+          <div className='space-y-4'>
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              className='hover:border-primary/50 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed py-12 transition-colors'
+            >
+              <FileSpreadsheet className='text-muted-foreground size-10' />
+              <p className='text-sm font-medium'>Arrastra tu archivo aquí</p>
+              <p className='text-muted-foreground text-xs'>CSV, XLS o XLSX</p>
+              <label className='cursor-pointer'>
+                <Button variant='outline' size='sm' asChild>
+                  <span>
+                    <Upload className='size-3.5' />
+                    Seleccionar archivo
+                  </span>
+                </Button>
+                <input type='file' accept='.csv,.xlsx,.xls,.txt' className='hidden' onChange={handleFileInput} />
+              </label>
+            </div>
+
+            <div className='flex items-center justify-between rounded-lg border p-3'>
+              <div className='flex items-center gap-2'>
+                <Download className='text-muted-foreground size-4' />
+                <div>
+                  <p className='text-sm font-medium'>Plantilla de ejemplo</p>
+                  <p className='text-muted-foreground text-xs'>
+                    CSV con columnas: Nombre, Descripción, Precio, SKU, Stock
+                  </p>
+                </div>
+              </div>
               <Button variant='outline' size='sm' asChild>
-                <span>
-                  <Upload className='size-3.5' />
-                  Seleccionar archivo
-                </span>
+                <a href='/templates/plantilla-productos.csv' download>
+                  Descargar
+                </a>
               </Button>
-              <input type='file' accept='.csv,.xlsx,.xls,.txt' className='hidden' onChange={handleFileInput} />
-            </label>
+            </div>
+
+            <div className='flex items-start gap-2 rounded-lg border p-3'>
+              <ImageIcon className='text-muted-foreground mt-0.5 size-4 shrink-0' />
+              <div>
+                <p className='text-sm font-medium'>Imágenes de productos</p>
+                <p className='text-muted-foreground text-xs'>
+                  Puedes agregar imágenes después de importar. Recomendamos: <strong>1200×1200px</strong>, máximo{' '}
+                  <strong>5 MB</strong>, formatos JPG, PNG o WebP.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
