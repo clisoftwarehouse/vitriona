@@ -444,7 +444,7 @@ function HeroSection({
               className='relative hidden size-28 shrink-0 overflow-hidden sm:block sm:size-32 lg:size-40'
               style={{ borderRadius: 'var(--sf-radius-lg, 1rem)' }}
             >
-              <Image src={imageUrl} alt={title} fill className='object-cover' priority />
+              <Image src={imageUrl} alt={title} fill unoptimized className='object-cover' priority />
             </div>
           )}
         </div>
@@ -455,7 +455,7 @@ function HeroSection({
   if (isBanner) {
     return (
       <section className='relative overflow-hidden'>
-        <Image src={imageUrl!} alt={title} fill className='object-cover' priority />
+        <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
         <div className='absolute inset-0 bg-black/50' />
         <div className='relative mx-auto max-w-7xl px-4 py-20 text-center text-white sm:px-6 sm:py-28 lg:px-8 lg:py-36'>
           {badge && (
@@ -544,7 +544,7 @@ function HeroSection({
             className='relative aspect-4/3 overflow-hidden lg:aspect-auto'
             style={{ borderRadius: 'var(--sf-radius-lg, 1rem)' }}
           >
-            <Image src={imageUrl!} alt={title} fill className='object-cover' priority />
+            <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
           </div>
         </div>
       </section>
@@ -565,7 +565,7 @@ function HeroSection({
     >
       {hasCenteredImage && (
         <>
-          <Image src={imageUrl!} alt={title} fill className='object-cover' priority />
+          <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
           <div className='absolute inset-0 bg-black/50' />
         </>
       )}
@@ -739,7 +739,7 @@ function CategoryNav({ categories, activeCategory, style, onCategoryClick }: Cat
           >
             {cat.imageUrl && (
               <div className='relative aspect-video overflow-hidden'>
-                <Image src={cat.imageUrl} alt={cat.name} fill className='object-cover' sizes='25vw' />
+                <Image src={cat.imageUrl} alt={cat.name} fill unoptimized className='object-cover' sizes='25vw' />
               </div>
             )}
             <div className='p-3'>
@@ -897,6 +897,7 @@ function CatalogsCarousel({ catalogs, slug }: { catalogs: CatalogPreview[]; slug
                   src={cat.imageUrl}
                   alt={cat.name}
                   fill
+                  unoptimized
                   sizes='15rem'
                   className='object-cover transition-transform duration-500 group-hover:scale-105'
                 />
@@ -1063,6 +1064,7 @@ function ProductCard({
             src={product.images[0].url}
             alt={product.images[0].alt || product.name}
             fill
+            unoptimized
             sizes={
               isList
                 ? '144px'
@@ -1204,7 +1206,7 @@ function AboutSection({
       <div className={imageUrl ? 'grid gap-8 lg:grid-cols-2 lg:gap-12' : 'mx-auto max-w-3xl text-center'}>
         {imageUrl && (
           <div className='relative aspect-4/3 overflow-hidden' style={{ borderRadius: 'var(--sf-radius-lg, 1rem)' }}>
-            <Image src={imageUrl} alt={businessName} fill className='object-cover' />
+            <Image src={imageUrl} alt={businessName} fill unoptimized className='object-cover' />
           </div>
         )}
         <div className={imageUrl ? 'flex flex-col justify-center' : ''}>

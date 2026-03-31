@@ -138,7 +138,14 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                     }}
                   >
                     {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt={item.name} fill sizes='64px' className='object-cover' />
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.name}
+                        fill
+                        unoptimized
+                        sizes='64px'
+                        className='object-cover'
+                      />
                     ) : (
                       <div className='flex size-full items-center justify-center'>
                         <ImageOff className='size-4 opacity-30' />

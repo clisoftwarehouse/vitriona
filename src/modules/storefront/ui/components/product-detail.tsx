@@ -228,6 +228,7 @@ export function ProductDetail({ slug, product, whatsappNumber, currency, reviewS
                 src={displayImages[selectedImage].url}
                 alt={displayImages[selectedImage].alt || product.name}
                 fill
+                unoptimized
                 sizes='(max-width: 768px) 100vw, 50vw'
                 className='object-cover'
                 priority
@@ -257,7 +258,14 @@ export function ProductDetail({ slug, product, whatsappNumber, currency, reviewS
                     opacity: idx === selectedImage ? 1 : 0.6,
                   }}
                 >
-                  <Image src={img.url} alt={img.alt || product.name} fill sizes='80px' className='object-cover' />
+                  <Image
+                    src={img.url}
+                    alt={img.alt || product.name}
+                    fill
+                    unoptimized
+                    sizes='80px'
+                    className='object-cover'
+                  />
                 </button>
               ))}
             </div>

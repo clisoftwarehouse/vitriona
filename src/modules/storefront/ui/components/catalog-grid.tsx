@@ -122,6 +122,7 @@ export function CatalogSections({ slug, currency, catalogs }: CatalogSectionsPro
                         src={product.images[0].url}
                         alt={product.images[0].alt || product.name}
                         fill
+                        unoptimized
                         sizes='(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
                         className='object-cover transition-transform duration-300 group-hover:scale-105'
                       />

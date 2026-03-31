@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { CSS } from '@dnd-kit/utilities';
+import imageCompression from 'browser-image-compression';
 import { useState, useCallback, useTransition } from 'react';
 import { X, Upload, Loader2, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
@@ -14,7 +15,14 @@ import {
   reorderProductImagesAction,
 } from '@/modules/products/server/actions/product-images.action';
 
-const MAX_PRODUCT_IMAGES = 25;
+const MAX_PRODUCT_IMAGES = 5;
+
+const COMPRESSION_OPTIONS = {
+  maxSizeMB: 0.3,
+  maxWidthOrHeight: 1920,
+  useWebWorker: true,
+  fileType: 'image/webp' as const,
+};
 
 interface ProductImage {
   id: string;
@@ -105,8 +113,17 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
             continue;
           }
 
+          // Compress image before uploading
+          let compressedFile: File;
+          try {
+            compressedFile = await imageCompression(file, COMPRESSION_OPTIONS);
+          } catch {
+            setError(`Error al comprimir "${file.name}".`);
+            continue;
+          }
+
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', compressedFile);
 
           const response = await fetch('/api/upload', {
             method: 'POST',
@@ -216,8 +233,8 @@ export function ProductImageUpload({ productId, initialImages }: ProductImageUpl
       </div>
 
       <p className='text-muted-foreground text-xs'>
-        {images.length}/{MAX_PRODUCT_IMAGES} imágenes. JPG, PNG, WebP, GIF o AVIF. Máximo 5MB por imagen. Arrastra para
-        reordenar.
+        {images.length}/{MAX_PRODUCT_IMAGES} imágenes. JPG, PNG, WebP, GIF o AVIF. Las imágenes se comprimen
+        automáticamente. Arrastra para reordenar.
       </p>
     </div>
   );

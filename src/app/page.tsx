@@ -16,6 +16,7 @@ import {
   Package,
   Palette,
   Calendar,
+  Sparkles,
   BarChart3,
   ArrowRight,
   Smartphone,
@@ -179,8 +180,8 @@ function Hero() {
         </h1>
 
         <p className='animate-fade-in-up text-muted-foreground mx-auto mt-6 max-w-2xl text-lg delay-200 md:text-xl'>
-          Crea catálogos personalizados, recibe pedidos por WhatsApp, agenda citas y deja que tu chatbot con IA atienda
-          a tus clientes 24/7.
+          Crea catálogos personalizados, recibe pedidos por WhatsApp, agenda citas y potencia tu atención al cliente con
+          un chatbot de IA.
         </p>
 
         <div className='animate-fade-in-up mt-10 flex flex-col items-center justify-center gap-4 delay-300 sm:flex-row'>
@@ -229,6 +230,7 @@ const FEATURES = [
     title: 'Chatbot con IA',
     description:
       'Un asistente entrenado con tu catálogo que responde preguntas, sugiere productos y crea pedidos automáticamente.',
+    addOn: true,
   },
   {
     icon: ShoppingCart,
@@ -307,8 +309,14 @@ function Features() {
             return (
               <div
                 key={feature.title}
-                className={`group border-border/50 bg-card hover:border-primary/20 hover:shadow-primary/5 ${hiddenOnMobile} flex-col rounded-2xl border p-6 transition-all hover:shadow-lg`}
+                className={`group border-border/50 bg-card hover:border-primary/20 hover:shadow-primary/5 ${hiddenOnMobile} relative flex-col rounded-2xl border p-6 transition-all hover:shadow-lg`}
               >
+                {'addOn' in feature && feature.addOn && (
+                  <span className='absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400'>
+                    <Sparkles className='size-3' />
+                    Add-on
+                  </span>
+                )}
                 <div className='bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground inline-flex size-12 items-center justify-center rounded-xl transition-colors'>
                   <Icon className='size-6' />
                 </div>
@@ -398,7 +406,6 @@ const PLANS = [
       'Marca de agua de Vitriona',
       'Storefront público',
       'Pedidos por WhatsApp',
-      'Chatbot básico',
     ],
     cta: 'Empezar gratis',
     highlighted: false,
@@ -413,7 +420,6 @@ const PLANS = [
       'Hasta 100 productos',
       '5,000 visitas/mes',
       'Sin marca de agua',
-      'Chatbot con IA avanzado',
       'Agenda de citas',
       'Inventario y variantes',
       'Cupones y descuentos',
@@ -438,6 +444,31 @@ const PLANS = [
     ],
     cta: 'Comenzar ahora',
     highlighted: false,
+  },
+];
+
+const AI_PLANS = [
+  {
+    name: 'AI Starter',
+    price: '$9.99',
+    period: '/mes',
+    responses: '1,000 respuestas/mes',
+    description: 'Para negocios que empiezan a automatizar su atención.',
+  },
+  {
+    name: 'AI Business',
+    price: '$24.99',
+    period: '/mes',
+    responses: '5,000 respuestas/mes',
+    description: 'Para negocios con volumen moderado de consultas.',
+    highlighted: true,
+  },
+  {
+    name: 'AI Enterprise',
+    price: '$49.99',
+    period: '/mes',
+    responses: '15,000 respuestas/mes',
+    description: 'Para operaciones de alto volumen y múltiples negocios.',
   },
 ];
 
@@ -501,6 +532,69 @@ function Pricing() {
   );
 }
 
+function AIAddOn() {
+  const ref = useAnimateOnScroll<HTMLDivElement>();
+
+  return (
+    <section className='border-border/50 bg-muted/30 border-t py-20 md:py-28'>
+      <div ref={ref} className={`mx-auto max-w-7xl px-6 ${ANIMATE_BASE} ${ANIMATE_IN}`}>
+        <div className='text-center'>
+          <div className='mb-4 inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-4 py-1.5 text-sm font-semibold text-amber-600 dark:text-amber-400'>
+            <Sparkles className='size-3.5' />
+            Add-on de Inteligencia Artificial
+          </div>
+          <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>Potencia tu negocio con un chatbot IA</h2>
+          <p className='text-muted-foreground mx-auto mt-4 max-w-2xl'>
+            Agrega un asistente de inteligencia artificial a cualquier plan. Tu chatbot conoce tu catálogo, atiende
+            clientes, crea pedidos y agenda citas — todo automáticamente.
+          </p>
+        </div>
+        <div className='mx-auto mt-16 grid max-w-4xl gap-6 sm:grid-cols-3'>
+          {AI_PLANS.map((plan) => (
+            <div
+              key={plan.name}
+              className={`relative overflow-hidden rounded-2xl border p-6 transition-shadow ${
+                plan.highlighted
+                  ? 'bg-card border-amber-500/30 shadow-lg shadow-amber-500/5'
+                  : 'border-border/50 bg-card hover:shadow-md'
+              }`}
+            >
+              {plan.highlighted && (
+                <div className='absolute top-0 right-0 rounded-bl-lg bg-amber-500 px-3 py-1 text-[10px] font-semibold text-white'>
+                  Recomendado
+                </div>
+              )}
+              <div className='flex items-center gap-2'>
+                <Bot className='size-5 text-amber-500' />
+                <h4 className='text-base font-semibold'>{plan.name}</h4>
+              </div>
+              <div className='mt-3 flex items-baseline gap-1'>
+                <span className='text-3xl font-bold'>{plan.price}</span>
+                <span className='text-muted-foreground text-sm'>{plan.period}</span>
+              </div>
+              <p className='mt-1 text-sm font-medium text-amber-600 dark:text-amber-400'>{plan.responses}</p>
+              <p className='text-muted-foreground mt-2 text-sm'>{plan.description}</p>
+              <Link
+                href='/auth/register'
+                className={`mt-5 flex h-10 w-full items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                  plan.highlighted
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 hover:opacity-90'
+                    : 'border-border bg-background hover:bg-accent border'
+                }`}
+              >
+                Agregar a mi plan
+              </Link>
+            </div>
+          ))}
+        </div>
+        <p className='text-muted-foreground mt-8 text-center text-xs'>
+          El add-on de IA se combina con cualquier plan base. Se cobra por separado según el volumen de respuestas.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 const FAQ_ITEMS = [
   {
     question: '¿Necesito saber programar?',
@@ -510,7 +604,7 @@ const FAQ_ITEMS = [
   {
     question: '¿Cómo funciona el chatbot con IA?',
     answer:
-      'El chatbot se entrena automáticamente con los productos de tu catálogo. Puede listar productos, buscar por categoría, crear pedidos, mostrar métodos de pago y hasta agendar citas — todo de forma conversacional.',
+      'El chatbot con IA es un add-on que se agrega a cualquier plan. Se entrena automáticamente con los productos de tu catálogo y puede listar productos, buscar por categoría, crear pedidos, mostrar métodos de pago y hasta agendar citas — todo de forma conversacional. Puedes elegir entre 3 niveles según tu volumen de consultas.',
   },
   {
     question: '¿Puedo recibir pedidos por WhatsApp?',
@@ -661,6 +755,7 @@ export default function Home() {
         <Features />
         <HowItWorks />
         <Pricing />
+        <AIAddOn />
         <FAQ />
         <CTA />
       </main>
