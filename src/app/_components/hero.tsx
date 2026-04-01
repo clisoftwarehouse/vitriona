@@ -21,8 +21,7 @@ export function Hero() {
     <section className='relative grid min-h-screen place-items-center overflow-hidden px-6 pt-20 pb-12'>
       {/* Background gradient with parallax */}
       <div ref={bgRef} className='pointer-events-none absolute inset-0 -z-10 will-change-transform'>
-        <div className='bg-primary/8 absolute top-0 left-1/2 h-150 w-200 -translate-x-1/2 rounded-full blur-3xl' />
-        <div className='bg-primary/5 absolute top-40 right-0 h-100 w-100 rounded-full blur-3xl' />
+        <div className='bg-primary/8 absolute top-40 left-1/2 h-150 w-200 -translate-x-1/2 rounded-full blur-3xl' />
       </div>
 
       <div className='w-full max-w-7xl text-center'>

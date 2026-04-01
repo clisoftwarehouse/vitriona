@@ -32,7 +32,7 @@ const BUILDER_FEATURES = [
 export function SiteBuilderFeature() {
   return (
     <section className='border-border/50 bg-muted/10 overflow-hidden border-t py-20 md:py-28'>
-      <ScrollReveal className='mx-auto max-w-350 px-6 lg:px-12'>
+      <ScrollReveal className='mx-auto max-w-7xl px-6 lg:px-12'>
         <div className='flex w-full flex-col items-center justify-between lg:flex-row'>
           <div className='w-full lg:w-[45%] xl:w-[40%]'>
             <div className='bg-primary/10 text-primary mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold'>
