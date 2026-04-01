@@ -1018,7 +1018,7 @@ async function handleFunctionCall(call: FunctionCall, ctx: ChatbotContext): Prom
   }
 }
 
-const MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash'] as const;
+const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'] as const;
 const MAX_RETRIES = 3;
 
 function isRetryableError(error: unknown): boolean {
