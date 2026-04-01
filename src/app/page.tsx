@@ -7,6 +7,7 @@ import { Pricing } from './_components/pricing';
 import { AIAddOn } from './_components/ai-addon';
 import { Features } from './_components/features';
 import { HowItWorks } from './_components/how-it-works';
+import { SiteBuilderFeature } from './_components/site-builder-feature';
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
       <main>
         <Hero />
         <Features />
+        <SiteBuilderFeature />
         <HowItWorks />
         <Pricing />
         <AIAddOn />
