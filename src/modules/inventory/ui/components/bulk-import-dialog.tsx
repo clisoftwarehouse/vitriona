@@ -206,10 +206,12 @@ export function BulkImportDialog({ open, onOpenChange, businessId }: BulkImportD
       return;
     }
 
-    toast.success(`${result.created} producto(s) importados. ${result.skipped} omitidos.`);
+    const parts = [`${result.created} producto(s) importados`];
+    if (result.skipped) parts.push(`${result.skipped} omitidos`);
+    if (result.limited) parts.push(`${result.limited} no importados por límite de plan`);
+    toast.success(parts.join('. ') + '.');
     queryClient.invalidateQueries({ queryKey: ['products'] });
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    handleClose(false);
   };
 
   return (

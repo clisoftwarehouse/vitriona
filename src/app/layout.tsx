@@ -57,7 +57,7 @@ const RootLayout = ({
       <body className='antialiased' suppressHydrationWarning>
         <ThemeProvider attribute='class' defaultTheme='system' enableSystem disableTransitionOnChange>
           {children}
-          <Toaster richColors position='top-right' />
+          <Toaster richColors position='bottom-right' />
         </ThemeProvider>
       </body>
     </html>

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { Plus, ImageOff, ArrowRight } from 'lucide-react';
 
+import { WatermarkOverlay } from './watermark-overlay';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
 /* ─── Types ─── */
@@ -43,6 +44,7 @@ interface CatalogSectionsProps {
   slug: string;
   currency: string;
   catalogs: CatalogWithProducts[];
+  showWatermark?: boolean;
 }
 
 /* ─── Helpers ─── */
@@ -61,7 +63,7 @@ function discountPercent(p: Product) {
 
 /* ─── Main Component ─── */
 
-export function CatalogSections({ slug, currency, catalogs }: CatalogSectionsProps) {
+export function CatalogSections({ slug, currency, catalogs, showWatermark = false }: CatalogSectionsProps) {
   const addItem = useCartStore((s) => s.addItem);
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
@@ -131,6 +133,7 @@ export function CatalogSections({ slug, currency, catalogs }: CatalogSectionsPro
                         <ImageOff className='size-8 opacity-20' />
                       </div>
                     )}
+                    {showWatermark && product.images[0] && <WatermarkOverlay />}
 
                     {hasDiscount(product) && (
                       <span

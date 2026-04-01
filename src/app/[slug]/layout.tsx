@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Mail, Phone, Store, MapPin } from 'lucide-react';
 
+import { getPlanLimits } from '@/lib/plan-limits';
+import { incrementVisit } from '@/lib/visit-tracker';
 import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
 import { GoogleAnalytics } from '@/modules/storefront/ui/components/google-analytics';
 import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
@@ -50,6 +52,29 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
   const { slug } = await params;
   const business = await getBusinessBySlug(slug);
   if (!business) notFound();
+
+  // ── Visit tracking (Redis, fire-and-forget) ──
+  const limits = getPlanLimits(business.plan);
+  let visitLimitReached = false;
+  try {
+    const count = await incrementVisit(business.id);
+    if (count > limits.maxVisitsPerMonth) visitLimitReached = true;
+  } catch {
+    // Redis down — don't block the storefront
+  }
+
+  if (visitLimitReached) {
+    return (
+      <div className='flex min-h-dvh flex-col items-center justify-center bg-gray-50 px-6 text-center'>
+        <Store className='mb-4 size-16 text-gray-300' />
+        <h1 className='text-2xl font-bold text-gray-900'>Tienda no disponible temporalmente</h1>
+        <p className='mt-2 max-w-md text-gray-500'>
+          Esta tienda ha alcanzado el límite de visitas mensuales de su plan actual. Por favor, inténtalo más tarde o
+          contacta al dueño de la tienda.
+        </p>
+      </div>
+    );
+  }
 
   const catalog = await getDefaultCatalog(business.id);
   if (!catalog) notFound();

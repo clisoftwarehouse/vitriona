@@ -1,9 +1,10 @@
 'use server';
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { generateSku } from '@/modules/products/lib/generate-sku';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
@@ -36,11 +37,21 @@ export async function createProductAction(
     }
 
     const [business] = await db
-      .select({ id: businesses.id, slug: businesses.slug })
+      .select({ id: businesses.id, slug: businesses.slug, plan: businesses.plan })
       .from(businesses)
       .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
+
+    // ── Plan-based product limit ──
+    const limits = getPlanLimits(business.plan);
+    const [{ total }] = await db.select({ total: count() }).from(products).where(eq(products.businessId, business.id));
+
+    if (total >= limits.maxProducts) {
+      return {
+        error: `Has alcanzado el límite de ${limits.maxProducts} productos de tu plan. Mejora tu plan para agregar más.`,
+      };
+    }
 
     const parsedTags = values.tags
       ? values.tags

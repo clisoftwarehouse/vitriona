@@ -50,6 +50,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         whatsappNumber={business.whatsappNumber}
         currency={business.currency}
         reviewStats={stats}
+        showWatermark={business.plan === 'free'}
       />
       <ProductReviews productId={product.id} businessId={business.id} reviews={reviews} stats={stats} />
     </div>

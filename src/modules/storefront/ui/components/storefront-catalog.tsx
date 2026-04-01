@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useModifierKey } from '@/hooks/use-os';
+import { WatermarkOverlay } from './watermark-overlay';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
 /* ─── Types ─── */
@@ -58,6 +59,7 @@ interface Business {
   description: string | null;
   currency: string;
   whatsappNumber: string | null;
+  plan: 'free' | 'pro' | 'business';
 }
 
 interface CatalogSettings {
@@ -306,6 +308,7 @@ export function StorefrontCatalog({
                   layout='grid'
                   showPrices={showPrices}
                   showStock={showStock}
+                  showWatermark={business.plan === 'free'}
                   featured
                 />
               ))}
@@ -346,6 +349,7 @@ export function StorefrontCatalog({
                   slug={slug}
                   currency={business.currency}
                   showPrices={showPrices}
+                  showWatermark={business.plan === 'free'}
                   onAddToCart={handleAddToCart}
                 />
               ) : (
@@ -361,6 +365,7 @@ export function StorefrontCatalog({
                       layout={layout}
                       showPrices={showPrices}
                       showStock={showStock}
+                      showWatermark={business.plan === 'free'}
                       magazineHero={layout === 'magazine' && idx === 0}
                     />
                   ))}
@@ -1013,6 +1018,7 @@ function RestaurantMenu({
   slug,
   currency,
   showPrices,
+  showWatermark = false,
   onAddToCart,
 }: {
   products: Product[];
@@ -1020,6 +1026,7 @@ function RestaurantMenu({
   slug: string;
   currency: string;
   showPrices: boolean;
+  showWatermark?: boolean;
   onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }) {
   const catMap = new Map(categories.map((c) => [c.id, c.name]));
@@ -1058,6 +1065,7 @@ function RestaurantMenu({
                       style={{ width: 96, height: 96, minWidth: 96, borderRadius: 'var(--sf-radius, 0.75rem)' }}
                     >
                       <Image src={p.images[0].url} alt={p.name} fill className='object-cover' />
+                      {showWatermark && <WatermarkOverlay />}
                     </div>
                   )}
                   <div className='min-w-0 flex-1'>
@@ -1137,6 +1145,7 @@ interface ProductCardProps {
   layout?: string;
   showPrices?: boolean;
   showStock?: boolean;
+  showWatermark?: boolean;
   magazineHero?: boolean;
   onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }
@@ -1150,6 +1159,7 @@ function ProductCard({
   layout = 'grid',
   showPrices = true,
   showStock = false,
+  showWatermark = false,
   magazineHero = false,
   onAddToCart,
 }: ProductCardProps) {
@@ -1219,6 +1229,7 @@ function ProductCard({
             <ImageOff className='size-8 opacity-20' />
           </div>
         )}
+        {showWatermark && product.images[0] && <WatermarkOverlay />}
 
         {/* Badges */}
         <div className='absolute top-2.5 left-2.5 flex flex-col items-start gap-1'>

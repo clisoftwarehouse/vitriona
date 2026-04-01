@@ -1,16 +1,17 @@
 'use server';
 
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { businesses, deliveryMethods } from '@/db/schema';
 
 // ── Helpers ──
 
 async function verifyBusinessOwnership(businessId: string, userId: string) {
   const [business] = await db
-    .select({ id: businesses.id })
+    .select({ id: businesses.id, plan: businesses.plan })
     .from(businesses)
     .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
     .limit(1);
@@ -58,6 +59,19 @@ export async function createDeliveryMethodAction(input: CreateDeliveryMethodInpu
     if (!business) return { error: 'Negocio no encontrado' };
 
     if (!input.name.trim()) return { error: 'El nombre es requerido' };
+
+    // ── Plan-based limit ──
+    const limits = getPlanLimits(business.plan);
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(deliveryMethods)
+      .where(eq(deliveryMethods.businessId, input.businessId));
+
+    if (total >= limits.maxDeliveryMethods) {
+      return {
+        error: `Has alcanzado el límite de ${limits.maxDeliveryMethods} método(s) de entrega de tu plan. Mejora tu plan para agregar más.`,
+      };
+    }
 
     const existing = await db.select().from(deliveryMethods).where(eq(deliveryMethods.businessId, input.businessId));
 

@@ -1,9 +1,10 @@
 'use server';
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { products, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { generateSku } from '@/modules/products/lib/generate-sku';
@@ -30,16 +31,34 @@ export async function bulkImportProductsAction(businessId: string, rows: BulkPro
     }
 
     const [business] = await db
-      .select({ id: businesses.id, slug: businesses.slug })
+      .select({ id: businesses.id, slug: businesses.slug, plan: businesses.plan })
       .from(businesses)
       .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 
+    // ── Plan-based product limit ──
+    const limits = getPlanLimits(business.plan);
+    const [{ total: currentCount }] = await db
+      .select({ total: count() })
+      .from(products)
+      .where(eq(products.businessId, business.id));
+
+    const available = limits.maxProducts - currentCount;
+    if (available <= 0) {
+      return {
+        error: `Has alcanzado el límite de ${limits.maxProducts} productos de tu plan. Mejora tu plan para importar más.`,
+      };
+    }
+
+    // Only import up to the remaining capacity
+    const allowedRows = rows.slice(0, available);
+
     let created = 0;
     let skipped = 0;
+    const limited = rows.length > allowedRows.length ? rows.length - allowedRows.length : 0;
 
-    for (const row of rows) {
+    for (const row of allowedRows) {
       if (!row.name?.trim()) {
         skipped++;
         continue;
@@ -63,7 +82,7 @@ export async function bulkImportProductsAction(businessId: string, rows: BulkPro
       created++;
     }
 
-    return { success: true, created, skipped };
+    return { success: true, created, skipped, limited };
   } catch {
     return { error: 'Error al importar productos.' };
   }

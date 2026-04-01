@@ -69,7 +69,7 @@ export default async function BusinessesPage() {
                       )}
                       <div>
                         <h3 className='font-semibold'>{business.name}</h3>
-                        <p className='text-muted-foreground text-xs'>{business.slug}.vitriona.app</p>
+                        <p className='text-muted-foreground text-xs'>vitriona.app/{business.slug}</p>
                       </div>
                     </div>
                     <Badge variant={business.isActive ? 'default' : 'secondary'} className='text-[10px]'>

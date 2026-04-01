@@ -35,16 +35,15 @@ function useHydrated() {
 export function CartSheet({ slug, currency }: CartSheetProps) {
   const hydrated = useHydrated();
 
-  const getItems = useCartStore((s) => s.getItems);
+  const carts = useCartStore((s) => s.carts);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
-  const getItemCount = useCartStore((s) => s.getItemCount);
-  const getTotal = useCartStore((s) => s.getTotal);
 
-  const items = hydrated ? getItems(slug) : [];
-  const itemCount = hydrated ? getItemCount(slug) : 0;
-  const total = hydrated ? getTotal(slug) : 0;
+  const cartItems = hydrated ? (carts[slug] ?? []) : [];
+  const items = cartItems;
+  const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const total = cartItems.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0);
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 

@@ -149,9 +149,9 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
                   <FormLabel>URL del catálogo</FormLabel>
                   <FormControl>
                     <div className='relative'>
-                      <Input {...field} placeholder='mi-joyeria-ana' className='pr-30' disabled={isPending} />
-                      <span className='text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm'>
-                        .vitriona.app
+                      <Input {...field} placeholder='mi-joyeria-ana' className='pl-30' disabled={isPending} />
+                      <span className='text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 text-sm'>
+                        vitriona.app/
                       </span>
                     </div>
                   </FormControl>

@@ -18,6 +18,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 
+import { WatermarkOverlay } from './watermark-overlay';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 import { StarsDisplay } from '@/modules/reviews/ui/components/product-reviews';
 
@@ -87,9 +88,17 @@ interface ProductDetailProps {
   whatsappNumber: string | null;
   currency: string;
   reviewStats?: ReviewStats;
+  showWatermark?: boolean;
 }
 
-export function ProductDetail({ slug, product, whatsappNumber, currency, reviewStats }: ProductDetailProps) {
+export function ProductDetail({
+  slug,
+  product,
+  whatsappNumber,
+  currency,
+  reviewStats,
+  showWatermark = false,
+}: ProductDetailProps) {
   const variants = useMemo(() => product.variants ?? [], [product.variants]);
   const hasVariants = variants.length > 0;
 
@@ -238,6 +247,7 @@ export function ProductDetail({ slug, product, whatsappNumber, currency, reviewS
                 <ImageOff className='size-12 text-gray-300' />
               </div>
             )}
+            {showWatermark && displayImages[selectedImage] && <WatermarkOverlay />}
             {hasDiscount && (
               <span className='absolute top-3 left-3 rounded-full bg-red-500 px-3 py-1 text-sm font-semibold text-white shadow-sm'>
                 -{discount}%
