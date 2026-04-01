@@ -7,9 +7,6 @@ import { ThemeProvider } from '@/components/theme-provider';
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
 
 export const metadata: Metadata = {
-  icons: {
-    icon: '/favicon.png',
-  },
   metadataBase: new URL(SITE_URL),
   title: {
     default: 'Vitriona — Catálogos digitales y asistente IA para tu negocio',
