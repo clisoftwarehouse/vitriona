@@ -151,10 +151,7 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
     const productIds = prods.map((p) => p.id);
     const images =
       productIds.length > 0
-        ? await db
-            .select()
-            .from(productImages)
-            .where(and(...productIds.map((pid) => eq(productImages.productId, pid))))
+        ? await db.select().from(productImages).where(inArray(productImages.productId, productIds))
         : [];
 
     const imageMap = new Map<string, string>();
