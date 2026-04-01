@@ -4,14 +4,14 @@ import { Star } from 'lucide-react';
 export function Footer() {
   return (
     <footer className='border-border/50 border-t py-12'>
-      <div className='mx-auto max-w-7xl px-6'>
+      <div className='mx-auto max-w-7xl px-6 sm:px-0'>
         <div className='grid gap-8 md:grid-cols-4'>
           <div className='md:col-span-2'>
             <Link href='/' className='flex items-center gap-2'>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src='/images/vitriona-logo-dark.png' className='hidden h-8 w-auto dark:block' alt='Vitriona' />
+              <img src='/images/vitriona-logo-dark.png' className='hidden h-14 w-auto dark:block' alt='Vitriona' />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src='/images/vitriona-logo-light.png' className='block h-8 w-auto dark:hidden' alt='Vitriona' />
+              <img src='/images/vitriona-logo-light.png' className='block h-14 w-auto dark:hidden' alt='Vitriona' />
             </Link>
             <p className='text-muted-foreground mt-3 max-w-sm text-sm leading-relaxed'>
               La plataforma todo-en-uno para crear catálogos digitales, gestionar pedidos y atender clientes con

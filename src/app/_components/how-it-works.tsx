@@ -18,9 +18,9 @@ const STEPS = [
   },
   {
     step: '04',
-    title: 'Activa el chatbot y vende',
+    title: 'Comparte tu catálogo y vende',
     description:
-      'Configura tu chatbot con IA, comparte el enlace de tu catálogo y empieza a recibir pedidos al instante.',
+      'Comparte el enlace de tu catálogo a través del código QR generado y empieza a recibir pedidos al instante.',
   },
 ];
 

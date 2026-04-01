@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -41,9 +42,9 @@ export function RegisterForm() {
   return (
     <div className='space-y-8'>
       <div className='flex flex-col items-center space-y-4'>
-        <div className='bg-card flex size-12 items-center justify-center rounded-xl border'>
-          <span className='text-foreground text-xl font-bold'>V</span>
-        </div>
+        <Link href='/' className='flex size-12 items-center justify-center'>
+          <Image src='/icon.png' alt='Vitriona' width={48} height={48} />
+        </Link>
         <div className='space-y-1 text-center'>
           <h1 className='text-foreground text-2xl font-semibold tracking-tight'>Crear cuenta</h1>
           <p className='text-muted-foreground text-sm'>Empieza a crear tu catálogo digital</p>

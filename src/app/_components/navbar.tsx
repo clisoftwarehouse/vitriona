@@ -9,12 +9,12 @@ export function Navbar() {
 
   return (
     <header className='bg-background/80 fixed top-0 right-0 left-0 z-50 border-b border-white/10 backdrop-blur-xl'>
-      <nav className='mx-auto flex h-16 max-w-7xl items-center justify-between px-6'>
+      <nav className='mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-0'>
         <Link href='/' className='flex items-center gap-2'>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src='/images/vitriona-logo-dark.png' className='hidden h-12 w-auto dark:block' alt='Vitriona' />
+          <img src='/images/vitriona-logo-dark.png' className='hidden h-14 w-auto dark:block' alt='Vitriona' />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src='/images/vitriona-logo-light.png' className='block h-12 w-auto dark:hidden' alt='Vitriona' />
+          <img src='/images/vitriona-logo-light.png' className='block h-14 w-auto dark:hidden' alt='Vitriona' />
         </Link>
         <div className='hidden items-center gap-8 md:flex'>
           <a href='#features' className='text-muted-foreground hover:text-foreground text-sm transition-colors'>
@@ -50,7 +50,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className='bg-background border-border absolute top-16 right-0 left-0 border-b shadow-lg md:hidden'>
+        <div className='bg-background border-border absolute top-20 right-0 left-0 border-b shadow-lg md:hidden'>
           <div className='flex flex-col px-6 py-4'>
             <a
               href='#features'
