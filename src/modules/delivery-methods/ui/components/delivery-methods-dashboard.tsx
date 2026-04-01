@@ -241,7 +241,7 @@ export function DeliveryMethodsDashboard({ businessId, currency }: Props) {
             <DialogDescription>Define el nombre, costo y tiempo estimado de entrega.</DialogDescription>
           </DialogHeader>
           <div className='space-y-4'>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Nombre *</Label>
               <Input
                 placeholder='Ej: Delivery, Retiro en tienda, Envío nacional...'
@@ -249,7 +249,7 @@ export function DeliveryMethodsDashboard({ businessId, currency }: Props) {
                 onChange={(e) => setFormName(e.target.value)}
               />
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Descripción (opcional)</Label>
               <Textarea
                 placeholder='Ej: Entregamos en la zona metropolitana de Lunes a Viernes...'
@@ -258,7 +258,7 @@ export function DeliveryMethodsDashboard({ businessId, currency }: Props) {
                 rows={2}
               />
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Precio ({currency})</Label>
               <Input
                 type='number'
@@ -270,7 +270,7 @@ export function DeliveryMethodsDashboard({ businessId, currency }: Props) {
               />
               <p className='text-muted-foreground mt-1 text-xs'>Deja en 0 para ofrecer envío gratis.</p>
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Tiempo estimado (opcional)</Label>
               <Input
                 placeholder='Ej: 1-3 días hábiles, 30-60 min, Mismo día...'

@@ -262,7 +262,7 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
             <DialogDescription>Define el nombre, instrucciones y los datos que verá el cliente.</DialogDescription>
           </DialogHeader>
           <div className='space-y-4'>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Nombre del método *</Label>
               <Input
                 placeholder='Ej: Pago Móvil, Zelle, Transferencia...'
@@ -270,7 +270,7 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
                 onChange={(e) => setFormName(e.target.value)}
               />
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Instrucciones (opcional)</Label>
               <Textarea
                 placeholder='Ej: Enviar comprobante al WhatsApp después de pagar...'
@@ -279,7 +279,7 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
                 rows={2}
               />
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Datos de la cuenta</Label>
               <p className='text-muted-foreground mb-2 text-xs'>
                 Agrega los campos que el cliente necesita para realizar el pago.
@@ -311,7 +311,7 @@ export function PaymentMethodsDashboard({ businessId }: Props) {
                 <Plus className='mr-1 size-3' /> Agregar campo
               </Button>
             </div>
-            <div>
+            <div className='flex flex-col gap-2'>
               <Label>Verificación del pago (chatbot)</Label>
               <p className='text-muted-foreground mb-2 text-xs'>
                 Dato que el chatbot solicitará al cliente para verificar su pago.
