@@ -215,3 +215,79 @@ html {
 .delay-500 {
   animation-delay: 500ms;
 }
+
+/* ─── Driver.js tour overrides ─── */
+
+.driver-popover {
+  background-color: oklch(var(--background)) !important;
+  color: oklch(var(--foreground)) !important;
+  border: 1px solid oklch(var(--border)) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  box-shadow: var(--shadow-xl) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.driver-popover-title {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  color: oklch(var(--foreground)) !important;
+  letter-spacing: var(--tracking-normal) !important;
+}
+
+.driver-popover-description {
+  font-size: 0.875rem !important;
+  color: oklch(var(--muted-foreground)) !important;
+  line-height: 1.5 !important;
+}
+
+.driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  color: oklch(var(--muted-foreground)) !important;
+}
+
+.driver-popover-prev-btn {
+  background-color: transparent !important;
+  color: oklch(var(--foreground)) !important;
+  border: 1px solid oklch(var(--border)) !important;
+  border-radius: calc(var(--radius) - 4px) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  padding: 0.375rem 0.875rem !important;
+  text-shadow: none !important;
+}
+
+.driver-popover-prev-btn:hover {
+  background-color: oklch(var(--accent)) !important;
+}
+
+.driver-popover-next-btn,
+.driver-popover-close-btn-text {
+  background-color: oklch(var(--primary)) !important;
+  color: oklch(var(--primary-foreground)) !important;
+  border: none !important;
+  border-radius: calc(var(--radius) - 4px) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  padding: 0.375rem 0.875rem !important;
+  text-shadow: none !important;
+}
+
+.driver-popover-next-btn:hover,
+.driver-popover-close-btn-text:hover {
+  opacity: 0.9 !important;
+}
+
+.driver-popover-arrow-side-left.driver-popover-arrow,
+.driver-popover-arrow-side-right.driver-popover-arrow,
+.driver-popover-arrow-side-top.driver-popover-arrow,
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-color: oklch(var(--border)) !important;
+}
+
+.driver-popover-close-btn {
+  color: oklch(var(--muted-foreground)) !important;
+}
+
+.driver-popover-close-btn:hover {
+  color: oklch(var(--foreground)) !important;
+}

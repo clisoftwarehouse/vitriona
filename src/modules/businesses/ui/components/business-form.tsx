@@ -83,6 +83,9 @@ export function BusinessForm({ mode, defaultValues, onSubmitAction }: BusinessFo
       queryClient.invalidateQueries({ queryKey: ['businesses'] });
       if (mode === 'create' && result.businessId) {
         await setActiveBusinessAction(result.businessId);
+        router.refresh();
+        router.push(`/dashboard/businesses/${result.businessId}`);
+        return;
       }
       router.refresh();
       router.push('/dashboard');

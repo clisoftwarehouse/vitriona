@@ -22,6 +22,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
+import { BuilderTour } from './builder-tour';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'spa
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
 type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
-type LayoutOption = 'grid' | 'list' | 'magazine';
+type LayoutOption = 'grid' | 'list' | 'magazine' | 'restaurant';
 
 type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
 type CtaAction = 'scroll' | 'link' | 'whatsapp' | 'catalog';
@@ -113,6 +114,7 @@ interface PreviewProduct {
   stock: number | null;
   trackInventory: boolean;
   brandName: string | null;
+  categoryId: string | null;
 }
 
 interface PreviewBusiness {
@@ -189,6 +191,7 @@ const LAYOUT_OPTIONS: { value: LayoutOption; label: string }[] = [
   { value: 'grid', label: 'Grilla' },
   { value: 'list', label: 'Lista' },
   { value: 'magazine', label: 'Magazine' },
+  { value: 'restaurant', label: 'Menú restaurante' },
 ];
 
 const GRID_COLUMNS: { value: string; label: string }[] = [
@@ -456,8 +459,12 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
 
   return (
     <div className='fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-950'>
+      <BuilderTour />
       {/* Top Bar */}
-      <div className='flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 sm:px-4 dark:border-neutral-800'>
+      <div
+        id='builder-topbar'
+        className='flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 sm:px-4 dark:border-neutral-800'
+      >
         <div className='flex min-w-0 items-center gap-2 sm:gap-3'>
           <Button variant='ghost' size='icon-sm' asChild>
             <Link href={`/dashboard/businesses/${businessId}`}>
@@ -487,14 +494,14 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
             </button>
           </div>
 
-          <Button variant='outline' size='sm' asChild>
+          <Button id='builder-preview-btn' variant='outline' size='sm' asChild>
             <a href={`/${businessSlug}`} target='_blank' rel='noopener noreferrer'>
               <Eye className='size-3.5 sm:mr-1.5' />
               <span className='hidden sm:inline'>Ver tienda</span>
             </a>
           </Button>
 
-          <Button size='sm' onClick={handlePublish} disabled={isPending}>
+          <Button id='builder-publish-btn' size='sm' onClick={handlePublish} disabled={isPending}>
             {isPending ? (
               <Loader2 className='size-3.5 animate-spin sm:mr-1.5' />
             ) : (
@@ -510,7 +517,10 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
         {/* Sidebar — full width on mobile, fixed width on desktop */}
         <aside className='flex w-full shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/50 lg:w-80 dark:border-neutral-800 dark:bg-neutral-900'>
           {/* Section tabs */}
-          <div className='flex border-b border-gray-200 bg-white dark:border-neutral-800 dark:bg-neutral-950'>
+          <div
+            id='builder-section-tabs'
+            className='flex border-b border-gray-200 bg-white dark:border-neutral-800 dark:bg-neutral-950'
+          >
             {sections.map((s) => (
               <button
                 key={s.id}
@@ -528,7 +538,7 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
           </div>
 
           {/* Settings panels */}
-          <div className='flex-1 space-y-1 p-4'>
+          <div id='builder-settings-panel' className='flex-1 space-y-1 p-4'>
             {activeSection === 'theme' && <ThemePanel settings={settings} update={update} />}
             {activeSection === 'hero' && <HeroPanel settings={settings} update={update} />}
             {activeSection === 'sections' && <SectionsPanel settings={settings} update={update} />}
@@ -538,7 +548,10 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
         </aside>
 
         {/* Preview — hidden on mobile */}
-        <div className='hidden flex-1 items-center justify-center bg-gray-100 p-6 lg:flex dark:bg-neutral-950'>
+        <div
+          id='builder-preview-area'
+          className='hidden flex-1 items-center justify-center bg-gray-100 p-6 lg:flex dark:bg-neutral-950'
+        >
           <div
             className={`h-full overflow-hidden rounded-xl border border-gray-200 shadow-2xl transition-all dark:border-neutral-700 ${
               previewDevice === 'mobile' ? 'w-97.5' : 'w-full'
@@ -1291,7 +1304,9 @@ function BuilderPreview({
       ? 'flex flex-col gap-3'
       : layout === 'magazine'
         ? 'grid grid-cols-2 gap-3'
-        : 'grid grid-cols-2 gap-3';
+        : layout === 'restaurant'
+          ? 'flex flex-col'
+          : 'grid grid-cols-2 gap-3';
 
   const fmt = (v: string) => {
     const n = parseFloat(v);
@@ -1440,26 +1455,38 @@ function BuilderPreview({
           {/* All Products (paginated) */}
           <section id='products'>
             <div className='mb-6 flex items-center justify-between'>
-              <h2 className='text-xl font-bold tracking-tight'>Todos los productos</h2>
+              <h2 className='text-xl font-bold tracking-tight'>
+                {layout === 'restaurant' ? 'Menú' : 'Todos los productos'}
+              </h2>
               <span className='text-sm opacity-40'>
                 {products.length} producto{products.length !== 1 ? 's' : ''}
               </span>
             </div>
             {products.length > 0 ? (
               <>
-                <div className={gridClass}>
-                  {paginatedPreviewProducts.map((p, idx) => (
-                    <PreviewCard
-                      key={p.id}
-                      product={p}
-                      s={s}
-                      radiusLg={radiusLg}
-                      fmt={fmt}
-                      layout={layout}
-                      magazineHero={layout === 'magazine' && idx === 0}
-                    />
-                  ))}
-                </div>
+                {layout === 'restaurant' ? (
+                  <PreviewRestaurantMenu
+                    products={paginatedPreviewProducts}
+                    categories={categories}
+                    s={s}
+                    fmt={fmt}
+                    radius={radius}
+                  />
+                ) : (
+                  <div className={gridClass}>
+                    {paginatedPreviewProducts.map((p, idx) => (
+                      <PreviewCard
+                        key={p.id}
+                        product={p}
+                        s={s}
+                        radiusLg={radiusLg}
+                        fmt={fmt}
+                        layout={layout}
+                        magazineHero={layout === 'magazine' && idx === 0}
+                      />
+                    ))}
+                  </div>
+                )}
                 {previewTotalPages > 1 && (
                   <div className='mt-6 flex items-center justify-center gap-1'>
                     <button
@@ -1925,6 +1952,93 @@ function PreviewCategoryNav({
         <span key={c.id} className='shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap opacity-50'>
           {c.name}
         </span>
+      ))}
+    </div>
+  );
+}
+
+function PreviewRestaurantMenu({
+  products,
+  categories,
+  s,
+  fmt,
+  radius,
+}: {
+  products: PreviewProduct[];
+  categories: PreviewCategory[];
+  s: Settings;
+  fmt: (v: string) => string;
+  radius: string;
+}) {
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  const grouped = new Map<string, PreviewProduct[]>();
+
+  for (const p of products) {
+    const key = p.categoryId ?? '__uncategorized';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(p);
+  }
+
+  const sections = Array.from(grouped.entries()).map(([key, items]) => ({
+    name: key === '__uncategorized' ? 'Otros' : (catMap.get(key) ?? 'Otros'),
+    items,
+  }));
+
+  return (
+    <div className='space-y-8'>
+      {sections.map((section) => (
+        <div key={section.name}>
+          <div className='mb-4 border-b-2 pb-2' style={{ borderColor: s.primaryColor }}>
+            <h3 className='text-lg font-bold tracking-tight' style={{ color: s.primaryColor }}>
+              {section.name}
+            </h3>
+          </div>
+          <div className='space-y-4'>
+            {section.items.map((p) => {
+              const hasDiscountFlag = p.compareAtPrice && parseFloat(p.compareAtPrice) > parseFloat(p.price);
+              return (
+                <div key={p.id} className='flex gap-3'>
+                  {p.imageUrl && (
+                    <div
+                      className='relative shrink-0 overflow-hidden'
+                      style={{ width: 96, height: 96, minWidth: 96, borderRadius: radius }}
+                    >
+                      <Image src={p.imageUrl} alt={p.name} fill className='object-cover' />
+                    </div>
+                  )}
+                  <div className='min-w-0 flex-1'>
+                    <div className='flex items-baseline gap-2'>
+                      <span className='text-sm font-semibold'>{p.name}</span>
+                      <span
+                        className='min-w-0 flex-1 border-b border-dotted'
+                        style={{ borderColor: `color-mix(in srgb, ${s.textColor} 20%, transparent)` }}
+                      />
+                      <div className='flex shrink-0 items-baseline gap-1.5'>
+                        {hasDiscountFlag && (
+                          <span className='text-xs line-through opacity-40'>{fmt(p.compareAtPrice!)}</span>
+                        )}
+                        <span className='text-sm font-bold' style={{ color: s.primaryColor }}>
+                          {s.showPrices ? fmt(p.price) : ''}
+                        </span>
+                      </div>
+                    </div>
+                    {p.description && (
+                      <p className='mt-0.5 line-clamp-2 text-xs leading-relaxed opacity-50'>{p.description}</p>
+                    )}
+                    {p.isFeatured && (
+                      <span
+                        className='mt-1 inline-block px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase'
+                        style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
+                      >
+                        Destacado
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       ))}
     </div>
   );

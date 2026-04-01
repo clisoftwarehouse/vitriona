@@ -9,7 +9,7 @@ import { brands, catalogs, products, businesses, categories, productImages, cata
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
-type LayoutOption = 'grid' | 'list' | 'magazine';
+type LayoutOption = 'grid' | 'list' | 'magazine' | 'restaurant';
 type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
 type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
@@ -185,6 +185,7 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
       stock: p.stock,
       trackInventory: p.trackInventory,
       brandName: p.brandId ? (brandMap.get(p.brandId) ?? null) : null,
+      categoryId: p.categoryId,
     }));
 
     return {

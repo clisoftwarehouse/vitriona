@@ -221,7 +221,7 @@ export const catalogSettings = pgTable('catalog_settings', {
   borderColor: text('border_color').default('#e5e7eb'),
 
   // ── Layout ──
-  layout: text('layout', { enum: ['grid', 'list', 'magazine'] }).default('grid'),
+  layout: text('layout', { enum: ['grid', 'list', 'magazine', 'restaurant'] }).default('grid'),
   gridColumns: integer('grid_columns').default(4),
   showPrices: boolean('show_prices').notNull().default(true),
   showStock: boolean('show_stock').notNull().default(false),

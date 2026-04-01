@@ -106,11 +106,6 @@ export function AppSidebar({
           href: `/dashboard/businesses/${activeBusiness.id}/delivery-methods`,
           icon: Truck,
         },
-        {
-          label: 'Site Builder',
-          href: `/dashboard/businesses/${activeBusiness.id}/builder`,
-          icon: Paintbrush,
-        },
       ]
     : [];
 
@@ -190,12 +185,12 @@ export function AppSidebar({
       </div>
 
       {businesses.length > 0 && !collapsed && (
-        <div className='border-sidebar-border border-b px-3 py-3'>
+        <div id='sidebar-business-selector' className='border-sidebar-border border-b px-3 py-3'>
           <BusinessSelector initialBusinesses={businesses} activeBusinessId={activeBusinessId} />
         </div>
       )}
 
-      <nav className={cn('flex-1 overflow-y-auto py-4', collapsed ? 'px-1.5' : 'px-3')}>
+      <nav id='sidebar-nav' className={cn('flex-1 overflow-y-auto py-4', collapsed ? 'px-1.5' : 'px-3')}>
         {!collapsed && (
           <p className='text-muted-foreground mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>General</p>
         )}
@@ -215,12 +210,22 @@ export function AppSidebar({
       </nav>
 
       {activeBusiness && (
-        <div className='border-sidebar-border border-t p-3'>
+        <div id='sidebar-actions' className='border-sidebar-border flex flex-col gap-2 border-t p-3'>
           {collapsed ? (
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant='default' size='icon' className='mx-auto flex size-8' asChild>
+                    <Link href={`/dashboard/businesses/${activeBusiness.id}/builder`}>
+                      <Paintbrush className='size-3.5' />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='right'>Site Builder</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant='outline' size='icon' className='mx-auto flex size-8' asChild>
                     <Link href={`/${activeBusiness.slug}`} target='_blank' rel='noopener noreferrer'>
                       <ExternalLink className='size-3.5' />
                     </Link>
@@ -230,12 +235,20 @@ export function AppSidebar({
               </Tooltip>
             </TooltipProvider>
           ) : (
-            <Button variant='default' size='sm' className='w-full gap-2' asChild>
-              <Link href={`/${activeBusiness.slug}`} target='_blank' rel='noopener noreferrer'>
-                <ExternalLink className='size-3.5' />
-                Ver tienda
-              </Link>
-            </Button>
+            <>
+              <Button id='sidebar-builder-btn' variant='default' size='sm' className='w-full gap-2' asChild>
+                <Link href={`/dashboard/businesses/${activeBusiness.id}/builder`}>
+                  <Paintbrush className='size-3.5' />
+                  Site Builder
+                </Link>
+              </Button>
+              <Button id='sidebar-store-btn' variant='outline' size='sm' className='w-full gap-2' asChild>
+                <Link href={`/${activeBusiness.slug}`} target='_blank' rel='noopener noreferrer'>
+                  <ExternalLink className='size-3.5' />
+                  Ver tienda
+                </Link>
+              </Button>
+            </>
           )}
         </div>
       )}

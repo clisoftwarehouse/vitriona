@@ -35,15 +35,16 @@ function useHydrated() {
 export function CartSheet({ slug, currency }: CartSheetProps) {
   const hydrated = useHydrated();
 
-  const items = useCartStore((s) => s.items);
+  const getItems = useCartStore((s) => s.getItems);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
   const getItemCount = useCartStore((s) => s.getItemCount);
   const getTotal = useCartStore((s) => s.getTotal);
 
-  const itemCount = hydrated ? getItemCount() : 0;
-  const total = hydrated ? getTotal() : 0;
+  const items = hydrated ? getItems(slug) : [];
+  const itemCount = hydrated ? getItemCount(slug) : 0;
+  const total = hydrated ? getTotal(slug) : 0;
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
@@ -168,7 +169,7 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         </Link>
                       </SheetClose>
                       <button
-                        onClick={() => removeItem(item.productId, item.variantId)}
+                        onClick={() => removeItem(item.productId, slug, item.variantId)}
                         className='shrink-0 rounded-md p-0.5 opacity-40 transition-opacity hover:opacity-100'
                         style={{ color: '#ef4444' }}
                         aria-label='Eliminar'
@@ -186,14 +187,14 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         }}
                       >
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
+                          onClick={() => updateQuantity(item.productId, item.quantity - 1, slug, item.variantId)}
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Minus className='size-3' />
                         </button>
                         <span className='w-8 text-center text-xs font-semibold'>{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
+                          onClick={() => updateQuantity(item.productId, item.quantity + 1, slug, item.variantId)}
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Plus className='size-3' />
@@ -215,7 +216,10 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                   <span className='text-sm opacity-50'>Subtotal</span>
                   <p className='text-lg font-bold'>{formatPrice(total)}</p>
                 </div>
-                <button onClick={clearCart} className='text-xs font-medium underline opacity-40 hover:opacity-70'>
+                <button
+                  onClick={() => clearCart(slug)}
+                  className='text-xs font-medium underline opacity-40 hover:opacity-70'
+                >
                   Vaciar carrito
                 </button>
               </div>

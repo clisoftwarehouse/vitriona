@@ -71,9 +71,10 @@ export function CheckoutForm({
 }: CheckoutFormProps) {
   const router = useRouter();
   const hydrated = useHydrated();
-  const items = useCartStore((s) => s.items);
+  const getItems = useCartStore((s) => s.getItems);
   const getTotal = useCartStore((s) => s.getTotal);
   const clearCart = useCartStore((s) => s.clearCart);
+  const items = getItems(slug);
   const [isPending, startTransition] = useTransition();
 
   const [name, setName] = useState('');
@@ -108,7 +109,7 @@ export function CheckoutForm({
     description: string | null;
   } | null>(null);
 
-  const subtotal = hydrated ? getTotal() : 0;
+  const subtotal = hydrated ? getTotal(slug) : 0;
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal - discount + shippingCost);
 
@@ -184,7 +185,7 @@ export function CheckoutForm({
         window.open(url, '_blank');
       }
 
-      clearCart();
+      clearCart(slug);
       toast.success('¡Pedido enviado con éxito!');
       router.push(`/${slug}/pedido-confirmado`);
     });

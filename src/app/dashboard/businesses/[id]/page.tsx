@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BookOpen, ArrowLeft, Paintbrush } from 'lucide-react';
+import { ArrowLeft, Paintbrush } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -94,23 +94,6 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
           </div>
           <Button asChild>
             <Link href={`/dashboard/businesses/${business.id}/builder`}>Abrir builder</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className='flex items-center justify-between p-5'>
-          <div className='flex items-center gap-3'>
-            <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-              <BookOpen className='text-primary size-5' />
-            </div>
-            <div>
-              <h3 className='font-semibold'>Catálogos</h3>
-              <p className='text-muted-foreground text-sm'>Gestiona los catálogos de este negocio.</p>
-            </div>
-          </div>
-          <Button variant='outline' asChild>
-            <Link href={`/dashboard/businesses/${business.id}/catalogs`}>Ver catálogos</Link>
           </Button>
         </CardContent>
       </Card>

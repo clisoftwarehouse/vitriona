@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import { AppSidebar } from './app-sidebar';
+import { DashboardTour } from './dashboard-tour';
 import { DashboardTopbar } from './dashboard-topbar';
 import type { SidebarBusiness } from '@/modules/businesses/ui/components/business-selector';
 
@@ -36,6 +37,7 @@ export function AdminLayout({
 
   return (
     <div className='fixed inset-0 flex overflow-hidden'>
+      <DashboardTour />
       {sidebarOpen && (
         <div className='fixed inset-0 z-40 bg-black/50 md:hidden' onClick={closeSidebar} aria-hidden='true' />
       )}

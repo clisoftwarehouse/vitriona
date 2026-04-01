@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { StorefrontCatalog } from '@/modules/storefront/ui/components/storefront-catalog';
@@ -14,31 +13,6 @@ import {
 interface CatalogPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ categoria?: string; buscar?: string }>;
-}
-
-export async function generateMetadata({ params }: CatalogPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const business = await getBusinessBySlug(slug);
-  if (!business) return {};
-
-  const catalog = await getDefaultCatalog(business.id);
-  const settings = catalog ? await getCatalogSettings(catalog.id) : null;
-
-  const title = settings?.seoTitle || `${business.name} — Catálogo`;
-  const description = settings?.seoDescription || business.description || `Explora el catálogo de ${business.name}`;
-
-  return {
-    title,
-    description,
-    ...(settings?.seoKeywords ? { keywords: settings.seoKeywords.split(',').map((k: string) => k.trim()) } : {}),
-    ...(settings?.seoCanonicalUrl ? { alternates: { canonical: settings.seoCanonicalUrl } } : {}),
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      ...(settings?.ogImageUrl ? { images: [{ url: settings.ogImageUrl }] } : {}),
-    },
-  };
 }
 
 export default async function CatalogPage({ params, searchParams }: CatalogPageProps) {

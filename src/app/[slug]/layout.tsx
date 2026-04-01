@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Mail, Phone, Store, MapPin } from 'lucide-react';
 
@@ -16,6 +17,33 @@ import {
 interface StorefrontLayoutProps {
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: StorefrontLayoutProps): Promise<Metadata> {
+  const { slug } = await params;
+  const business = await getBusinessBySlug(slug);
+  if (!business) return {};
+
+  const catalog = await getDefaultCatalog(business.id);
+  const settings = catalog ? await getCatalogSettings(catalog.id) : null;
+
+  const title = settings?.seoTitle || `${business.name} — Tienda`;
+  const description = settings?.seoDescription || business.description || `Explora la tienda de ${business.name}`;
+  const faviconUrl = settings?.faviconUrl || business.logoUrl || null;
+
+  return {
+    title,
+    description,
+    ...(settings?.seoKeywords ? { keywords: settings.seoKeywords.split(',').map((k: string) => k.trim()) } : {}),
+    ...(settings?.seoCanonicalUrl ? { alternates: { canonical: settings.seoCanonicalUrl } } : {}),
+    ...(faviconUrl ? { icons: { icon: faviconUrl, shortcut: faviconUrl, apple: faviconUrl } } : {}),
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      ...(settings?.ogImageUrl ? { images: [{ url: settings.ogImageUrl }] } : {}),
+    },
+  };
 }
 
 export default async function StorefrontLayout({ children, params }: StorefrontLayoutProps) {

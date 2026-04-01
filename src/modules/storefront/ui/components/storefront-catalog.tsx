@@ -177,6 +177,7 @@ export function StorefrontCatalog({
   const showStock = settings?.showStock ?? false;
 
   const featuredProducts = allProducts.filter((p) => p.isFeatured);
+  const isSearching = !!search;
   const isFiltering = !!search || !!activeCat;
 
   const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
@@ -234,14 +235,16 @@ export function StorefrontCatalog({
       ? 'flex flex-col gap-3'
       : layout === 'magazine'
         ? 'grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5'
-        : cols === 3
-          ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
-          : 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
+        : layout === 'restaurant'
+          ? 'flex flex-col'
+          : cols === 3
+            ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
+            : 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
 
   return (
     <div>
       {/* ── Hero Section ── */}
-      {heroEnabled && !isFiltering && (
+      {heroEnabled && !isSearching && (
         <HeroSection
           title={heroTitle}
           subtitle={heroSubtitle}
@@ -262,7 +265,7 @@ export function StorefrontCatalog({
       )}
 
       {/* When filtering, show a compact search bar instead of hero */}
-      {isFiltering && (
+      {isSearching && (
         <div
           className='py-6'
           style={{ backgroundColor: 'var(--sf-surface, #f9fafb)', borderBottom: '1px solid var(--sf-border, #e5e7eb)' }}
@@ -288,7 +291,7 @@ export function StorefrontCatalog({
         )}
 
         {/* ── Featured Products ── */}
-        {!isFiltering && featuredEnabled && featuredProducts.length > 0 && (
+        {!isSearching && featuredEnabled && featuredProducts.length > 0 && (
           <section className='mb-12'>
             <SectionHeader title={featuredTitle} count={featuredProducts.length} />
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'>
@@ -327,28 +330,42 @@ export function StorefrontCatalog({
 
         {/* ── All Products (paginated) ── */}
         <section id='products' className='scroll-mt-6'>
-          <SectionHeader title={isFiltering ? 'Resultados' : 'Todos los productos'} count={products.length} />
+          <SectionHeader
+            title={isSearching ? 'Resultados' : layout === 'restaurant' ? 'Menú' : 'Todos los productos'}
+            count={products.length}
+          />
 
           {products.length === 0 ? (
             <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
           ) : (
             <>
-              <div className={gridClass}>
-                {paginatedProducts.map((product, idx) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    slug={slug}
-                    currency={business.currency}
-                    onAddToCart={handleAddToCart}
-                    cardStyle={cardStyle}
-                    layout={layout}
-                    showPrices={showPrices}
-                    showStock={showStock}
-                    magazineHero={layout === 'magazine' && idx === 0}
-                  />
-                ))}
-              </div>
+              {layout === 'restaurant' ? (
+                <RestaurantMenu
+                  products={paginatedProducts}
+                  categories={categories}
+                  slug={slug}
+                  currency={business.currency}
+                  showPrices={showPrices}
+                  onAddToCart={handleAddToCart}
+                />
+              ) : (
+                <div className={gridClass}>
+                  {paginatedProducts.map((product, idx) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      slug={slug}
+                      currency={business.currency}
+                      onAddToCart={handleAddToCart}
+                      cardStyle={cardStyle}
+                      layout={layout}
+                      showPrices={showPrices}
+                      showStock={showStock}
+                      magazineHero={layout === 'magazine' && idx === 0}
+                    />
+                  ))}
+                </div>
+              )}
               {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}
             </>
           )}
@@ -984,6 +1001,127 @@ function Pagination({
       >
         <ChevronRight className='size-4' />
       </button>
+    </div>
+  );
+}
+
+/* ─── Restaurant Menu Layout ─── */
+
+function RestaurantMenu({
+  products,
+  categories,
+  slug,
+  currency,
+  showPrices,
+  onAddToCart,
+}: {
+  products: Product[];
+  categories: Category[];
+  slug: string;
+  currency: string;
+  showPrices: boolean;
+  onAddToCart: (e: React.MouseEvent, product: Product) => void;
+}) {
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  const grouped = new Map<string, Product[]>();
+
+  for (const p of products) {
+    const key = p.categoryId ?? '__uncategorized';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(p);
+  }
+
+  const sections = Array.from(grouped.entries()).map(([key, items]) => ({
+    name: key === '__uncategorized' ? 'Otros' : (catMap.get(key) ?? 'Otros'),
+    items,
+  }));
+
+  const fmt = (price: string) => formatPrice(price, currency);
+
+  return (
+    <div className='space-y-10'>
+      {sections.map((section) => (
+        <div key={section.name}>
+          <div className='mb-5 border-b-2 pb-2' style={{ borderColor: 'var(--sf-primary, #000)' }}>
+            <h3 className='text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
+              {section.name}
+            </h3>
+          </div>
+          <div className='space-y-5'>
+            {section.items.map((p) => {
+              const disc = hasDiscount(p);
+              return (
+                <Link key={p.id} href={`/${slug}/producto/${p.slug}`} className='group flex gap-4'>
+                  {p.images[0]?.url && (
+                    <div
+                      className='relative shrink-0 overflow-hidden'
+                      style={{ width: 96, height: 96, minWidth: 96, borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                    >
+                      <Image src={p.images[0].url} alt={p.name} fill className='object-cover' />
+                    </div>
+                  )}
+                  <div className='min-w-0 flex-1'>
+                    <div className='flex items-baseline gap-3'>
+                      <span className='text-sm font-semibold transition-colors group-hover:opacity-70 sm:text-base'>
+                        {p.name}
+                      </span>
+                      <span
+                        className='min-w-0 flex-1 border-b border-dotted'
+                        style={{ borderColor: 'color-mix(in srgb, var(--sf-text, #111) 20%, transparent)' }}
+                      />
+                      {showPrices && (
+                        <div className='flex shrink-0 items-baseline gap-2'>
+                          {disc && <span className='text-xs line-through opacity-40'>{fmt(p.compareAtPrice!)}</span>}
+                          <span className='text-sm font-bold sm:text-base' style={{ color: 'var(--sf-primary, #000)' }}>
+                            {fmt(p.price)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {p.description && (
+                      <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50 sm:text-sm'>{p.description}</p>
+                    )}
+                    <div className='mt-2 flex flex-wrap items-center gap-2'>
+                      {p.isFeatured && (
+                        <span
+                          className='px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase'
+                          style={{
+                            backgroundColor: 'var(--sf-primary, #000)',
+                            borderRadius: 'var(--sf-radius, 0.75rem)',
+                          }}
+                        >
+                          Destacado
+                        </span>
+                      )}
+                      {disc && (
+                        <span
+                          className='px-2 py-0.5 text-[10px] font-bold tracking-wide text-white'
+                          style={{ backgroundColor: '#ef4444', borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                        >
+                          -{discountPercent(p)}%
+                        </span>
+                      )}
+                      {!p.hasVariants && (
+                        <button
+                          onClick={(e) => onAddToCart(e, p)}
+                          className='ml-auto flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-80'
+                          style={{
+                            backgroundColor: 'var(--sf-primary, #000)',
+                            borderRadius: 'var(--sf-radius, 0.75rem)',
+                          }}
+                        >
+                          <Plus className='size-3' />
+                          Agregar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
