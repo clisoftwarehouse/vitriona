@@ -738,6 +738,24 @@ export const notifications = pgTable('notifications', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+// ── AI Quotas ──
+
+export const businessAiQuotas = pgTable('business_ai_quotas', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .unique()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  aiPlanType: text('ai_plan_type', { enum: ['ia_starter', 'ia_business', 'ia_enterprise'] }).notNull(),
+  aiMessagesUsed: integer('ai_messages_used').notNull().default(0),
+  aiMessagesLimit: integer('ai_messages_limit').notNull(),
+  billingCycleStart: timestamp('billing_cycle_start', { mode: 'date' }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 export const coupons = pgTable('coupons', {
   id: text('id')
     .primaryKey()
