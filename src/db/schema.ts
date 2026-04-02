@@ -1,6 +1,8 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
 import { text, jsonb, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
+import type { StorefrontQrSettings } from '../modules/storefront/lib/storefront-qr';
+
 export const users = pgTable('users', {
   id: text('id')
     .primaryKey()
@@ -162,6 +164,7 @@ export const businesses = pgTable('businesses', {
 
   // ── Schedule ──
   businessHours: jsonb('business_hours').$type<Record<string, { open: string; close: string; closed: boolean }>>(),
+  qrSettings: jsonb('qr_settings').$type<StorefrontQrSettings>(),
 
   isActive: boolean('is_active').notNull().default(true),
   plan: text('plan', { enum: ['free', 'pro', 'business'] })

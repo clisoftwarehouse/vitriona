@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Paintbrush } from 'lucide-react';
+import { QrCode, ArrowLeft, Paintbrush } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -81,22 +81,41 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
         </CardContent>
       </Card>
 
-      <Card className='border-primary/20 bg-primary/5'>
-        <CardContent className='flex items-center justify-between p-5'>
-          <div className='flex items-center gap-3'>
-            <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-              <Paintbrush className='text-primary size-5' />
+      <div className='grid gap-4 lg:grid-cols-2'>
+        <Card className='border-primary/20 bg-primary/5'>
+          <CardContent className='flex items-center justify-between p-5'>
+            <div className='flex items-center gap-3'>
+              <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
+                <Paintbrush className='text-primary size-5' />
+              </div>
+              <div>
+                <h3 className='font-semibold'>Site Builder</h3>
+                <p className='text-muted-foreground text-sm'>Personaliza colores, tipografía, hero y más.</p>
+              </div>
             </div>
-            <div>
-              <h3 className='font-semibold'>Site Builder</h3>
-              <p className='text-muted-foreground text-sm'>Personaliza colores, tipografía, hero y más.</p>
+            <Button asChild>
+              <Link href={`/dashboard/businesses/${business.id}/builder`}>Abrir builder</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className='border-primary/20 bg-primary/5'>
+          <CardContent className='flex items-center justify-between p-5'>
+            <div className='flex items-center gap-3'>
+              <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
+                <QrCode className='text-primary size-5' />
+              </div>
+              <div>
+                <h3 className='font-semibold'>QR para storefront</h3>
+                <p className='text-muted-foreground text-sm'>Genera QR con estilos, colores y logo de tu marca.</p>
+              </div>
             </div>
-          </div>
-          <Button asChild>
-            <Link href={`/dashboard/businesses/${business.id}/builder`}>Abrir builder</Link>
-          </Button>
-        </CardContent>
-      </Card>
+            <Button asChild>
+              <Link href={`/dashboard/businesses/${business.id}/qr`}>Abrir QR Studio</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Separator />
 
