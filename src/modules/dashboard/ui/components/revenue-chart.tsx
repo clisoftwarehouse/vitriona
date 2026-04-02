@@ -38,7 +38,7 @@ export function RevenueChart({ data, currency }: RevenueChartProps) {
         </div>
       </CardHeader>
       <CardContent className='px-2'>
-        <ResponsiveContainer width='100%' height={240}>
+        <ResponsiveContainer width='100%' height={200}>
           <AreaChart data={data} margin={{ top: 4, right: 12, left: 12, bottom: 0 }}>
             <defs>
               <linearGradient id='revenueGradient' x1='0' y1='0' x2='0' y2='1'>

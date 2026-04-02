@@ -1,11 +1,17 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/drizzle';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
 import { generateChatResponse } from '@/modules/ai-chat/server/lib/ai';
 import { appendMessages, getConversationHistory } from '@/modules/ai-chat/server/lib/redis';
-import { businesses, chatbotConfigs, chatbotKnowledgeFiles, chatbotKnowledgeEntries } from '@/db/schema';
+import {
+  businesses,
+  chatbotConfigs,
+  businessAiQuotas,
+  chatbotKnowledgeFiles,
+  chatbotKnowledgeEntries,
+} from '@/db/schema';
 
 export async function POST(request: Request, { params }: { params: Promise<{ businessId: string }> }) {
   try {
@@ -63,6 +69,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ bus
       .from(chatbotKnowledgeFiles)
       .where(eq(chatbotKnowledgeFiles.chatbotConfigId, config.id));
 
+    // ── Quota validation ──
+    // Check if this business has an AI quota. If so, verify they haven't exceeded their monthly limit.
+    const [quota] = await db
+      .select()
+      .from(businessAiQuotas)
+      .where(eq(businessAiQuotas.businessId, businessId))
+      .limit(1);
+
+    if (quota) {
+      // Auto-reset usage if billing cycle has passed (30 days)
+      const cycleEnd = new Date(quota.billingCycleStart);
+      cycleEnd.setDate(cycleEnd.getDate() + 30);
+      if (new Date() > cycleEnd) {
+        await db
+          .update(businessAiQuotas)
+          .set({ aiMessagesUsed: 0, billingCycleStart: new Date(), updatedAt: new Date() })
+          .where(eq(businessAiQuotas.id, quota.id));
+        quota.aiMessagesUsed = 0;
+      }
+
+      if (quota.aiMessagesUsed >= quota.aiMessagesLimit) {
+        return NextResponse.json(
+          { error: 'Límite de respuestas de IA alcanzado. Por favor, mejora tu plan.' },
+          { status: 403 }
+        );
+      }
+    } else {
+      // No AI quota record means no AI plan — block access
+      return NextResponse.json({ error: 'Este negocio no tiene un plan de IA activo.' }, { status: 403 });
+    }
+
     const history = await getConversationHistory(sessionId);
 
     const aiResponse = await generateChatResponse(chatInput, history, {
@@ -85,6 +122,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ bus
       orderEnabled: config.orderEnabled,
       maxTokens: config.maxTokens,
     });
+
+    // ── Increment usage after successful response ──
+    await db
+      .update(businessAiQuotas)
+      .set({
+        aiMessagesUsed: sql`${businessAiQuotas.aiMessagesUsed} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(businessAiQuotas.businessId, businessId));
 
     await appendMessages(sessionId, [
       { role: 'user', content: chatInput, timestamp: Date.now() },

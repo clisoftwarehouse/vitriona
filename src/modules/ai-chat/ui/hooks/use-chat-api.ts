@@ -32,12 +32,15 @@ export function useChatApi(
           method: 'POST',
         });
 
+        const data: ChatResponse = await response.json();
+
         if (!response.ok) {
-          console.error('Response not OK:', response.status, response.statusText);
+          const serverError = (data as unknown as { error?: string }).error;
+          if (serverError) {
+            return { from: 'bot', text: serverError };
+          }
           throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
         }
-
-        const data: ChatResponse = await response.json();
 
         if (data.output?.trim()) {
           return { from: 'bot', text: data.output };

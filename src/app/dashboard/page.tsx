@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { TopProducts } from '@/modules/dashboard/ui/components/top-products';
 import { RevenueChart } from '@/modules/dashboard/ui/components/revenue-chart';
+import { UsageOverview } from '@/modules/dashboard/ui/components/usage-overview';
+import { getUsageStats } from '@/modules/dashboard/server/queries/get-usage-stats';
 import { DashboardGreeting } from '@/modules/dashboard/ui/components/dashboard-greeting';
 import { getDashboardStats } from '@/modules/dashboard/server/queries/get-dashboard-stats';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -55,7 +57,7 @@ const DashboardPage = async () => {
   const activeId = await getActiveBusinessId();
   const businessId = activeId ?? businessList[0].id;
 
-  const data = await getDashboardStats(businessId);
+  const [data, usageData] = await Promise.all([getDashboardStats(businessId), getUsageStats(businessId)]);
 
   const stats = data?.stats;
   const recentOrders = data?.recentOrders ?? [];
@@ -105,7 +107,7 @@ const DashboardPage = async () => {
   ];
 
   return (
-    <div className='flex flex-col gap-6'>
+    <div className='flex flex-col gap-4'>
       <DashboardGreeting firstName={firstName} />
 
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
@@ -137,11 +139,14 @@ const DashboardPage = async () => {
         ))}
       </div>
 
-      <div className='grid grid-cols-1 gap-4 lg:grid-cols-3'>
+      <div className='grid grid-cols-1 items-start gap-4 lg:grid-cols-3'>
         <div className='lg:col-span-2'>
           <RevenueChart data={dailyRevenue} currency={currency} />
         </div>
-        <TopProducts products={topSellingProducts} currency={currency} />
+        <div className='flex flex-col gap-4'>
+          {usageData && <UsageOverview data={usageData} />}
+          <TopProducts products={topSellingProducts} currency={currency} />
+        </div>
       </div>
 
       <Card className='gap-0 py-0'>
