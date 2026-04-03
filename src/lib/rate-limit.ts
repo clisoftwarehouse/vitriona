@@ -54,9 +54,15 @@ export async function rateLimit(key: string, limit: number, windowSeconds: numbe
  * Uses x-forwarded-for → x-real-ip → fallback.
  */
 export function getClientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return request.headers.get('x-real-ip') ?? 'unknown';
+  const candidates = [
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
+    request.headers.get('cf-connecting-ip')?.trim(),
+    request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim(),
+    request.headers.get('x-real-ip')?.trim(),
+    request.headers.get('x-client-ip')?.trim(),
+  ];
+
+  return candidates.find(Boolean) ?? 'unknown';
 }
 
 /**

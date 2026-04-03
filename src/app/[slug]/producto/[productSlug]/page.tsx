@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ProductReviews } from '@/modules/reviews/ui/components/product-reviews';
 import { ProductDetail } from '@/modules/storefront/ui/components/product-detail';
 import { getProductReviews, getProductReviewStats } from '@/modules/reviews/server/actions/review-actions';
+import { StorefrontAnalyticsTracker } from '@/modules/storefront/ui/components/storefront-analytics-tracker';
 import { getProductBySlug, getBusinessBySlug } from '@/modules/storefront/server/queries/get-storefront-data';
 
 interface ProductPageProps {
@@ -44,6 +45,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <div className='mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8'>
+      <StorefrontAnalyticsTracker
+        businessId={business.id}
+        eventType='product_view'
+        productId={product.id}
+        productName={product.name}
+      />
       <ProductDetail
         slug={slug}
         product={product}

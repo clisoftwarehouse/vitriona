@@ -1,5 +1,5 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
-import { text, jsonb, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { text, jsonb, index, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
 import type { StorefrontQrSettings } from '../modules/storefront/lib/storefront-qr';
 
@@ -406,6 +406,38 @@ export const products = pgTable('products', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
+
+export const storefrontAnalyticsEvents = pgTable(
+  'storefront_analytics_events',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: text('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id'),
+    eventType: text('event_type', { enum: ['storefront_view', 'product_view'] }).notNull(),
+    path: text('path').notNull(),
+    productId: text('product_id').references(() => products.id, { onDelete: 'set null' }),
+    productName: text('product_name'),
+    countryCode: text('country_code'),
+    country: text('country'),
+    region: text('region'),
+    city: text('city'),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('storefront_analytics_events_business_created_idx').on(table.businessId, table.createdAt),
+    index('storefront_analytics_events_business_event_created_idx').on(
+      table.businessId,
+      table.eventType,
+      table.createdAt
+    ),
+    index('storefront_analytics_events_business_session_idx').on(table.businessId, table.sessionId, table.createdAt),
+    index('storefront_analytics_events_product_created_idx').on(table.productId, table.createdAt),
+  ]
+);
 
 // ── Product Attributes (definitions per business) ──
 
