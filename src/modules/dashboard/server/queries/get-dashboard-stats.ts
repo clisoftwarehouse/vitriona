@@ -5,6 +5,7 @@ import { eq, ne, and, sum, gte, sql, desc, count } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { orders, products, businesses, orderItems, productReviews } from '@/db/schema';
+import { type DashboardTimeframe, getDashboardTimeframeMeta } from '@/modules/dashboard/lib/dashboard-timeframe';
 
 interface DashboardStats {
   revenue: { current: number; previous: number };
@@ -23,7 +24,13 @@ interface RecentOrder {
   firstProductName: string | null;
 }
 
-export async function getDashboardStats(businessId: string) {
+interface RevenueBucketRow {
+  bucket: string;
+  revenue: string | null;
+  orderCount: number;
+}
+
+export async function getDashboardStats(businessId: string, timeframe: DashboardTimeframe) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
@@ -35,21 +42,9 @@ export async function getDashboardStats(businessId: string) {
     .limit(1);
   if (!biz) return null;
 
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const timeframeMeta = getDashboardTimeframeMeta(timeframe);
 
-  // Current month revenue + order count (exclude cancelled)
-  const [currentMonth] = await db
-    .select({
-      revenue: sum(orders.total),
-      orderCount: count(),
-    })
-    .from(orders)
-    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, startOfMonth), ne(orders.status, 'cancelled')));
-
-  // Previous month revenue + order count
-  const [prevMonth] = await db
+  const [currentPeriod] = await db
     .select({
       revenue: sum(orders.total),
       orderCount: count(),
@@ -58,8 +53,23 @@ export async function getDashboardStats(businessId: string) {
     .where(
       and(
         eq(orders.businessId, businessId),
-        gte(orders.createdAt, startOfPrevMonth),
-        sql`${orders.createdAt} < ${startOfMonth}`,
+        gte(orders.createdAt, timeframeMeta.currentStart),
+        sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`,
+        ne(orders.status, 'cancelled')
+      )
+    );
+
+  const [previousPeriod] = await db
+    .select({
+      revenue: sum(orders.total),
+      orderCount: count(),
+    })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.businessId, businessId),
+        gte(orders.createdAt, timeframeMeta.previousStart),
+        sql`${orders.createdAt} < ${timeframeMeta.previousEnd}`,
         ne(orders.status, 'cancelled')
       )
     );
@@ -81,12 +91,12 @@ export async function getDashboardStats(businessId: string) {
 
   const stats: DashboardStats = {
     revenue: {
-      current: currentMonth?.revenue ? parseFloat(currentMonth.revenue) : 0,
-      previous: prevMonth?.revenue ? parseFloat(prevMonth.revenue) : 0,
+      current: currentPeriod?.revenue ? parseFloat(currentPeriod.revenue) : 0,
+      previous: previousPeriod?.revenue ? parseFloat(previousPeriod.revenue) : 0,
     },
     orders: {
-      current: currentMonth?.orderCount ?? 0,
-      previous: prevMonth?.orderCount ?? 0,
+      current: currentPeriod?.orderCount ?? 0,
+      previous: previousPeriod?.orderCount ?? 0,
     },
     products: {
       total: productStats?.total ?? 0,
@@ -97,7 +107,6 @@ export async function getDashboardStats(businessId: string) {
     },
   };
 
-  // Recent orders (last 10)
   const recentOrders = await db
     .select({
       id: orders.id,
@@ -108,7 +117,13 @@ export async function getDashboardStats(businessId: string) {
       createdAt: orders.createdAt,
     })
     .from(orders)
-    .where(eq(orders.businessId, businessId))
+    .where(
+      and(
+        eq(orders.businessId, businessId),
+        gte(orders.createdAt, timeframeMeta.currentStart),
+        sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`
+      )
+    )
     .orderBy(desc(orders.createdAt))
     .limit(10);
 
@@ -131,26 +146,46 @@ export async function getDashboardStats(businessId: string) {
     firstProductName: firstItems[o.id] ?? null,
   }));
 
-  // Daily revenue for last 30 days
-  const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
-  const dailyRevenueRows = await db
-    .select({
-      day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
-      revenue: sum(orders.total),
-      orderCount: count(),
-    })
-    .from(orders)
-    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, thirtyDaysAgo), ne(orders.status, 'cancelled')))
-    .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`)
-    .orderBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`);
+  const revenueBuckets: RevenueBucketRow[] =
+    timeframeMeta.chartGranularity === 'hour'
+      ? await db
+          .select({
+            bucket: sql<string>`to_char(date_trunc('hour', ${orders.createdAt}), 'HH24')`,
+            revenue: sum(orders.total),
+            orderCount: count(),
+          })
+          .from(orders)
+          .where(
+            and(
+              eq(orders.businessId, businessId),
+              gte(orders.createdAt, timeframeMeta.currentStart),
+              sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`,
+              ne(orders.status, 'cancelled')
+            )
+          )
+          .groupBy(sql`date_trunc('hour', ${orders.createdAt})`)
+          .orderBy(sql`date_trunc('hour', ${orders.createdAt})`)
+      : await db
+          .select({
+            bucket: sql<string>`to_char(date_trunc('day', ${orders.createdAt}), 'YYYY-MM-DD')`,
+            revenue: sum(orders.total),
+            orderCount: count(),
+          })
+          .from(orders)
+          .where(
+            and(
+              eq(orders.businessId, businessId),
+              gte(orders.createdAt, timeframeMeta.currentStart),
+              sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`,
+              ne(orders.status, 'cancelled')
+            )
+          )
+          .groupBy(sql`date_trunc('day', ${orders.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${orders.createdAt})`);
 
-  // Fill in missing days with 0
   const dailyRevenue: { date: string; revenue: number; orders: number }[] = [];
-  const revenueMap = new Map(dailyRevenueRows.map((r) => [r.day, r]));
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyDaysAgo);
-    d.setDate(d.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+  const revenueMap = new Map(revenueBuckets.map((bucket) => [bucket.bucket, bucket]));
+  for (const key of timeframeMeta.chartBuckets) {
     const row = revenueMap.get(key);
     dailyRevenue.push({
       date: key,
@@ -159,7 +194,6 @@ export async function getDashboardStats(businessId: string) {
     });
   }
 
-  // Top selling products (by quantity sold, last 30 days)
   const topProducts = await db
     .select({
       productName: orderItems.productName,
@@ -168,7 +202,14 @@ export async function getDashboardStats(businessId: string) {
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, thirtyDaysAgo), ne(orders.status, 'cancelled')))
+    .where(
+      and(
+        eq(orders.businessId, businessId),
+        gte(orders.createdAt, timeframeMeta.currentStart),
+        sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`,
+        ne(orders.status, 'cancelled')
+      )
+    )
     .groupBy(orderItems.productName)
     .orderBy(desc(sum(orderItems.quantity)))
     .limit(5);
@@ -179,14 +220,19 @@ export async function getDashboardStats(businessId: string) {
     revenue: p.totalRevenue ? parseFloat(p.totalRevenue as string) : 0,
   }));
 
-  // Orders by status
   const ordersByStatus = await db
     .select({
       status: orders.status,
       count: count(),
     })
     .from(orders)
-    .where(and(eq(orders.businessId, businessId), gte(orders.createdAt, startOfMonth)))
+    .where(
+      and(
+        eq(orders.businessId, businessId),
+        gte(orders.createdAt, timeframeMeta.currentStart),
+        sql`${orders.createdAt} < ${timeframeMeta.currentEnd}`
+      )
+    )
     .groupBy(orders.status);
 
   const statusBreakdown = ordersByStatus.map((r) => ({

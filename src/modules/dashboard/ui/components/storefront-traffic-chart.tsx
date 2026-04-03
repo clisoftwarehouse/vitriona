@@ -3,14 +3,20 @@
 import { Area, Line, XAxis, YAxis, Tooltip, AreaChart, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { type DashboardChartGranularity } from '@/modules/dashboard/lib/dashboard-timeframe';
 
 interface StorefrontTrafficChartProps {
   data: { date: string; visits: number; uniqueVisitors: number; productViews: number }[];
-  windowDays: number;
+  granularity: DashboardChartGranularity;
+  rangeDescription: string;
 }
 
-function formatDate(dateStr: string) {
-  const date = new Date(`${dateStr}T00:00:00`);
+function formatBucketLabel(value: string, granularity: DashboardChartGranularity) {
+  if (granularity === 'hour') {
+    return `${value}:00`;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
   return date.toLocaleDateString('es', { day: 'numeric', month: 'short' });
 }
 
@@ -18,7 +24,7 @@ function formatCount(value: number) {
   return new Intl.NumberFormat('es').format(value);
 }
 
-export function StorefrontTrafficChart({ data, windowDays }: StorefrontTrafficChartProps) {
+export function StorefrontTrafficChart({ data, granularity, rangeDescription }: StorefrontTrafficChartProps) {
   const totalVisits = data.reduce((sum, entry) => sum + entry.visits, 0);
   const totalUniqueVisitors = data.reduce((sum, entry) => sum + entry.uniqueVisitors, 0);
 
@@ -33,7 +39,7 @@ export function StorefrontTrafficChart({ data, windowDays }: StorefrontTrafficCh
             <div className='mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1'>
               <span className='text-2xl font-bold tracking-tight'>{formatCount(totalVisits)} visitas</span>
               <span className='text-muted-foreground text-sm'>
-                {formatCount(totalUniqueVisitors)} visitantes aprox. en {windowDays} días
+                {formatCount(totalUniqueVisitors)} visitantes aprox. en {rangeDescription}
               </span>
             </div>
           </div>
@@ -51,7 +57,7 @@ export function StorefrontTrafficChart({ data, windowDays }: StorefrontTrafficCh
             <CartesianGrid strokeDasharray='3 3' stroke='var(--color-border, #e5e7eb)' vertical={false} />
             <XAxis
               dataKey='date'
-              tickFormatter={formatDate}
+              tickFormatter={(value) => formatBucketLabel(String(value), granularity)}
               tick={{ fontSize: 11, fill: 'var(--color-muted-foreground, #6b7280)' }}
               tickLine={false}
               axisLine={false}
@@ -71,7 +77,7 @@ export function StorefrontTrafficChart({ data, windowDays }: StorefrontTrafficCh
                 border: '1px solid var(--color-border, #e5e7eb)',
                 background: 'var(--color-card, #fff)',
               }}
-              labelFormatter={(label) => formatDate(String(label))}
+              labelFormatter={(label) => formatBucketLabel(String(label), granularity)}
               formatter={(value, name) => {
                 if (name === 'visits') {
                   return [formatCount(Number(value)), 'Visitas'];

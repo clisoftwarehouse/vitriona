@@ -3,12 +3,16 @@ import { Eye, Users, Globe2, MapPinned, TrendingUp, ArrowUpRight, TrendingDown, 
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { type DashboardChartGranularity } from '@/modules/dashboard/lib/dashboard-timeframe';
 import { StorefrontAnalyticsMap } from '@/modules/dashboard/ui/components/storefront-analytics-map';
 import { StorefrontTrafficChart } from '@/modules/dashboard/ui/components/storefront-traffic-chart';
 import { type StorefrontAnalyticsResult } from '@/modules/dashboard/server/queries/get-storefront-analytics';
 
 interface StorefrontAnalyticsOverviewProps {
+  chartGranularity: DashboardChartGranularity;
   data: StorefrontAnalyticsResult;
+  timeframeDescription: string;
+  comparisonLabel: string;
 }
 
 function formatCount(value: number) {
@@ -24,7 +28,12 @@ function pctChange(current: number, previous: number) {
   return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
 }
 
-export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOverviewProps) {
+export function StorefrontAnalyticsOverview({
+  chartGranularity,
+  data,
+  timeframeDescription,
+  comparisonLabel,
+}: StorefrontAnalyticsOverviewProps) {
   const hasAnalytics = data.summary.totalVisits > 0 || data.summary.productViews > 0;
   const maxProductViews = Math.max(...data.topViewedProducts.map((product) => product.views), 1);
 
@@ -34,7 +43,7 @@ export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOvervie
       value: formatCount(data.summary.totalVisits),
       change: pctChange(data.summary.totalVisits, data.summary.previousVisits),
       up: data.summary.totalVisits >= data.summary.previousVisits,
-      sub: `vs ${data.windowDays} días anteriores`,
+      sub: comparisonLabel,
       icon: Eye,
     },
     {
@@ -42,7 +51,7 @@ export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOvervie
       value: formatCount(data.summary.uniqueVisitors),
       change: pctChange(data.summary.uniqueVisitors, data.summary.previousUniqueVisitors),
       up: data.summary.uniqueVisitors >= data.summary.previousUniqueVisitors,
-      sub: `sesiones únicas en ${data.windowDays} días`,
+      sub: `sesiones únicas en ${timeframeDescription}`,
       icon: Users,
     },
     {
@@ -50,7 +59,7 @@ export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOvervie
       value: formatCount(data.summary.productViews),
       change: pctChange(data.summary.productViews, data.summary.previousProductViews),
       up: data.summary.productViews >= data.summary.previousProductViews,
-      sub: 'detalle de productos consultados',
+      sub: `interacciones en ${timeframeDescription}`,
       icon: MousePointerClick,
     },
     {
@@ -74,8 +83,8 @@ export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOvervie
           </div>
           <h3 className='text-lg font-semibold'>Todavía no hay analítica suficiente del storefront</h3>
           <p className='text-muted-foreground mt-2 max-w-2xl text-sm'>
-            Cuando tus clientes empiecen a navegar el storefront verás aquí visitas por país, localidades destacadas,
-            páginas más consultadas y productos con más vistas.
+            Cuando tus clientes empiecen a navegar el storefront verás aquí visitas por país, localidades destacadas y
+            productos con más vistas para {timeframeDescription}.
           </p>
           <Link
             href={`/${data.businessSlug}`}
@@ -123,7 +132,11 @@ export function StorefrontAnalyticsOverview({ data }: StorefrontAnalyticsOvervie
 
       <div className='grid grid-cols-1 gap-2 xl:grid-cols-3'>
         <div className='xl:col-span-2'>
-          <StorefrontTrafficChart data={data.dailyTraffic} windowDays={data.windowDays} />
+          <StorefrontTrafficChart
+            data={data.dailyTraffic}
+            granularity={chartGranularity}
+            rangeDescription={timeframeDescription}
+          />
         </div>
 
         <Card className='gap-4 py-5'>

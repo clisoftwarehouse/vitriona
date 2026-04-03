@@ -25,7 +25,13 @@ import { getBusinessesAction } from '@/modules/businesses/server/actions/get-bus
 import { getStorefrontAnalytics } from '@/modules/dashboard/server/queries/get-storefront-analytics';
 import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-active-business.action';
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from '@/components/ui/table';
+import { DashboardTimeframeSelect } from '@/modules/dashboard/ui/components/dashboard-timeframe-select';
 import { StorefrontAnalyticsOverview } from '@/modules/dashboard/ui/components/storefront-analytics-overview';
+import {
+  parseDashboardTimeframe,
+  getDashboardTimeframeMeta,
+  DEFAULT_DASHBOARD_TIMEFRAME,
+} from '@/modules/dashboard/lib/dashboard-timeframe';
 
 const STATUS_LABELS: Record<string, string> = {
   pending_payment: 'Pendiente de pago',
@@ -59,27 +65,42 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 interface DashboardPageProps {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; range?: string }>;
 }
 
 const DASHBOARD_TABS = [
   {
     id: 'overview',
     label: 'Resumen del negocio',
-    href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
     id: 'storefront',
-    label: 'Analítica del storefront',
-    href: '/dashboard?tab=storefront',
+    label: 'Geo analíticas',
     icon: BarChart3,
   },
 ] as const;
 
+function buildDashboardHref(tab: (typeof DASHBOARD_TABS)[number]['id'], range: string) {
+  const params = new URLSearchParams();
+
+  if (tab !== 'overview') {
+    params.set('tab', tab);
+  }
+
+  if (range !== DEFAULT_DASHBOARD_TIMEFRAME) {
+    params.set('range', range);
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard?${query}` : '/dashboard';
+}
+
 const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
   const resolvedSearchParams = await searchParams;
   const activeTab = resolvedSearchParams.tab === 'storefront' ? 'storefront' : 'overview';
+  const timeframe = parseDashboardTimeframe(resolvedSearchParams.range);
+  const timeframeMeta = getDashboardTimeframeMeta(timeframe);
 
   const [session, businessList] = await Promise.all([auth(), getBusinessesAction()]);
 
@@ -92,9 +113,9 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
   const activeBusiness = businessList.find((business) => business.id === activeId) ?? businessList[0];
   const businessId = activeBusiness.id;
 
-  const data = activeTab === 'overview' ? await getDashboardStats(businessId) : null;
+  const data = activeTab === 'overview' ? await getDashboardStats(businessId, timeframe) : null;
   const usageData = activeTab === 'overview' ? await getUsageStats(businessId) : null;
-  const storefrontAnalytics = activeTab === 'storefront' ? await getStorefrontAnalytics(businessId) : null;
+  const storefrontAnalytics = activeTab === 'storefront' ? await getStorefrontAnalytics(businessId, timeframe) : null;
 
   const stats = data?.stats;
   const recentOrders = data?.recentOrders.slice(0, 5) ?? [];
@@ -108,11 +129,11 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
 
   const statCards = [
     {
-      label: 'Pedidos del mes',
+      label: timeframeMeta.ordersStatLabel,
       value: String(stats?.orders.current ?? 0),
       change: ordersChange,
       up: ordersUp,
-      sub: 'vs mes anterior',
+      sub: timeframeMeta.comparisonLabel,
       icon: ShoppingCart,
     },
     {
@@ -137,31 +158,40 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
     <div className='flex flex-col gap-2'>
       <DashboardGreeting firstName={firstName} />
 
-      <nav className='mt-2 flex flex-wrap gap-2'>
-        {DASHBOARD_TABS.map(({ id, label, href, icon: Icon }) => {
-          const isActive = activeTab === id;
+      <div className='mt-2 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
+        <nav className='flex flex-wrap gap-2'>
+          {DASHBOARD_TABS.map(({ id, label, icon: Icon }) => {
+            const isActive = activeTab === id;
 
-          return (
-            <Link
-              key={id}
-              href={href}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              )}
-            >
-              <Icon className='size-4' />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+            return (
+              <Link
+                key={id}
+                href={buildDashboardHref(id, timeframe)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                    : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                )}
+              >
+                <Icon className='size-4' />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <DashboardTimeframeSelect value={timeframe} />
+      </div>
 
       {activeTab === 'storefront' ? (
         storefrontAnalytics ? (
-          <StorefrontAnalyticsOverview data={storefrontAnalytics} />
+          <StorefrontAnalyticsOverview
+            chartGranularity={timeframeMeta.chartGranularity}
+            data={storefrontAnalytics}
+            timeframeDescription={timeframeMeta.rangeDescription}
+            comparisonLabel={timeframeMeta.comparisonLabel}
+          />
         ) : (
           <Card className='mt-2 py-8'>
             <CardContent className='text-muted-foreground text-center text-sm'>
@@ -201,18 +231,28 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
                   </Card>
                 ))}
               </div>
-              <RevenueChart data={dailyRevenue} currency={currency} />
+              <RevenueChart
+                data={dailyRevenue}
+                currency={currency}
+                granularity={timeframeMeta.chartGranularity}
+                title={timeframeMeta.revenueChartTitle}
+              />
             </div>
             {usageData && <UsageOverview data={usageData} />}
           </div>
 
           <div className='grid grid-cols-1 gap-2 lg:grid-cols-3'>
             <div className='lg:col-span-1'>
-              <TopProducts products={topSellingProducts} currency={currency} />
+              <TopProducts
+                products={topSellingProducts}
+                currency={currency}
+                title={timeframeMeta.topProductsTitle}
+                emptyMessage={timeframeMeta.topProductsEmptyMessage}
+              />
             </div>
             <Card className='gap-0 py-0 lg:col-span-2'>
               <CardHeader className='flex flex-row items-center justify-between border-b px-6 py-4'>
-                <h3 className='font-semibold'>Pedidos recientes</h3>
+                <h3 className='font-semibold'>{timeframeMeta.recentOrdersTitle}</h3>
                 <Link
                   href={`/dashboard/businesses/${businessId}/orders`}
                   className='text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors'
@@ -225,7 +265,7 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
                 {recentOrders.length === 0 ? (
                   <div className='flex flex-col items-center justify-center py-12 text-center'>
                     <ShoppingCart className='text-muted-foreground mb-3 size-8 opacity-30' />
-                    <p className='text-muted-foreground text-sm'>No hay pedidos aún.</p>
+                    <p className='text-muted-foreground text-sm'>{timeframeMeta.recentOrdersEmptyMessage}</p>
                   </div>
                 ) : (
                   <div className='overflow-x-auto'>

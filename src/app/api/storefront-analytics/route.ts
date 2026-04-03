@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     await trackStorefrontAnalyticsRedisEvent({
       businessId: payload.data.businessId,
-      sessionId: payload.data.sessionId ?? null,
+      sessionId: payload.data.sessionId ?? undefined,
       eventType: payload.data.eventType,
       path: payload.data.path,
       productId: payload.data.productId,

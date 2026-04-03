@@ -6,14 +6,10 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getRedis } from '@/lib/redis';
 import { products, businesses } from '@/db/schema';
-import {
-  getCountryNameFromCode,
-  formatStorefrontLocationLabel,
-  STOREFRONT_ANALYTICS_WINDOW_DAYS,
-} from '@/modules/storefront/lib/storefront-analytics';
+import { type DashboardTimeframe, getDashboardTimeframeMeta } from '@/modules/dashboard/lib/dashboard-timeframe';
+import { getCountryNameFromCode, formatStorefrontLocationLabel } from '@/modules/storefront/lib/storefront-analytics';
 import {
   parseLocalityMember,
-  getAnalyticsDateKeys,
   readStorefrontProductMeta,
   getStorefrontAnalyticsPageKey,
   getStorefrontAnalyticsUniqueKey,
@@ -21,6 +17,8 @@ import {
   getStorefrontAnalyticsProductKey,
   getStorefrontAnalyticsSummaryKey,
   getStorefrontAnalyticsLocalityKey,
+  getStorefrontAnalyticsHourlyUniqueKey,
+  getStorefrontAnalyticsHourlySummaryKey,
 } from '@/modules/storefront/server/lib/storefront-analytics-redis';
 
 interface DailySummary {
@@ -143,13 +141,16 @@ function sortCounts<T>(counts: Map<string, number>, mapEntry: (key: string, valu
     .map(([key, value]) => mapEntry(key, value));
 }
 
-function createEmptyAnalyticsResult(businessName: string, businessSlug: string): StorefrontAnalyticsResult {
-  const currentDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS);
-
+function createEmptyAnalyticsResult(
+  businessName: string,
+  businessSlug: string,
+  currentDateKeys: string[],
+  chartKeys: string[]
+): StorefrontAnalyticsResult {
   return {
     businessName,
     businessSlug,
-    windowDays: STOREFRONT_ANALYTICS_WINDOW_DAYS,
+    windowDays: currentDateKeys.length,
     summary: {
       totalVisits: 0,
       previousVisits: 0,
@@ -160,7 +161,7 @@ function createEmptyAnalyticsResult(businessName: string, businessSlug: string):
       countryCount: 0,
       topCountry: null,
     },
-    dailyTraffic: currentDateKeys.map((date) => ({
+    dailyTraffic: chartKeys.map((date) => ({
       date,
       visits: 0,
       uniqueVisitors: 0,
@@ -173,7 +174,10 @@ function createEmptyAnalyticsResult(businessName: string, businessSlug: string):
   };
 }
 
-export async function getStorefrontAnalytics(businessId: string): Promise<StorefrontAnalyticsResult | null> {
+export async function getStorefrontAnalytics(
+  businessId: string,
+  timeframe: DashboardTimeframe
+): Promise<StorefrontAnalyticsResult | null> {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -190,8 +194,11 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     return null;
   }
 
-  const currentDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS);
-  const previousDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS, -STOREFRONT_ANALYTICS_WINDOW_DAYS);
+  const timeframeMeta = getDashboardTimeframeMeta(timeframe);
+  const currentDateKeys = timeframeMeta.currentDateKeys;
+  const previousDateKeys = timeframeMeta.previousDateKeys;
+  const chartKeys = timeframeMeta.chartBuckets;
+  const currentDateKey = currentDateKeys[0] ?? timeframeMeta.currentStart.toISOString().slice(0, 10);
 
   try {
     const client = getRedis();
@@ -211,9 +218,26 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     const previousSummaryIndexes = previousDateKeys.map((dateKey) =>
       queue(() => pipeline.hgetall(getStorefrontAnalyticsSummaryKey(businessId, dateKey)), parseDailySummary)
     );
-    const currentDailyUniqueIndexes = currentDateKeys.map((dateKey) =>
-      queue(() => pipeline.pfcount(getStorefrontAnalyticsUniqueKey(businessId, dateKey)), asNumber)
-    );
+    const currentDailyUniqueIndexes =
+      timeframeMeta.chartGranularity === 'hour'
+        ? chartKeys.map((hourKey) =>
+            queue(
+              () => pipeline.pfcount(getStorefrontAnalyticsHourlyUniqueKey(businessId, currentDateKey, hourKey)),
+              asNumber
+            )
+          )
+        : currentDateKeys.map((dateKey) =>
+            queue(() => pipeline.pfcount(getStorefrontAnalyticsUniqueKey(businessId, dateKey)), asNumber)
+          );
+    const currentTrafficSummaryIndexes =
+      timeframeMeta.chartGranularity === 'hour'
+        ? chartKeys.map((hourKey) =>
+            queue(
+              () => pipeline.hgetall(getStorefrontAnalyticsHourlySummaryKey(businessId, currentDateKey, hourKey)),
+              parseDailySummary
+            )
+          )
+        : currentSummaryIndexes;
     const currentCountryIndexes = currentDateKeys.map((dateKey) =>
       queue(
         () => pipeline.zrevrange(getStorefrontAnalyticsCountryKey(businessId, dateKey), 0, -1, 'WITHSCORES'),
@@ -251,7 +275,7 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     const results = await pipeline.exec();
 
     if (!results) {
-      return createEmptyAnalyticsResult(business.name, business.slug);
+      return createEmptyAnalyticsResult(business.name, business.slug, currentDateKeys, chartKeys);
     }
 
     const parsedResults = results.map(([error, value], index) => {
@@ -264,6 +288,7 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
 
     const currentSummaries = currentSummaryIndexes.map((index) => parsedResults[index] as DailySummary);
     const previousSummaries = previousSummaryIndexes.map((index) => parsedResults[index] as DailySummary);
+    const currentTrafficSummaries = currentTrafficSummaryIndexes.map((index) => parsedResults[index] as DailySummary);
     const currentDailyUniqueVisitors = currentDailyUniqueIndexes.map((index) => asNumber(parsedResults[index]));
 
     const countryCounts = new Map<string, number>();
@@ -278,11 +303,11 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     const productCounts = new Map<string, number>();
     currentProductIndexes.forEach((index) => mergeCounts(productCounts, parsedResults[index] as Map<string, number>));
 
-    const dailyTraffic = currentDateKeys.map((date, index) => ({
+    const dailyTraffic = chartKeys.map((date, index) => ({
       date,
-      visits: currentSummaries[index]?.visits ?? 0,
+      visits: currentTrafficSummaries[index]?.visits ?? 0,
       uniqueVisitors: currentDailyUniqueVisitors[index] ?? 0,
-      productViews: currentSummaries[index]?.productViews ?? 0,
+      productViews: currentTrafficSummaries[index]?.productViews ?? 0,
     }));
 
     const totalVisits = currentSummaries.reduce((sum, summary) => sum + summary.visits, 0);
@@ -375,7 +400,7 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     return {
       businessName: business.name,
       businessSlug: business.slug,
-      windowDays: STOREFRONT_ANALYTICS_WINDOW_DAYS,
+      windowDays: currentDateKeys.length,
       summary: {
         totalVisits,
         previousVisits,
@@ -393,6 +418,6 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
       topPages,
     };
   } catch {
-    return createEmptyAnalyticsResult(business.name, business.slug);
+    return createEmptyAnalyticsResult(business.name, business.slug, currentDateKeys, chartKeys);
   }
 }

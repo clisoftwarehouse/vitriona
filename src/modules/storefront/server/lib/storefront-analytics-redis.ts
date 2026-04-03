@@ -30,11 +30,17 @@ interface ProductMeta {
 
 const RETENTION_TTL_SECONDS = STOREFRONT_ANALYTICS_RETENTION_DAYS * 24 * 60 * 60;
 
+type RedisPipeline = ReturnType<Redis['pipeline']>;
+
 function getDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function withExpiry(pipeline: Redis.Pipeline, key: string) {
+function getHourKey(date: Date) {
+  return String(date.getUTCHours()).padStart(2, '0');
+}
+
+function withExpiry(pipeline: RedisPipeline, key: string) {
   pipeline.expire(key, RETENTION_TTL_SECONDS);
 }
 
@@ -95,6 +101,14 @@ export function getStorefrontAnalyticsSummaryKey(businessId: string, dateKey: st
 
 export function getStorefrontAnalyticsUniqueKey(businessId: string, dateKey: string) {
   return `sf:analytics:${businessId}:unique:${dateKey}`;
+}
+
+export function getStorefrontAnalyticsHourlySummaryKey(businessId: string, dateKey: string, hourKey: string) {
+  return `sf:analytics:${businessId}:hourly-summary:${dateKey}:${hourKey}`;
+}
+
+export function getStorefrontAnalyticsHourlyUniqueKey(businessId: string, dateKey: string, hourKey: string) {
+  return `sf:analytics:${businessId}:hourly-unique:${dateKey}:${hourKey}`;
 }
 
 export function getStorefrontAnalyticsCountryKey(businessId: string, dateKey: string) {
@@ -159,18 +173,28 @@ export async function trackStorefrontAnalyticsRedisEvent({
 }: TrackStorefrontAnalyticsRedisEventInput) {
   const client = getRedis();
   const pipeline = client.pipeline();
-  const dateKey = getDateKey(new Date());
+  const now = new Date();
+  const dateKey = getDateKey(now);
+  const hourKey = getHourKey(now);
   const summaryKey = getStorefrontAnalyticsSummaryKey(businessId, dateKey);
+  const hourlySummaryKey = getStorefrontAnalyticsHourlySummaryKey(businessId, dateKey, hourKey);
   const countsAsVisit = eventType === 'storefront_view' || eventType === 'product_view';
 
   if (countsAsVisit) {
     pipeline.hincrby(summaryKey, 'visits', 1);
     withExpiry(pipeline, summaryKey);
 
+    pipeline.hincrby(hourlySummaryKey, 'visits', 1);
+    withExpiry(pipeline, hourlySummaryKey);
+
     if (sessionId) {
       const uniqueKey = getStorefrontAnalyticsUniqueKey(businessId, dateKey);
       pipeline.pfadd(uniqueKey, sessionId);
       withExpiry(pipeline, uniqueKey);
+
+      const hourlyUniqueKey = getStorefrontAnalyticsHourlyUniqueKey(businessId, dateKey, hourKey);
+      pipeline.pfadd(hourlyUniqueKey, sessionId);
+      withExpiry(pipeline, hourlyUniqueKey);
     }
 
     const pageKey = getStorefrontAnalyticsPageKey(businessId, dateKey);
@@ -197,6 +221,9 @@ export async function trackStorefrontAnalyticsRedisEvent({
   if (eventType === 'product_view' && productId) {
     pipeline.hincrby(summaryKey, 'productViews', 1);
     withExpiry(pipeline, summaryKey);
+
+    pipeline.hincrby(hourlySummaryKey, 'productViews', 1);
+    withExpiry(pipeline, hourlySummaryKey);
 
     const productKey = getStorefrontAnalyticsProductKey(businessId, dateKey);
     pipeline.zincrby(productKey, 1, productId);
