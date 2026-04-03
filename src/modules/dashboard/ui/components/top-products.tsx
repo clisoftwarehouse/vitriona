@@ -17,7 +17,7 @@ export function TopProducts({ products, currency }: TopProductsProps) {
   const maxQty = Math.max(...products.map((p) => p.quantity), 1);
 
   return (
-    <Card className='gap-4 py-5'>
+    <Card className='h-full gap-4 py-5'>
       <CardHeader className='px-5 pb-0'>
         <div className='flex items-start justify-between'>
           <p className='text-muted-foreground text-xs font-semibold tracking-widest uppercase'>
