@@ -1,26 +1,52 @@
 'use server';
 
-import { eq, and, gte, sql, desc } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { products, businesses, storefrontAnalyticsEvents } from '@/db/schema';
+import { getRedis } from '@/lib/redis';
+import { products, businesses } from '@/db/schema';
 import {
+  getCountryNameFromCode,
   formatStorefrontLocationLabel,
   STOREFRONT_ANALYTICS_WINDOW_DAYS,
 } from '@/modules/storefront/lib/storefront-analytics';
+import {
+  parseLocalityMember,
+  getAnalyticsDateKeys,
+  readStorefrontProductMeta,
+  getStorefrontAnalyticsPageKey,
+  getStorefrontAnalyticsUniqueKey,
+  getStorefrontAnalyticsCountryKey,
+  getStorefrontAnalyticsProductKey,
+  getStorefrontAnalyticsSummaryKey,
+  getStorefrontAnalyticsLocalityKey,
+} from '@/modules/storefront/server/lib/storefront-analytics-redis';
 
-function getWindowStart(days: number) {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - (days - 1));
-  return date;
+interface DailySummary {
+  visits: number;
+  productViews: number;
 }
 
-function shiftDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
+export interface StorefrontAnalyticsResult {
+  businessName: string;
+  businessSlug: string;
+  windowDays: number;
+  summary: {
+    totalVisits: number;
+    previousVisits: number;
+    uniqueVisitors: number;
+    previousUniqueVisitors: number;
+    productViews: number;
+    previousProductViews: number;
+    countryCount: number;
+    topCountry: { code: string; name: string; visits: number } | null;
+  };
+  dailyTraffic: { date: string; visits: number; uniqueVisitors: number; productViews: number }[];
+  countries: { code: string; name: string; visits: number }[];
+  localities: { label: string; city: string | null; region: string | null; country: string | null; visits: number }[];
+  topViewedProducts: { productId: string; name: string; slug: string | null; views: number }[];
+  topPages: { path: string; label: string; visits: number }[];
 }
 
 function safeDecodeSegment(segment: string) {
@@ -72,25 +98,79 @@ function asNumber(value: unknown) {
   return typeof value === 'number' ? value : Number(value ?? 0);
 }
 
-export interface StorefrontAnalyticsResult {
-  businessName: string;
-  businessSlug: string;
-  windowDays: number;
-  summary: {
-    totalVisits: number;
-    previousVisits: number;
-    uniqueVisitors: number;
-    previousUniqueVisitors: number;
-    productViews: number;
-    previousProductViews: number;
-    countryCount: number;
-    topCountry: { code: string; name: string; visits: number } | null;
+function parseDailySummary(value: unknown): DailySummary {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { visits: 0, productViews: 0 };
+  }
+
+  const summary = value as Record<string, string>;
+
+  return {
+    visits: asNumber(summary.visits),
+    productViews: asNumber(summary.productViews),
   };
-  dailyTraffic: { date: string; visits: number; uniqueVisitors: number; productViews: number }[];
-  countries: { code: string; name: string; visits: number }[];
-  localities: { label: string; city: string | null; region: string | null; country: string | null; visits: number }[];
-  topViewedProducts: { productId: string; name: string; slug: string | null; views: number }[];
-  topPages: { path: string; label: string; visits: number }[];
+}
+
+function parseSortedSet(value: unknown) {
+  const counts = new Map<string, number>();
+
+  if (!Array.isArray(value)) {
+    return counts;
+  }
+
+  for (let index = 0; index < value.length; index += 2) {
+    const member = value[index];
+    const score = value[index + 1];
+
+    if (typeof member === 'string') {
+      counts.set(member, asNumber(score));
+    }
+  }
+
+  return counts;
+}
+
+function mergeCounts(target: Map<string, number>, source: Map<string, number>) {
+  source.forEach((value, key) => {
+    target.set(key, (target.get(key) ?? 0) + value);
+  });
+}
+
+function sortCounts<T>(counts: Map<string, number>, mapEntry: (key: string, value: number) => T, limit: number) {
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, limit)
+    .map(([key, value]) => mapEntry(key, value));
+}
+
+function createEmptyAnalyticsResult(businessName: string, businessSlug: string): StorefrontAnalyticsResult {
+  const currentDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS);
+
+  return {
+    businessName,
+    businessSlug,
+    windowDays: STOREFRONT_ANALYTICS_WINDOW_DAYS,
+    summary: {
+      totalVisits: 0,
+      previousVisits: 0,
+      uniqueVisitors: 0,
+      previousUniqueVisitors: 0,
+      productViews: 0,
+      previousProductViews: 0,
+      countryCount: 0,
+      topCountry: null,
+    },
+    dailyTraffic: currentDateKeys.map((date) => ({
+      date,
+      visits: 0,
+      uniqueVisitors: 0,
+      productViews: 0,
+    })),
+    countries: [],
+    localities: [],
+    topViewedProducts: [],
+    topPages: [],
+  };
 }
 
 export async function getStorefrontAnalytics(businessId: string): Promise<StorefrontAnalyticsResult | null> {
@@ -110,206 +190,209 @@ export async function getStorefrontAnalytics(businessId: string): Promise<Storef
     return null;
   }
 
-  const currentWindowStart = getWindowStart(STOREFRONT_ANALYTICS_WINDOW_DAYS);
-  const previousWindowStart = shiftDays(currentWindowStart, -STOREFRONT_ANALYTICS_WINDOW_DAYS);
+  const currentDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS);
+  const previousDateKeys = getAnalyticsDateKeys(STOREFRONT_ANALYTICS_WINDOW_DAYS, -STOREFRONT_ANALYTICS_WINDOW_DAYS);
 
-  const [currentSummary] = await db
-    .select({
-      totalVisits: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view')::int`,
-      uniqueVisitors: sql<number>`count(distinct ${storefrontAnalyticsEvents.sessionId}) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view' and ${storefrontAnalyticsEvents.sessionId} is not null)::int`,
-      productViews: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'product_view')::int`,
-      countryCount: sql<number>`count(distinct ${storefrontAnalyticsEvents.countryCode}) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view' and ${storefrontAnalyticsEvents.countryCode} is not null)::int`,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart)
+  try {
+    const client = getRedis();
+    const pipeline = client.pipeline();
+    const parsers: Array<(value: unknown) => unknown> = [];
+
+    function queue<T>(command: () => void, parse: (value: unknown) => T) {
+      const index = parsers.length;
+      command();
+      parsers.push(parse as (value: unknown) => unknown);
+      return index;
+    }
+
+    const currentSummaryIndexes = currentDateKeys.map((dateKey) =>
+      queue(() => pipeline.hgetall(getStorefrontAnalyticsSummaryKey(businessId, dateKey)), parseDailySummary)
+    );
+    const previousSummaryIndexes = previousDateKeys.map((dateKey) =>
+      queue(() => pipeline.hgetall(getStorefrontAnalyticsSummaryKey(businessId, dateKey)), parseDailySummary)
+    );
+    const currentDailyUniqueIndexes = currentDateKeys.map((dateKey) =>
+      queue(() => pipeline.pfcount(getStorefrontAnalyticsUniqueKey(businessId, dateKey)), asNumber)
+    );
+    const currentCountryIndexes = currentDateKeys.map((dateKey) =>
+      queue(
+        () => pipeline.zrevrange(getStorefrontAnalyticsCountryKey(businessId, dateKey), 0, -1, 'WITHSCORES'),
+        parseSortedSet
       )
     );
-
-  const [previousSummary] = await db
-    .select({
-      totalVisits: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view')::int`,
-      uniqueVisitors: sql<number>`count(distinct ${storefrontAnalyticsEvents.sessionId}) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view' and ${storefrontAnalyticsEvents.sessionId} is not null)::int`,
-      productViews: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'product_view')::int`,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        gte(storefrontAnalyticsEvents.createdAt, previousWindowStart),
-        sql`${storefrontAnalyticsEvents.createdAt} < ${currentWindowStart}`
+    const currentLocalityIndexes = currentDateKeys.map((dateKey) =>
+      queue(
+        () => pipeline.zrevrange(getStorefrontAnalyticsLocalityKey(businessId, dateKey), 0, -1, 'WITHSCORES'),
+        parseSortedSet
       )
     );
-
-  const countryVisitsExpression = sql<number>`count(*)::int`;
-  const localityVisitsExpression = sql<number>`count(*)::int`;
-  const pageVisitsExpression = sql<number>`count(*)::int`;
-  const productViewsExpression = sql<number>`count(*)::int`;
-  const dailyKeyExpression = sql<string>`to_char(${storefrontAnalyticsEvents.createdAt}, 'YYYY-MM-DD')`;
-
-  const countries = await db
-    .select({
-      code: storefrontAnalyticsEvents.countryCode,
-      name: sql<string>`coalesce(max(${storefrontAnalyticsEvents.country}), max(${storefrontAnalyticsEvents.countryCode}), '')`,
-      visits: countryVisitsExpression,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        eq(storefrontAnalyticsEvents.eventType, 'storefront_view'),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart),
-        sql`${storefrontAnalyticsEvents.countryCode} is not null`
+    const currentPageIndexes = currentDateKeys.map((dateKey) =>
+      queue(
+        () => pipeline.zrevrange(getStorefrontAnalyticsPageKey(businessId, dateKey), 0, -1, 'WITHSCORES'),
+        parseSortedSet
       )
-    )
-    .groupBy(storefrontAnalyticsEvents.countryCode)
-    .orderBy(desc(countryVisitsExpression))
-    .limit(10);
-
-  const topCountryRow = countries[0];
-
-  const localityRows = await db
-    .select({
-      city: storefrontAnalyticsEvents.city,
-      region: storefrontAnalyticsEvents.region,
-      country: storefrontAnalyticsEvents.country,
-      visits: localityVisitsExpression,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        eq(storefrontAnalyticsEvents.eventType, 'storefront_view'),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart),
-        sql`${storefrontAnalyticsEvents.city} is not null or ${storefrontAnalyticsEvents.region} is not null or ${storefrontAnalyticsEvents.country} is not null`
+    );
+    const currentProductIndexes = currentDateKeys.map((dateKey) =>
+      queue(
+        () => pipeline.zrevrange(getStorefrontAnalyticsProductKey(businessId, dateKey), 0, -1, 'WITHSCORES'),
+        parseSortedSet
       )
-    )
-    .groupBy(storefrontAnalyticsEvents.city, storefrontAnalyticsEvents.region, storefrontAnalyticsEvents.country)
-    .orderBy(desc(localityVisitsExpression))
-    .limit(8);
+    );
+    const currentUniqueVisitorsIndex = queue(
+      () => pipeline.pfcount(...currentDateKeys.map((dateKey) => getStorefrontAnalyticsUniqueKey(businessId, dateKey))),
+      asNumber
+    );
+    const previousUniqueVisitorsIndex = queue(
+      () =>
+        pipeline.pfcount(...previousDateKeys.map((dateKey) => getStorefrontAnalyticsUniqueKey(businessId, dateKey))),
+      asNumber
+    );
 
-  const dailyRows = await db
-    .select({
-      day: dailyKeyExpression,
-      visits: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view')::int`,
-      uniqueVisitors: sql<number>`count(distinct ${storefrontAnalyticsEvents.sessionId}) filter (where ${storefrontAnalyticsEvents.eventType} = 'storefront_view' and ${storefrontAnalyticsEvents.sessionId} is not null)::int`,
-      productViews: sql<number>`count(*) filter (where ${storefrontAnalyticsEvents.eventType} = 'product_view')::int`,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart)
-      )
-    )
-    .groupBy(dailyKeyExpression)
-    .orderBy(dailyKeyExpression);
+    const results = await pipeline.exec();
 
-  const topViewedProductsRows = await db
-    .select({
-      productId: storefrontAnalyticsEvents.productId,
-      productName: sql<string>`coalesce(max(${storefrontAnalyticsEvents.productName}), max(${products.name}), 'Producto sin nombre')`,
-      productSlug: sql<string | null>`max(${products.slug})`,
-      views: productViewsExpression,
-    })
-    .from(storefrontAnalyticsEvents)
-    .leftJoin(products, eq(storefrontAnalyticsEvents.productId, products.id))
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        eq(storefrontAnalyticsEvents.eventType, 'product_view'),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart),
-        sql`${storefrontAnalyticsEvents.productId} is not null`
-      )
-    )
-    .groupBy(storefrontAnalyticsEvents.productId)
-    .orderBy(desc(productViewsExpression))
-    .limit(8);
+    if (!results) {
+      return createEmptyAnalyticsResult(business.name, business.slug);
+    }
 
-  const topPagesRows = await db
-    .select({
-      path: storefrontAnalyticsEvents.path,
-      visits: pageVisitsExpression,
-    })
-    .from(storefrontAnalyticsEvents)
-    .where(
-      and(
-        eq(storefrontAnalyticsEvents.businessId, businessId),
-        eq(storefrontAnalyticsEvents.eventType, 'storefront_view'),
-        gte(storefrontAnalyticsEvents.createdAt, currentWindowStart)
-      )
-    )
-    .groupBy(storefrontAnalyticsEvents.path)
-    .orderBy(desc(pageVisitsExpression))
-    .limit(8);
+    const parsedResults = results.map(([error, value], index) => {
+      if (error) {
+        throw error;
+      }
 
-  const dailyMap = new Map(dailyRows.map((row) => [row.day, row]));
-  const dailyTraffic: StorefrontAnalyticsResult['dailyTraffic'] = [];
-
-  for (let index = 0; index < STOREFRONT_ANALYTICS_WINDOW_DAYS; index++) {
-    const currentDate = new Date(currentWindowStart);
-    currentDate.setDate(currentDate.getDate() + index);
-
-    const dayKey = currentDate.toISOString().slice(0, 10);
-    const row = dailyMap.get(dayKey);
-
-    dailyTraffic.push({
-      date: dayKey,
-      visits: asNumber(row?.visits),
-      uniqueVisitors: asNumber(row?.uniqueVisitors),
-      productViews: asNumber(row?.productViews),
+      return parsers[index](value);
     });
-  }
 
-  return {
-    businessName: business.name,
-    businessSlug: business.slug,
-    windowDays: STOREFRONT_ANALYTICS_WINDOW_DAYS,
-    summary: {
-      totalVisits: asNumber(currentSummary?.totalVisits),
-      previousVisits: asNumber(previousSummary?.totalVisits),
-      uniqueVisitors: asNumber(currentSummary?.uniqueVisitors),
-      previousUniqueVisitors: asNumber(previousSummary?.uniqueVisitors),
-      productViews: asNumber(currentSummary?.productViews),
-      previousProductViews: asNumber(previousSummary?.productViews),
-      countryCount: asNumber(currentSummary?.countryCount),
-      topCountry: topCountryRow?.code
-        ? {
-            code: topCountryRow.code,
-            name: topCountryRow.name || topCountryRow.code,
-            visits: asNumber(topCountryRow.visits),
-          }
-        : null,
-    },
-    dailyTraffic,
-    countries: countries
-      .filter((country) => !!country.code)
-      .map((country) => ({
-        code: country.code as string,
-        name: country.name || (country.code as string),
-        visits: asNumber(country.visits),
-      })),
-    localities: localityRows.map((location) => ({
-      label: formatStorefrontLocationLabel(location),
-      city: location.city,
-      region: location.region,
-      country: location.country,
-      visits: asNumber(location.visits),
-    })),
-    topViewedProducts: topViewedProductsRows
-      .filter((product) => !!product.productId)
-      .map((product) => ({
-        productId: product.productId as string,
-        name: product.productName,
-        slug: product.productSlug,
-        views: asNumber(product.views),
-      })),
-    topPages: topPagesRows.map((page) => ({
-      path: page.path,
-      label: formatStorefrontPath(page.path, business.slug),
-      visits: asNumber(page.visits),
-    })),
-  };
+    const currentSummaries = currentSummaryIndexes.map((index) => parsedResults[index] as DailySummary);
+    const previousSummaries = previousSummaryIndexes.map((index) => parsedResults[index] as DailySummary);
+    const currentDailyUniqueVisitors = currentDailyUniqueIndexes.map((index) => asNumber(parsedResults[index]));
+
+    const countryCounts = new Map<string, number>();
+    currentCountryIndexes.forEach((index) => mergeCounts(countryCounts, parsedResults[index] as Map<string, number>));
+
+    const localityCounts = new Map<string, number>();
+    currentLocalityIndexes.forEach((index) => mergeCounts(localityCounts, parsedResults[index] as Map<string, number>));
+
+    const pageCounts = new Map<string, number>();
+    currentPageIndexes.forEach((index) => mergeCounts(pageCounts, parsedResults[index] as Map<string, number>));
+
+    const productCounts = new Map<string, number>();
+    currentProductIndexes.forEach((index) => mergeCounts(productCounts, parsedResults[index] as Map<string, number>));
+
+    const dailyTraffic = currentDateKeys.map((date, index) => ({
+      date,
+      visits: currentSummaries[index]?.visits ?? 0,
+      uniqueVisitors: currentDailyUniqueVisitors[index] ?? 0,
+      productViews: currentSummaries[index]?.productViews ?? 0,
+    }));
+
+    const totalVisits = currentSummaries.reduce((sum, summary) => sum + summary.visits, 0);
+    const previousVisits = previousSummaries.reduce((sum, summary) => sum + summary.visits, 0);
+    const productViews = currentSummaries.reduce((sum, summary) => sum + summary.productViews, 0);
+    const previousProductViews = previousSummaries.reduce((sum, summary) => sum + summary.productViews, 0);
+
+    const countries = sortCounts(
+      countryCounts,
+      (code, visits) => ({
+        code,
+        name: getCountryNameFromCode(code) ?? code,
+        visits,
+      }),
+      10
+    );
+
+    const topCountry = countries[0] ?? null;
+
+    const localities = sortCounts(
+      localityCounts,
+      (member, visits) => {
+        const location = parseLocalityMember(member);
+        const country = getCountryNameFromCode(location.countryCode);
+
+        return {
+          label: formatStorefrontLocationLabel({
+            city: location.city,
+            region: location.region,
+            country,
+            countryCode: location.countryCode,
+          }),
+          city: location.city,
+          region: location.region,
+          country,
+          visits,
+        };
+      },
+      8
+    );
+
+    const topPages = sortCounts(
+      pageCounts,
+      (path, visits) => ({
+        path,
+        label: formatStorefrontPath(path, business.slug),
+        visits,
+      }),
+      8
+    );
+
+    const topProductEntries = sortCounts(
+      productCounts,
+      (productId, views) => ({
+        productId,
+        views,
+      }),
+      8
+    );
+
+    const topProductIds = topProductEntries.map((product) => product.productId);
+    const redisProductMeta = await readStorefrontProductMeta(businessId, topProductIds);
+
+    const missingProductIds = topProductIds.filter((productId) => {
+      const meta = redisProductMeta.get(productId);
+      return !meta?.name || !meta.slug;
+    });
+
+    const fallbackProducts = missingProductIds.length
+      ? await db
+          .select({ id: products.id, name: products.name, slug: products.slug })
+          .from(products)
+          .where(and(eq(products.businessId, businessId), inArray(products.id, missingProductIds)))
+      : [];
+
+    const fallbackProductMap = new Map(fallbackProducts.map((product) => [product.id, product]));
+
+    const topViewedProducts = topProductEntries.map(({ productId, views }) => {
+      const redisMeta = redisProductMeta.get(productId);
+      const fallbackMeta = fallbackProductMap.get(productId);
+
+      return {
+        productId,
+        name: redisMeta?.name ?? fallbackMeta?.name ?? 'Producto sin nombre',
+        slug: redisMeta?.slug ?? fallbackMeta?.slug ?? null,
+        views,
+      };
+    });
+
+    return {
+      businessName: business.name,
+      businessSlug: business.slug,
+      windowDays: STOREFRONT_ANALYTICS_WINDOW_DAYS,
+      summary: {
+        totalVisits,
+        previousVisits,
+        uniqueVisitors: asNumber(parsedResults[currentUniqueVisitorsIndex]),
+        previousUniqueVisitors: asNumber(parsedResults[previousUniqueVisitorsIndex]),
+        productViews,
+        previousProductViews,
+        countryCount: countryCounts.size,
+        topCountry,
+      },
+      dailyTraffic,
+      countries,
+      localities,
+      topViewedProducts,
+      topPages,
+    };
+  } catch {
+    return createEmptyAnalyticsResult(business.name, business.slug);
+  }
 }

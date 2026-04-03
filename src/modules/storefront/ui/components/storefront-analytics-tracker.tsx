@@ -15,6 +15,7 @@ interface StorefrontAnalyticsTrackerProps {
   eventType: StorefrontAnalyticsEventType;
   productId?: string;
   productName?: string;
+  productSlug?: string;
 }
 
 function createSessionId() {
@@ -62,11 +63,16 @@ export function StorefrontAnalyticsTracker({
   eventType,
   productId,
   productName,
+  productSlug,
 }: StorefrontAnalyticsTrackerProps) {
   const pathname = usePathname();
 
   useEffect(() => {
     if (!pathname) {
+      return;
+    }
+
+    if (eventType === 'storefront_view' && pathname.includes('/producto/')) {
       return;
     }
 
@@ -76,6 +82,7 @@ export function StorefrontAnalyticsTracker({
       path: pathname,
       productId,
       productName,
+      productSlug,
       sessionId: getSessionId(),
     });
 
@@ -113,7 +120,7 @@ export function StorefrontAnalyticsTracker({
       body,
       keepalive: true,
     }).catch(() => undefined);
-  }, [businessId, eventType, pathname, productId, productName]);
+  }, [businessId, eventType, pathname, productId, productName, productSlug]);
 
   return null;
 }

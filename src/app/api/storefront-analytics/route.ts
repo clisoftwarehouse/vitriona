@@ -1,9 +1,6 @@
-import { eq, and } from 'drizzle-orm';
-
-import { db } from '@/db/drizzle';
 import { getClientIp } from '@/lib/rate-limit';
-import { products, businesses, storefrontAnalyticsEvents } from '@/db/schema';
 import { trackStorefrontEventSchema } from '@/modules/storefront/lib/storefront-analytics';
+import { trackStorefrontAnalyticsRedisEvent } from '@/modules/storefront/server/lib/storefront-analytics-redis';
 import {
   mergeGeoLocation,
   getGeoLocationFromIp,
@@ -28,53 +25,21 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Payload inválido' }, { status: 400 });
     }
 
-    const [business] = await db
-      .select({ id: businesses.id })
-      .from(businesses)
-      .where(and(eq(businesses.id, payload.data.businessId), eq(businesses.isActive, true)))
-      .limit(1);
-
-    if (!business) {
-      return Response.json({ error: 'Negocio no encontrado' }, { status: 404 });
-    }
-
-    let productId: string | null = null;
-    let productName: string | null = null;
-
-    if (payload.data.productId) {
-      const [product] = await db
-        .select({ id: products.id, name: products.name })
-        .from(products)
-        .where(and(eq(products.id, payload.data.productId), eq(products.businessId, payload.data.businessId)))
-        .limit(1);
-
-      if (!product) {
-        return Response.json({ error: 'Producto no encontrado para este negocio' }, { status: 400 });
-      }
-
-      productId = product.id;
-      productName = payload.data.productName ?? product.name;
-    }
-
     let location = getGeoLocationFromHeaders(request);
 
-    if (payload.data.eventType === 'storefront_view') {
-      location = mergeGeoLocation(location, await getGeoLocationFromIp(getClientIp(request)));
-    }
+    location = mergeGeoLocation(location, await getGeoLocationFromIp(getClientIp(request)));
 
     location = mergeGeoLocation(location, getGeoLocationFromAcceptLanguage(request.headers.get('accept-language')));
 
-    await db.insert(storefrontAnalyticsEvents).values({
+    await trackStorefrontAnalyticsRedisEvent({
       businessId: payload.data.businessId,
       sessionId: payload.data.sessionId ?? null,
       eventType: payload.data.eventType,
       path: payload.data.path,
-      productId,
-      productName,
-      countryCode: location.countryCode,
-      country: location.country,
-      region: location.region,
-      city: location.city,
+      productId: payload.data.productId,
+      productName: payload.data.productName,
+      productSlug: payload.data.productSlug,
+      location,
     });
 
     return Response.json({ success: true }, { status: 202 });

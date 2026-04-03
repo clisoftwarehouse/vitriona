@@ -50,6 +50,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         eventType='product_view'
         productId={product.id}
         productName={product.name}
+        productSlug={product.slug}
       />
       <ProductDetail
         slug={slug}

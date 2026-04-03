@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const STOREFRONT_ANALYTICS_WINDOW_DAYS = 30;
+export const STOREFRONT_ANALYTICS_RETENTION_DAYS = 90;
 export const STOREFRONT_ANALYTICS_SESSION_KEY = 'vitriona-storefront-session-id';
 export const STOREFRONT_ANALYTICS_DEDUPE_TTL_MS = 5_000;
 
@@ -15,6 +16,7 @@ export const trackStorefrontEventSchema = z
     path: z.string().trim().min(1).max(512).startsWith('/'),
     productId: z.string().trim().min(1).max(128).optional(),
     productName: z.string().trim().min(1).max(180).optional(),
+    productSlug: z.string().trim().min(1).max(180).optional(),
     sessionId: z.string().trim().min(1).max(120).optional(),
   })
   .superRefine((value, context) => {
