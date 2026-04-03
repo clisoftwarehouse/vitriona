@@ -10,6 +10,7 @@ import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
 import { GoogleAnalytics } from '@/modules/storefront/ui/components/google-analytics';
 import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
 import { StorefrontThemeStyle } from '@/modules/storefront/ui/components/storefront-theme';
+import { StorefrontAnalyticsTracker } from '@/modules/storefront/ui/components/storefront-analytics-tracker';
 import {
   getBusinessBySlug,
   getDefaultCatalog,
@@ -117,6 +118,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
 
   return (
     <>
+      <StorefrontAnalyticsTracker businessId={business.id} eventType='storefront_view' />
       <StorefrontThemeStyle theme={theme} />
       {settings?.googleAnalyticsId && <GoogleAnalytics measurementId={settings.googleAnalyticsId} />}
       <div
