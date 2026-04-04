@@ -37,6 +37,17 @@ interface AppSidebarProps {
   onToggleCollapse?: () => void;
 }
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
 export function AppSidebar({
   onClose,
   businesses,
@@ -48,68 +59,83 @@ export function AppSidebar({
 
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
 
-  const mainNavItems = [
+  const generalNavItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Negocios', href: '/dashboard/businesses', icon: Store },
     { label: 'Configuración', href: '/dashboard/settings', icon: Settings },
   ];
 
-  const businessNavItems = activeBusiness
+  const businessNavSections: NavSection[] = activeBusiness
     ? [
         {
-          label: 'Catálogos',
-          href: `/dashboard/businesses/${activeBusiness.id}/catalogs`,
-          icon: BookOpen,
+          title: 'Catálogo',
+          items: [
+            {
+              label: 'Catálogos',
+              href: `/dashboard/businesses/${activeBusiness.id}/catalogs`,
+              icon: BookOpen,
+            },
+            {
+              label: 'Categorías',
+              href: `/dashboard/businesses/${activeBusiness.id}/categories`,
+              icon: Tags,
+            },
+            {
+              label: 'Marcas',
+              href: `/dashboard/businesses/${activeBusiness.id}/brands`,
+              icon: Stamp,
+            },
+            {
+              label: 'Productos',
+              href: `/dashboard/businesses/${activeBusiness.id}/products`,
+              icon: Package,
+            },
+          ],
         },
         {
-          label: 'Categorías',
-          href: `/dashboard/businesses/${activeBusiness.id}/categories`,
-          icon: Tags,
+          title: 'Ventas',
+          items: [
+            {
+              label: 'Pedidos',
+              href: `/dashboard/businesses/${activeBusiness.id}/orders`,
+              icon: ShoppingCart,
+            },
+            {
+              label: 'Reseñas',
+              href: `/dashboard/businesses/${activeBusiness.id}/reviews`,
+              icon: MessageSquare,
+            },
+            {
+              label: 'Cupones',
+              href: `/dashboard/businesses/${activeBusiness.id}/coupons`,
+              icon: TicketPercent,
+            },
+          ],
         },
         {
-          label: 'Marcas',
-          href: `/dashboard/businesses/${activeBusiness.id}/brands`,
-          icon: Stamp,
-        },
-        {
-          label: 'Productos',
-          href: `/dashboard/businesses/${activeBusiness.id}/products`,
-          icon: Package,
-        },
-        {
-          label: 'Pedidos',
-          href: `/dashboard/businesses/${activeBusiness.id}/orders`,
-          icon: ShoppingCart,
-        },
-        {
-          label: 'Inventario',
-          href: `/dashboard/businesses/${activeBusiness.id}/inventory`,
-          icon: Warehouse,
-        },
-        {
-          label: 'Reseñas',
-          href: `/dashboard/businesses/${activeBusiness.id}/reviews`,
-          icon: MessageSquare,
-        },
-        {
-          label: 'Cupones',
-          href: `/dashboard/businesses/${activeBusiness.id}/coupons`,
-          icon: TicketPercent,
-        },
-        {
-          label: 'Métodos de pago',
-          href: `/dashboard/businesses/${activeBusiness.id}/payment-methods`,
-          icon: CreditCard,
-        },
-        {
-          label: 'Métodos de entrega',
-          href: `/dashboard/businesses/${activeBusiness.id}/delivery-methods`,
-          icon: Truck,
+          title: 'Operación',
+          items: [
+            {
+              label: 'Inventario',
+              href: `/dashboard/businesses/${activeBusiness.id}/inventory`,
+              icon: Warehouse,
+            },
+            {
+              label: 'Métodos de pago',
+              href: `/dashboard/businesses/${activeBusiness.id}/payment-methods`,
+              icon: CreditCard,
+            },
+            {
+              label: 'Métodos de entrega',
+              href: `/dashboard/businesses/${activeBusiness.id}/delivery-methods`,
+              icon: Truck,
+            },
+          ],
         },
       ]
     : [];
 
-  const allItems = [...mainNavItems, ...businessNavItems];
+  const allItems = [...generalNavItems, ...businessNavSections.flatMap((section) => section.items)];
   const activeHref = allItems
     .filter(({ href }) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href)))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -194,23 +220,28 @@ export function AppSidebar({
         {!collapsed && (
           <p className='text-muted-foreground mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>General</p>
         )}
-        <ul className='space-y-0.5'>{mainNavItems.map(renderNavItem)}</ul>
+        <ul className='space-y-0.5'>{generalNavItems.map(renderNavItem)}</ul>
 
-        {businessNavItems.length > 0 && (
-          <>
+        {businessNavSections.map((section, index) => (
+          <div key={section.title} className={cn(index === 0 ? 'mt-5' : 'mt-4')}>
             {!collapsed && (
-              <p className='text-muted-foreground mt-5 mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>
-                {activeBusiness?.name ?? 'Negocio'}
+              <p className='text-muted-foreground mb-2 px-2 text-[10px] font-semibold tracking-widest uppercase'>
+                {section.title}
               </p>
             )}
             {collapsed && <Separator className='my-3' />}
-            <ul className='space-y-0.5'>{businessNavItems.map(renderNavItem)}</ul>
-          </>
-        )}
+            <ul className='space-y-0.5'>{section.items.map(renderNavItem)}</ul>
+          </div>
+        ))}
       </nav>
 
       {activeBusiness && (
         <div id='sidebar-actions' className='border-sidebar-border flex flex-col gap-2 border-t p-3'>
+          {!collapsed && (
+            <p className='text-muted-foreground px-1 text-[10px] font-semibold tracking-widest uppercase'>
+              Accesos rápidos
+            </p>
+          )}
           {collapsed ? (
             <TooltipProvider delayDuration={0}>
               <Tooltip>
