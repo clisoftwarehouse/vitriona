@@ -7,6 +7,7 @@ import { db } from '@/db/drizzle';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
 import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
+import { getBundleComponents, syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
   orders,
   catalogs,
@@ -17,6 +18,7 @@ import {
   productVariants,
   inventoryMovements,
   orderStatusHistory,
+  orderBundleComponents,
 } from '@/db/schema';
 
 interface OrderItemInput {
@@ -45,6 +47,34 @@ interface CreateOrderInput {
   deliveryMethodId?: string;
   deliveryMethodName?: string;
   shippingCost?: number;
+}
+
+interface ValidatedBundleComponent {
+  componentProductId: string;
+  componentProductName: string;
+  unitQuantity: number;
+  totalQuantity: number;
+  unitPrice: string;
+  subtotal: string;
+  tracksInventory: boolean;
+}
+
+interface ValidatedOrderItem {
+  productId: string;
+  variantId?: string;
+  productName: string;
+  unitPrice: string;
+  quantity: number;
+  productType: 'product' | 'service' | 'bundle';
+  bundleComponents?: ValidatedBundleComponent[];
+}
+
+interface DeductedInventoryEntry {
+  productId: string;
+  variantId?: string;
+  quantity: number;
+  previousStock: number;
+  reasonLabel?: string;
 }
 
 function generateOrderNumber(): string {
@@ -89,6 +119,8 @@ export async function createOrderAction(input: CreateOrderInput) {
     .limit(1);
   if (!catalog) return { error: 'Catálogo no encontrado' };
 
+  const validatedItems: ValidatedOrderItem[] = [];
+
   // Get business owner for notifications
   const [businessOwner] = await db
     .select({ userId: businesses.userId })
@@ -101,11 +133,58 @@ export async function createOrderAction(input: CreateOrderInput) {
     if (item.quantity <= 0 || item.quantity > 9999) return { error: 'Cantidad inválida' };
 
     const [product] = await db
-      .select({ id: products.id, businessId: products.businessId })
+      .select({
+        id: products.id,
+        businessId: products.businessId,
+        name: products.name,
+        price: products.price,
+        stock: products.stock,
+        trackInventory: products.trackInventory,
+        type: products.type,
+      })
       .from(products)
       .where(and(eq(products.id, item.productId), eq(products.businessId, businessId), eq(products.status, 'active')))
       .limit(1);
     if (!product) return { error: `Producto no encontrado o no disponible` };
+
+    if (product.type === 'bundle') {
+      if (item.variantId) {
+        return { error: `"${product.name}" es un paquete y no admite variantes.` };
+      }
+
+      const bundleComponents = await getBundleComponents(product.id);
+      if (bundleComponents.length === 0) {
+        return { error: `"${product.name}" no tiene componentes configurados.` };
+      }
+
+      for (const component of bundleComponents) {
+        const requiredQuantity = component.quantity * item.quantity;
+        if (component.trackInventory && (component.stock ?? 0) < requiredQuantity) {
+          return {
+            error: `Stock insuficiente para "${component.name}" dentro de "${product.name}". Disponible: ${component.stock ?? 0}`,
+          };
+        }
+      }
+
+      validatedItems.push({
+        productId: product.id,
+        productName: product.name,
+        unitPrice: product.price,
+        quantity: item.quantity,
+        productType: 'bundle',
+        bundleComponents: bundleComponents.map((component) => ({
+          componentProductId: component.productId,
+          componentProductName: component.name,
+          unitQuantity: component.quantity,
+          totalQuantity: component.quantity * item.quantity,
+          unitPrice: component.price,
+          subtotal: (parseFloat(component.price) * component.quantity * item.quantity).toFixed(2),
+          tracksInventory: component.trackInventory,
+        })),
+      });
+
+      continue;
+    }
 
     // If product has variants, require a variantId
     if (!item.variantId) {
@@ -117,19 +196,117 @@ export async function createOrderAction(input: CreateOrderInput) {
       if (hasVariants) {
         return { error: `"${item.productName}" tiene variantes. Selecciona una variante antes de ordenar.` };
       }
+
+      validatedItems.push({
+        productId: product.id,
+        productName: product.name,
+        unitPrice: product.price,
+        quantity: item.quantity,
+        productType: product.type as 'product' | 'service',
+      });
+
+      continue;
     }
+
+    const [variant] = await db
+      .select({
+        id: productVariants.id,
+        name: productVariants.name,
+        price: productVariants.price,
+        stock: productVariants.stock,
+      })
+      .from(productVariants)
+      .where(and(eq(productVariants.id, item.variantId), eq(productVariants.productId, item.productId)))
+      .limit(1);
+
+    if (!variant) {
+      return { error: `La variante seleccionada para "${product.name}" no existe.` };
+    }
+
+    if (product.trackInventory && variant.stock < item.quantity) {
+      return { error: `Stock insuficiente para "${product.name} (${variant.name})". Disponible: ${variant.stock}` };
+    }
+
+    validatedItems.push({
+      productId: product.id,
+      variantId: variant.id,
+      productName: `${product.name} (${variant.name})`,
+      unitPrice: variant.price ?? product.price,
+      quantity: item.quantity,
+      productType: product.type as 'product' | 'service',
+    });
   }
 
-  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
+  const subtotal = validatedItems.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
   const discount = input.discount ?? 0;
   const shippingCost = input.shippingCost ?? 0;
   const total = Math.max(0, subtotal - discount + shippingCost);
+  const orderNumber = generateOrderNumber();
 
   // --- VULN-03 fix: Atomic stock deduction with SQL WHERE stock >= quantity ---
   // First, attempt to atomically deduct all stock. If any fails, we roll back the ones that succeeded.
-  const deducted: { productId: string; variantId?: string; quantity: number; previousStock: number }[] = [];
+  const deducted: DeductedInventoryEntry[] = [];
+  const affectedProductIds = new Set<string>();
 
-  for (const item of items) {
+  for (const item of validatedItems) {
+    if (item.productType === 'bundle') {
+      for (const component of item.bundleComponents ?? []) {
+        if (!component.tracksInventory) continue;
+
+        const [componentProduct] = await db
+          .select({ id: products.id, stock: products.stock })
+          .from(products)
+          .where(eq(products.id, component.componentProductId))
+          .limit(1);
+
+        const [updated] = await db
+          .update(products)
+          .set({
+            stock: sql`${products.stock} - ${component.totalQuantity}`,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(products.id, component.componentProductId), gte(products.stock, component.totalQuantity)))
+          .returning({ id: products.id, stock: products.stock });
+
+        if (!updated) {
+          await rollbackDeductions(deducted);
+          return {
+            error: `Stock insuficiente para "${component.componentProductName}" dentro del paquete "${item.productName}". Disponible: ${componentProduct?.stock ?? 0}`,
+          };
+        }
+
+        const newStock = updated.stock ?? 0;
+
+        if (newStock === 0) {
+          await db
+            .update(products)
+            .set({ status: 'out_of_stock' })
+            .where(eq(products.id, component.componentProductId));
+        }
+
+        if (newStock <= 5 && newStock >= 0 && businessOwner?.userId) {
+          await db.insert(notifications).values({
+            userId: businessOwner.userId,
+            businessId,
+            type: 'low_stock',
+            title: newStock === 0 ? 'Producto agotado' : 'Stock bajo',
+            description: `"${component.componentProductName}" tiene ${newStock} unidades disponibles`,
+            href: `/dashboard/businesses/${businessId}/products`,
+          });
+        }
+
+        deducted.push({
+          productId: component.componentProductId,
+          quantity: component.totalQuantity,
+          previousStock: newStock + component.totalQuantity,
+          reasonLabel: `Pedido ${orderNumber} (paquete: ${item.productName})`,
+        });
+        affectedProductIds.add(component.componentProductId);
+      }
+
+      continue;
+    }
+
     const [product] = await db
       .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
       .from(products)
@@ -161,7 +338,9 @@ export async function createOrderAction(input: CreateOrderInput) {
         variantId: item.variantId,
         quantity: item.quantity,
         previousStock: (updated.stock ?? 0) + item.quantity,
+        reasonLabel: `Pedido ${orderNumber} (variante)`,
       });
+      affectedProductIds.add(item.productId);
     } else {
       // Atomic product stock deduction
       const [updated] = await db
@@ -201,11 +380,11 @@ export async function createOrderAction(input: CreateOrderInput) {
         productId: item.productId,
         quantity: item.quantity,
         previousStock: newStock + item.quantity,
+        reasonLabel: `Pedido ${orderNumber}`,
       });
+      affectedProductIds.add(item.productId);
     }
   }
-
-  const orderNumber = generateOrderNumber();
 
   const [order] = await db
     .insert(orders)
@@ -234,17 +413,38 @@ export async function createOrderAction(input: CreateOrderInput) {
     })
     .returning();
 
-  await db.insert(orderItems).values(
-    items.map((item) => ({
-      orderId: order.id,
-      productId: item.productId,
-      variantId: item.variantId || null,
-      productName: item.productName,
-      unitPrice: item.unitPrice,
-      quantity: item.quantity,
-      subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
-    }))
-  );
+  const insertedOrderItems = await db
+    .insert(orderItems)
+    .values(
+      validatedItems.map((item) => ({
+        orderId: order.id,
+        productId: item.productId,
+        variantId: item.variantId || null,
+        productName: item.productName,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
+      }))
+    )
+    .returning({ id: orderItems.id });
+
+  const bundleSnapshotRows = insertedOrderItems.flatMap((orderItem, index) => {
+    const item = validatedItems[index];
+    return (item.bundleComponents ?? []).map((component) => ({
+      orderItemId: orderItem.id,
+      componentProductId: component.componentProductId,
+      componentProductName: component.componentProductName,
+      unitQuantity: component.unitQuantity,
+      totalQuantity: component.totalQuantity,
+      unitPrice: component.unitPrice,
+      subtotal: component.subtotal,
+      tracksInventory: component.tracksInventory,
+    }));
+  });
+
+  if (bundleSnapshotRows.length > 0) {
+    await db.insert(orderBundleComponents).values(bundleSnapshotRows);
+  }
 
   // Record inventory movements
   for (const d of deducted) {
@@ -252,7 +452,7 @@ export async function createOrderAction(input: CreateOrderInput) {
       productId: d.productId,
       type: 'order',
       quantity: d.quantity,
-      reason: `Pedido ${orderNumber}${d.variantId ? ' (variante)' : ''}`,
+      reason: d.reasonLabel ?? `Pedido ${orderNumber}${d.variantId ? ' (variante)' : ''}`,
       referenceId: order.id,
       previousStock: d.previousStock,
       newStock: d.previousStock - d.quantity,
@@ -288,13 +488,17 @@ export async function createOrderAction(input: CreateOrderInput) {
     });
   }
 
+  for (const productId of affectedProductIds) {
+    await syncBundlesForComponent(productId);
+  }
+
   return { success: true, order };
 }
 
 /** Rollback stock deductions that already succeeded if a later item fails. */
-async function rollbackDeductions(
-  deducted: { productId: string; variantId?: string; quantity: number }[]
-): Promise<void> {
+async function rollbackDeductions(deducted: DeductedInventoryEntry[]): Promise<void> {
+  const affectedProductIds = new Set<string>();
+
   for (const d of deducted) {
     if (d.variantId) {
       await db
@@ -307,5 +511,11 @@ async function rollbackDeductions(
         .set({ stock: sql`${products.stock} + ${d.quantity}`, status: 'active', updatedAt: new Date() })
         .where(eq(products.id, d.productId));
     }
+
+    affectedProductIds.add(d.productId);
+  }
+
+  for (const productId of affectedProductIds) {
+    await syncBundlesForComponent(productId);
   }
 }

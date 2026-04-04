@@ -8,7 +8,20 @@ import { generateSlug } from '@/modules/businesses/lib/slug';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
 import type { UpdateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
-import { products, businesses, catalogProducts, productVariants, productAttributeValues } from '@/db/schema';
+import {
+  products,
+  businesses,
+  bundleItems,
+  catalogProducts,
+  productVariants,
+  productAttributeValues,
+} from '@/db/schema';
+import {
+  replaceBundleItems,
+  syncBundleProductState,
+  syncBundlesForComponent,
+  validateBundleItemsForBusiness,
+} from '@/modules/products/server/lib/bundles';
 
 export async function updateProductAction(productId: string, values: UpdateProductFormValues) {
   try {
@@ -32,6 +45,10 @@ export async function updateProductAction(productId: string, values: UpdateProdu
           .filter(Boolean)
       : null;
 
+    const nextType = values.type ?? 'product';
+    const isBundle = nextType === 'bundle';
+    const wasBundle = product.type === 'bundle';
+
     // Check if product has variants — if so, stock is managed by variant sync
     const [variantCheck] = await db
       .select({ id: productVariants.id })
@@ -39,6 +56,31 @@ export async function updateProductAction(productId: string, values: UpdateProdu
       .where(eq(productVariants.productId, productId))
       .limit(1);
     const hasVariants = !!variantCheck;
+
+    if (isBundle && hasVariants) {
+      return { error: 'No puedes convertir un producto con variantes en un paquete.' };
+    }
+
+    if (isBundle && !wasBundle) {
+      const [bundleReference] = await db
+        .select({ id: bundleItems.id })
+        .from(bundleItems)
+        .where(eq(bundleItems.itemProductId, productId))
+        .limit(1);
+
+      if (bundleReference) {
+        return { error: 'Este producto forma parte de un paquete. Quítalo del paquete antes de convertirlo.' };
+      }
+    }
+
+    let normalizedBundleItems: { productId: string; quantity: number }[] = [];
+    if (isBundle) {
+      const validatedBundleItems = await validateBundleItemsForBusiness(business.id, values.bundleItems, productId);
+      if (validatedBundleItems.error) {
+        return { error: validatedBundleItems.error };
+      }
+      normalizedBundleItems = validatedBundleItems.items;
+    }
 
     await db
       .update(products)
@@ -48,26 +90,44 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         name: values.name,
         slug: generateSlug(values.name),
         description: values.description || null,
-        price: values.price,
-        compareAtPrice: values.compareAtPrice || null,
+        price: isBundle
+          ? values.bundlePriceMode === 'custom_price'
+            ? values.bundleCustomPrice || '0'
+            : '0'
+          : values.price,
+        compareAtPrice: isBundle ? null : values.compareAtPrice || null,
         sku: values.sku || null,
         // Don't overwrite stock when product has variants — it's managed by syncProductStockWithVariants
-        ...(hasVariants ? {} : { stock: values.type === 'service' ? null : (values.stock ?? 0) }),
+        ...(isBundle
+          ? { stock: 0 }
+          : hasVariants
+            ? {}
+            : { stock: values.type === 'service' ? null : (values.stock ?? 0) }),
         status: values.status,
         isFeatured: values.isFeatured,
-        type: values.type ?? 'product',
-        weight: values.type === 'service' ? null : values.weight || null,
-        dimensions: values.type === 'service' ? null : (values.dimensions ?? null),
-        minStock: values.type === 'service' ? null : (values.minStock ?? 0),
-        trackInventory: values.type === 'service' ? false : (values.trackInventory ?? true),
+        type: nextType,
+        bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,
+        bundleCustomPrice:
+          isBundle && values.bundlePriceMode === 'custom_price' ? values.bundleCustomPrice || null : null,
+        weight: values.type === 'service' || isBundle ? null : values.weight || null,
+        dimensions: values.type === 'service' || isBundle ? null : (values.dimensions ?? null),
+        minStock: values.type === 'service' || isBundle ? null : (values.minStock ?? 0),
+        trackInventory: values.type === 'service' || isBundle ? false : (values.trackInventory ?? true),
         tags: parsedTags,
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId));
 
     // Re-sync stock from variants if they exist
-    if (hasVariants) {
+    if (!isBundle && hasVariants) {
       await syncProductStockWithVariants(productId);
+    }
+
+    if (isBundle) {
+      await replaceBundleItems(productId, normalizedBundleItems);
+      await syncBundleProductState(productId, { revalidate: false });
+    } else if (wasBundle) {
+      await db.delete(bundleItems).where(eq(bundleItems.bundleProductId, productId));
     }
 
     // Sync catalog assignments if provided
@@ -94,6 +154,10 @@ export async function updateProductAction(productId: string, values: UpdateProdu
           }))
         );
       }
+    }
+
+    if (!isBundle) {
+      await syncBundlesForComponent(productId);
     }
 
     revalidateProductsCache(product.businessId);

@@ -43,6 +43,7 @@ interface Product {
   description: string | null;
   price: string;
   compareAtPrice: string | null;
+  type: string;
   isFeatured: boolean;
   categoryId: string | null;
   brandName?: string | null;
@@ -211,6 +212,11 @@ export function StorefrontCatalog({
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (product.trackInventory && (product.stock ?? 0) <= 0) {
+      toast.error(`${product.name} no está disponible en este momento`);
+      return;
+    }
 
     // Products with variants must go through the product detail page
     // to select a specific variant before adding to cart
@@ -1167,6 +1173,7 @@ function ProductCard({
   const isMinimal = cardStyle === 'minimal';
   const isShadow = cardStyle === 'shadow';
   const isList = layout === 'list';
+  const typeLabel = product.type === 'bundle' ? 'Paquete' : product.type === 'service' ? 'Servicio' : null;
 
   const borderStyle = isMinimal
     ? 'none'
@@ -1280,6 +1287,11 @@ function ProductCard({
             style={{ color: 'var(--sf-primary, #000)', opacity: 0.6 }}
           >
             {product.brandName}
+          </span>
+        )}
+        {typeLabel && (
+          <span className='mb-1 inline-flex w-fit rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold uppercase opacity-70'>
+            {typeLabel}
           </span>
         )}
         <h3 className={`leading-snug font-medium ${isList || magazineHero ? 'text-base' : 'line-clamp-2 text-sm'}`}>

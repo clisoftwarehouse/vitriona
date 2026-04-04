@@ -355,11 +355,26 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                     </div>
                   ) : (
                     orderItems.map((item) => (
-                      <div key={item.id} className='flex items-center justify-between text-sm'>
-                        <span>
-                          {item.productName} <span className='text-muted-foreground'>x{item.quantity}</span>
-                        </span>
-                        <span className='font-medium'>{formatPrice(item.subtotal)}</span>
+                      <div key={item.id} className='space-y-2'>
+                        <div className='flex items-center justify-between text-sm'>
+                          <span>
+                            {item.productName} <span className='text-muted-foreground'>x{item.quantity}</span>
+                          </span>
+                          <span className='font-medium'>{formatPrice(item.subtotal)}</span>
+                        </div>
+                        {item.bundleComponents?.length > 0 && (
+                          <div className='bg-muted/40 space-y-1 rounded-lg px-3 py-2 text-xs'>
+                            <p className='text-muted-foreground font-medium'>Incluye:</p>
+                            {item.bundleComponents.map((component) => (
+                              <div key={component.id} className='flex items-center justify-between gap-3'>
+                                <span>
+                                  {component.totalQuantity}x {component.componentProductName}
+                                </span>
+                                <span className='text-muted-foreground'>{formatPrice(component.subtotal)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

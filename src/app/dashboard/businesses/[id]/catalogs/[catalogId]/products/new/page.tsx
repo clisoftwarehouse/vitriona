@@ -9,6 +9,7 @@ import { getAttributesAction } from '@/modules/attributes/server/actions/attribu
 import { CreateProductWrapper } from '@/modules/products/ui/components/create-product-wrapper';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
+import { getBundleComponentOptionsAction } from '@/modules/products/server/actions/get-products.action';
 import { getCatalogsAction, getCatalogByIdAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
 
 interface NewProductPageProps {
@@ -17,13 +18,14 @@ interface NewProductPageProps {
 
 export default async function NewProductPage({ params }: NewProductPageProps) {
   const { id, catalogId } = await params;
-  const [business, catalog, categories, attributes, allCatalogs, brands] = await Promise.all([
+  const [business, catalog, categories, attributes, allCatalogs, brands, bundleComponentOptions] = await Promise.all([
     getBusinessByIdAction(id),
     getCatalogByIdAction(catalogId),
     getCategoriesAction(id),
     getAttributesAction(id),
     getCatalogsAction(id),
     getBrandsAction(id),
+    getBundleComponentOptionsAction(id),
   ]);
 
   if (!business || !catalog) notFound();
@@ -56,6 +58,7 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
             attributes={attributes}
             catalogs={allCatalogs}
             brands={brands}
+            bundleComponentOptions={bundleComponentOptions}
           />
         </CardContent>
       </Card>

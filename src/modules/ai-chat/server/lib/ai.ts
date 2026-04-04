@@ -11,6 +11,7 @@ import { db } from '@/db/drizzle';
 import type { StoredMessage } from './redis';
 import { bookAppointment, getAvailableSlots } from './calendar';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { getBundleComponents, syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
   orders,
   brands,
@@ -23,6 +24,7 @@ import {
   productVariants,
   catalogProducts,
   inventoryMovements,
+  orderBundleComponents,
 } from '@/db/schema';
 
 interface KnowledgeEntry {
@@ -734,7 +736,17 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
         name: string;
         price: string;
         quantity: number;
+        productType: 'product' | 'service' | 'bundle';
         trackInventory: boolean;
+        bundleComponents?: Array<{
+          componentProductId: string;
+          componentProductName: string;
+          unitQuantity: number;
+          totalQuantity: number;
+          unitPrice: string;
+          subtotal: string;
+          tracksInventory: boolean;
+        }>;
       }> = [];
       const issues: string[] = [];
 
@@ -746,6 +758,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
             price: products.price,
             stock: products.stock,
             trackInventory: products.trackInventory,
+            type: products.type,
           })
           .from(products)
           .where(and(...baseConditions, ilike(products.name, `%${item.product_name}%`)))
@@ -753,6 +766,48 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
 
         if (!product) {
           issues.push(`Producto "${item.product_name}" no encontrado`);
+          continue;
+        }
+
+        if (product.type === 'bundle') {
+          if (item.variant_name) {
+            issues.push(`"${product.name}" es un paquete y no admite variantes`);
+            continue;
+          }
+
+          const bundleComponents = await getBundleComponents(product.id);
+          if (bundleComponents.length === 0) {
+            issues.push(`"${product.name}" no tiene componentes configurados`);
+            continue;
+          }
+
+          const unavailableComponent = bundleComponents.find(
+            (component) => component.trackInventory && (component.stock ?? 0) < component.quantity * item.quantity
+          );
+          if (unavailableComponent) {
+            issues.push(`"${unavailableComponent.name}" no tiene suficiente stock para el paquete "${product.name}"`);
+            continue;
+          }
+
+          orderProducts.push({
+            productId: product.id,
+            variantId: null,
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity,
+            productType: 'bundle',
+            trackInventory: bundleComponents.some((component) => component.trackInventory),
+            bundleComponents: bundleComponents.map((component) => ({
+              componentProductId: component.productId,
+              componentProductName: component.name,
+              unitQuantity: component.quantity,
+              totalQuantity: component.quantity * item.quantity,
+              unitPrice: component.price,
+              subtotal: (parseFloat(component.price) * component.quantity * item.quantity).toFixed(2),
+              tracksInventory: component.trackInventory,
+            })),
+          });
+
           continue;
         }
 
@@ -801,6 +856,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
             name: `${product.name} (${variant.name})`,
             price: variant.price ?? product.price,
             quantity: item.quantity,
+            productType: product.type as 'product' | 'service',
             trackInventory: product.trackInventory,
           });
         } else {
@@ -816,6 +872,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
             name: product.name,
             price: product.price,
             quantity: item.quantity,
+            productType: product.type as 'product' | 'service',
             trackInventory: product.trackInventory,
           });
         }
@@ -879,20 +936,80 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
         })
         .returning();
 
-      await db.insert(orderItems).values(
-        orderProducts.map((p) => ({
-          orderId: order.id,
-          productId: p.productId,
-          variantId: p.variantId,
-          productName: p.name,
-          unitPrice: p.price,
-          quantity: p.quantity,
-          subtotal: (parseFloat(p.price) * p.quantity).toFixed(2),
-        }))
-      );
+      const insertedOrderItems = await db
+        .insert(orderItems)
+        .values(
+          orderProducts.map((p) => ({
+            orderId: order.id,
+            productId: p.productId,
+            variantId: p.variantId,
+            productName: p.name,
+            unitPrice: p.price,
+            quantity: p.quantity,
+            subtotal: (parseFloat(p.price) * p.quantity).toFixed(2),
+          }))
+        )
+        .returning({ id: orderItems.id });
+
+      const bundleSnapshotRows = insertedOrderItems.flatMap((orderItem, index) => {
+        const product = orderProducts[index];
+        return (product.bundleComponents ?? []).map((component) => ({
+          orderItemId: orderItem.id,
+          componentProductId: component.componentProductId,
+          componentProductName: component.componentProductName,
+          unitQuantity: component.unitQuantity,
+          totalQuantity: component.totalQuantity,
+          unitPrice: component.unitPrice,
+          subtotal: component.subtotal,
+          tracksInventory: component.tracksInventory,
+        }));
+      });
+
+      if (bundleSnapshotRows.length > 0) {
+        await db.insert(orderBundleComponents).values(bundleSnapshotRows);
+      }
 
       // Deduct inventory
+      const affectedProductIds = new Set<string>();
+
       for (const item of orderProducts) {
+        if (item.productType === 'bundle') {
+          for (const component of item.bundleComponents ?? []) {
+            if (!component.tracksInventory) continue;
+
+            const [product] = await db
+              .select({ stock: products.stock })
+              .from(products)
+              .where(eq(products.id, component.componentProductId))
+              .limit(1);
+            const previousStock = product?.stock ?? 0;
+            const newStock = Math.max(0, previousStock - component.totalQuantity);
+
+            await db
+              .update(products)
+              .set({
+                stock: newStock,
+                status: newStock === 0 ? 'out_of_stock' : undefined,
+                updatedAt: new Date(),
+              })
+              .where(eq(products.id, component.componentProductId));
+
+            await db.insert(inventoryMovements).values({
+              productId: component.componentProductId,
+              type: 'order',
+              quantity: component.totalQuantity,
+              reason: `Pedido ${orderNumber} (paquete, chatbot: ${item.name})`,
+              referenceId: order.id,
+              previousStock,
+              newStock,
+            });
+
+            affectedProductIds.add(component.componentProductId);
+          }
+
+          continue;
+        }
+
         if (!item.trackInventory) continue;
 
         if (item.variantId) {
@@ -918,6 +1035,7 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
             });
           }
           await syncProductStockWithVariants(item.productId);
+          affectedProductIds.add(item.productId);
         } else {
           // Deduct from product stock
           const [product] = await db
@@ -946,7 +1064,13 @@ async function handleCatalogCall(call: FunctionCall, ctx: ChatbotContext): Promi
             previousStock,
             newStock,
           });
+
+          affectedProductIds.add(item.productId);
         }
+      }
+
+      for (const productId of affectedProductIds) {
+        await syncBundlesForComponent(productId);
       }
 
       return JSON.stringify({

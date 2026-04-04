@@ -392,9 +392,11 @@ export const products = pgTable('products', {
   status: text('status', { enum: ['active', 'inactive', 'out_of_stock'] })
     .notNull()
     .default('active'),
-  type: text('type', { enum: ['product', 'service'] })
+  type: text('type', { enum: ['product', 'service', 'bundle'] })
     .notNull()
     .default('product'),
+  bundlePriceMode: text('bundle_price_mode', { enum: ['sum_items', 'custom_price'] }),
+  bundleCustomPrice: numeric('bundle_custom_price', { precision: 10, scale: 2 }),
   weight: numeric('weight', { precision: 10, scale: 2 }),
   dimensions: jsonb('dimensions').$type<{ length?: number; width?: number; height?: number; unit?: string }>(),
   minStock: integer('min_stock').default(0),
@@ -405,6 +407,21 @@ export const products = pgTable('products', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const bundleItems = pgTable('bundle_items', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  bundleProductId: text('bundle_product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  itemProductId: text('item_product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  quantity: integer('quantity').notNull().default(1),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 // ── Product Attributes (definitions per business) ──
@@ -626,6 +643,22 @@ export const orderItems = pgTable('order_items', {
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   quantity: integer('quantity').notNull().default(1),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+});
+
+export const orderBundleComponents = pgTable('order_bundle_components', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  orderItemId: text('order_item_id')
+    .notNull()
+    .references(() => orderItems.id, { onDelete: 'cascade' }),
+  componentProductId: text('component_product_id').references(() => products.id, { onDelete: 'set null' }),
+  componentProductName: text('component_product_name').notNull(),
+  unitQuantity: integer('unit_quantity').notNull().default(1),
+  totalQuantity: integer('total_quantity').notNull(),
+  unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+  tracksInventory: boolean('tracks_inventory').notNull().default(false),
 });
 
 export const productImages = pgTable('product_images', {

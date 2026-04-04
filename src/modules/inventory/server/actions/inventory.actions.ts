@@ -5,6 +5,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import { products, businesses, productVariants, inventoryMovements } from '@/db/schema';
 
 // ── Helpers ──
@@ -76,6 +77,8 @@ export async function adjustStockAction(
       newStock,
       createdBy: session.user.id,
     });
+
+    await syncBundlesForComponent(productId);
 
     return { success: true, newStock };
   } catch {
@@ -193,6 +196,7 @@ export async function adjustVariantStockAction(
     });
 
     await syncProductStockWithVariants(variant.productId);
+    await syncBundlesForComponent(variant.productId);
 
     return { success: true, newStock };
   } catch {

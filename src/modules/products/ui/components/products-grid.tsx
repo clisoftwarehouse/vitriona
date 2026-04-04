@@ -36,6 +36,12 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive'> = 
   out_of_stock: 'destructive',
 };
 
+const typeLabels: Record<string, string> = {
+  product: 'Producto',
+  service: 'Servicio',
+  bundle: 'Paquete',
+};
+
 type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -182,7 +188,7 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
             </div>
             <h3 className='mt-4 text-lg font-semibold'>No hay productos</h3>
             <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
-              Agrega tu primer producto para que aparezca en tu catálogo.
+              Agrega tu primer producto, servicio o paquete para empezar a vender desde tu tienda.
             </p>
             <Button asChild className='mt-6'>
               <Link
@@ -250,6 +256,9 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
                               <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
                             )}
                           </span>
+                          <Badge variant='outline' className='text-[10px]'>
+                            {typeLabels[product.type] ?? product.type}
+                          </Badge>
                           {product.sku && (
                             <span className='text-muted-foreground hidden text-xs sm:inline'>SKU: {product.sku}</span>
                           )}

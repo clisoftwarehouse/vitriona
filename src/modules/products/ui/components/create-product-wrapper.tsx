@@ -27,6 +27,16 @@ interface Brand {
   name: string;
 }
 
+interface BundleComponentOption {
+  id: string;
+  name: string;
+  type: 'product' | 'service';
+  price: string;
+  stock: number | null;
+  trackInventory: boolean;
+  status: 'active' | 'inactive' | 'out_of_stock';
+}
+
 interface CreateProductWrapperProps {
   catalogId?: string;
   businessId: string;
@@ -34,6 +44,7 @@ interface CreateProductWrapperProps {
   catalogs?: Catalog[];
   brands?: Brand[];
   attributes?: AttributeDefinition[];
+  bundleComponentOptions?: BundleComponentOption[];
 }
 
 export function CreateProductWrapper({
@@ -43,6 +54,7 @@ export function CreateProductWrapper({
   catalogs,
   brands,
   attributes,
+  bundleComponentOptions,
 }: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return createProductAction(catalogId, values, businessId);
@@ -57,6 +69,7 @@ export function CreateProductWrapper({
       catalogs={catalogs}
       brands={brands}
       attributes={attributes}
+      bundleComponentOptions={bundleComponentOptions}
       onSubmitAction={handleSubmit}
     />
   );

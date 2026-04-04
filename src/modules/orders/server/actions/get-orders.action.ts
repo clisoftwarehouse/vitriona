@@ -4,7 +4,7 @@ import { eq, and, asc, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { orders, businesses, orderItems, orderStatusHistory } from '@/db/schema';
+import { orders, businesses, orderItems, orderStatusHistory, orderBundleComponents } from '@/db/schema';
 
 export async function getOrdersByBusinessAction(businessId: string) {
   const session = await auth();
@@ -42,8 +42,13 @@ export async function getOrderDetailAction(orderId: string) {
 
   if (!business) return { error: 'No autorizado' };
 
-  const [items, statusHistory] = await Promise.all([
+  const [items, bundleComponents, statusHistory] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, orderId)),
+    db
+      .select()
+      .from(orderBundleComponents)
+      .innerJoin(orderItems, eq(orderBundleComponents.orderItemId, orderItems.id))
+      .where(eq(orderItems.orderId, orderId)),
     db
       .select()
       .from(orderStatusHistory)
@@ -51,5 +56,18 @@ export async function getOrderDetailAction(orderId: string) {
       .orderBy(asc(orderStatusHistory.createdAt)),
   ]);
 
-  return { order, items, statusHistory };
+  const bundleComponentsByOrderItem = new Map<string, typeof bundleComponents>();
+  for (const component of bundleComponents) {
+    const existing = bundleComponentsByOrderItem.get(component.order_bundle_components.orderItemId) ?? [];
+    existing.push(component);
+    bundleComponentsByOrderItem.set(component.order_bundle_components.orderItemId, existing);
+  }
+
+  const enrichedItems = items.map((item) => ({
+    ...item,
+    bundleComponents:
+      bundleComponentsByOrderItem.get(item.id)?.map((component) => component.order_bundle_components) ?? [],
+  }));
+
+  return { order, items: enrichedItems, statusHistory };
 }

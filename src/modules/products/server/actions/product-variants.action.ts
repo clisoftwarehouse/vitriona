@@ -4,8 +4,9 @@ import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { products, businesses, productVariants } from '@/db/schema';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
+import { products, businesses, bundleItems, productVariants } from '@/db/schema';
 
 async function verifyProductOwnership(productId: string, userId: string) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
@@ -45,6 +46,16 @@ export async function addProductVariantAction(
 
     const product = await verifyProductOwnership(productId, session.user.id);
     if (!product) return { error: 'Producto no encontrado' };
+    if (product.type !== 'product') return { error: 'Solo los productos físicos pueden tener variantes.' };
+
+    const [bundleReference] = await db
+      .select({ id: bundleItems.id })
+      .from(bundleItems)
+      .where(eq(bundleItems.itemProductId, product.id))
+      .limit(1);
+    if (bundleReference) {
+      return { error: 'No puedes agregar variantes a un producto que forma parte de un paquete.' };
+    }
 
     const existing = await db
       .select({ sortOrder: productVariants.sortOrder })
@@ -68,6 +79,7 @@ export async function addProductVariantAction(
       .returning();
 
     await syncProductStockWithVariants(productId);
+    await syncBundlesForComponent(productId);
     return { success: true, variant };
   } catch {
     return { error: 'Error al crear la variante.' };
@@ -95,6 +107,7 @@ export async function updateProductVariantAction(
 
     const product = await verifyProductOwnership(variant.productId, session.user.id);
     if (!product) return { error: 'No autorizado' };
+    if (product.type !== 'product') return { error: 'Solo los productos físicos pueden tener variantes.' };
 
     await db
       .update(productVariants)
@@ -110,6 +123,7 @@ export async function updateProductVariantAction(
       .where(eq(productVariants.id, variantId));
 
     await syncProductStockWithVariants(variant.productId);
+    await syncBundlesForComponent(variant.productId);
     return { success: true };
   } catch {
     return { error: 'Error al actualizar la variante.' };
@@ -130,6 +144,7 @@ export async function deleteProductVariantAction(variantId: string) {
     await db.delete(productVariants).where(eq(productVariants.id, variantId));
 
     await syncProductStockWithVariants(variant.productId);
+    await syncBundlesForComponent(variant.productId);
     return { success: true };
   } catch {
     return { error: 'Error al eliminar la variante.' };

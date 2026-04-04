@@ -9,6 +9,7 @@ import {
   products,
   categories,
   businesses,
+  bundleItems,
   productImages,
   productReviews,
   catalogProducts,
@@ -403,6 +404,25 @@ async function _getProductBySlug(businessId: string, productSlug: string) {
     .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)))
     .orderBy(asc(productVariants.sortOrder));
 
+  const bundleComponentRows =
+    product.type === 'bundle'
+      ? await db
+          .select({
+            productId: products.id,
+            name: products.name,
+            slug: products.slug,
+            type: products.type,
+            price: products.price,
+            stock: products.stock,
+            trackInventory: products.trackInventory,
+            quantity: bundleItems.quantity,
+          })
+          .from(bundleItems)
+          .innerJoin(products, eq(bundleItems.itemProductId, products.id))
+          .where(eq(bundleItems.bundleProductId, product.id))
+          .orderBy(asc(bundleItems.sortOrder), asc(products.name))
+      : [];
+
   return {
     ...product,
     images,
@@ -412,5 +432,6 @@ async function _getProductBySlug(businessId: string, productSlug: string) {
     attributes: attrRows,
     tags: product.tags ?? [],
     variants,
+    bundleItems: bundleComponentRows,
   };
 }

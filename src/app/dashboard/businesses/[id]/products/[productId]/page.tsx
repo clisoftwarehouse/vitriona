@@ -24,7 +24,9 @@ import {
 } from '@/modules/products/server/actions/product-images.action';
 import {
   getProductByIdAction,
+  getBundleItemsAction,
   getProductCatalogIdsAction,
+  getBundleComponentOptionsAction,
   getProductAttributeValuesAction,
 } from '@/modules/products/server/actions/get-products.action';
 
@@ -46,6 +48,8 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     productCatalogIds,
     brands,
     variants,
+    bundleItems,
+    bundleComponentOptions,
   ] = await Promise.all([
     getBusinessByIdAction(id),
     getCategoriesAction(id),
@@ -58,6 +62,8 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     getProductCatalogIdsAction(productId),
     getBrandsAction(id),
     getProductVariantsAction(productId),
+    getBundleItemsAction(productId),
+    getBundleComponentOptionsAction(id, productId),
   ]);
 
   if (!business || !product) notFound();
@@ -112,7 +118,13 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               brandId: product.brandId ?? '',
               status: product.status,
               isFeatured: product.isFeatured,
-              type: product.type as 'product' | 'service',
+              type: product.type as 'product' | 'service' | 'bundle',
+              bundlePriceMode: product.bundlePriceMode ?? 'sum_items',
+              bundleCustomPrice: product.bundleCustomPrice ?? '',
+              bundleItems: bundleItems.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
               weight: product.weight ?? '',
               minStock: product.minStock ?? 0,
               trackInventory: product.trackInventory,
@@ -120,24 +132,27 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               catalogIds: productCatalogIds,
               attributeValues: attrValues,
             }}
+            bundleComponentOptions={bundleComponentOptions}
           />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h3 className='font-semibold'>Variantes</h3>
-        </CardHeader>
-        <CardContent>
-          <ProductVariantsEditor
-            productId={product.id}
-            initialVariants={variants}
-            initialVariantImages={allImages.filter((img) => img.variantId !== null)}
-          />
-        </CardContent>
-      </Card>
+      {product.type === 'product' && (
+        <Card>
+          <CardHeader>
+            <h3 className='font-semibold'>Variantes</h3>
+          </CardHeader>
+          <CardContent>
+            <ProductVariantsEditor
+              productId={product.id}
+              initialVariants={variants}
+              initialVariantImages={allImages.filter((img) => img.variantId !== null)}
+            />
+          </CardContent>
+        </Card>
+      )}
 
-      {product.trackInventory && (
+      {product.trackInventory && product.type === 'product' && (
         <Card>
           <CardHeader>
             <div className='flex items-center justify-between'>

@@ -54,6 +54,17 @@ interface ProductVariant {
   options: Record<string, string>;
 }
 
+interface BundleItem {
+  productId: string;
+  name: string;
+  slug: string;
+  type: string;
+  price: string;
+  stock: number | null;
+  trackInventory: boolean;
+  quantity: number;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -75,6 +86,7 @@ interface Product {
   attributes?: ProductAttribute[];
   tags?: string[];
   variants?: ProductVariant[];
+  bundleItems?: BundleItem[];
 }
 
 interface ReviewStats {
@@ -206,6 +218,10 @@ export function ProductDetail({
   const maxQty = product.trackInventory && effectiveStock !== null ? effectiveStock : 99;
 
   const allChars = product.attributes ?? [];
+  const bundleItems = product.bundleItems ?? [];
+  const bundleItemsTotal = bundleItems.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+  const bundleUnitsTotal = bundleItems.reduce((sum, item) => sum + item.quantity, 0);
+  const bundleSavings = Math.max(bundleItemsTotal - parseFloat(effectivePrice), 0);
   const hasDimensions =
     product.dimensions && (product.dimensions.length || product.dimensions.width || product.dimensions.height);
 
@@ -322,6 +338,18 @@ export function ProductDetail({
                 Servicio
               </span>
             )}
+            {product.type === 'bundle' && (
+              <span
+                className='inline-flex items-center gap-1 px-3 py-1 text-xs font-medium'
+                style={{
+                  borderRadius: 'var(--sf-radius-full, 9999px)',
+                  backgroundColor: 'var(--sf-primary, #000)',
+                  color: '#fff',
+                }}
+              >
+                Paquete
+              </span>
+            )}
           </div>
 
           <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{product.name}</h1>
@@ -353,6 +381,78 @@ export function ProductDetail({
               </span>
             )}
           </div>
+
+          {product.type === 'bundle' && bundleItems.length > 0 && (
+            <div
+              className='mt-5 overflow-hidden border'
+              style={{
+                borderRadius: 'var(--sf-radius-lg, 1rem)',
+                borderColor: 'var(--sf-border, #e5e7eb)',
+                backgroundColor: 'var(--sf-surface, #f9fafb)',
+              }}
+            >
+              <div className='flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-5'>
+                <div>
+                  <p className='text-xs font-semibold tracking-[0.18em] uppercase opacity-45'>Este paquete incluye</p>
+                  <p className='mt-1 text-sm font-medium'>
+                    {bundleItems.length} componente{bundleItems.length !== 1 ? 's' : ''} · {bundleUnitsTotal} unidad
+                    {bundleUnitsTotal !== 1 ? 'es' : ''} en total
+                  </p>
+                </div>
+                <div className='text-right text-sm opacity-70'>
+                  <p>Valor por separado</p>
+                  <p className='font-semibold'>{formatPrice(bundleItemsTotal.toFixed(2))}</p>
+                </div>
+              </div>
+
+              <div className='border-t' style={{ borderColor: 'var(--sf-border, #e5e7eb)' }}>
+                {bundleItems.map((item, idx) => (
+                  <Link
+                    key={`${item.productId}-${idx}`}
+                    href={`/${slug}/producto/${item.slug}`}
+                    className='flex items-start justify-between gap-3 px-4 py-3 text-sm transition-colors hover:bg-black/2 sm:px-5'
+                    style={{
+                      borderBottom: idx < bundleItems.length - 1 ? '1px solid var(--sf-border, #e5e7eb)' : undefined,
+                    }}
+                  >
+                    <div className='min-w-0'>
+                      <div className='flex flex-wrap items-center gap-2'>
+                        <span className='font-medium'>
+                          {item.quantity}x {item.name}
+                        </span>
+                        <span
+                          className='inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase'
+                          style={{
+                            borderRadius: 'var(--sf-radius-full, 9999px)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                          }}
+                        >
+                          {item.type === 'service' ? 'Servicio' : 'Producto'}
+                        </span>
+                      </div>
+                      <p className='mt-1 text-xs opacity-55'>
+                        {item.trackInventory && item.stock !== null
+                          ? `Stock disponible: ${item.stock}`
+                          : 'Disponible sin control de inventario'}
+                      </p>
+                    </div>
+                    <span className='shrink-0 font-medium opacity-75'>
+                      {formatPrice((parseFloat(item.price) * item.quantity).toFixed(2))}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              {bundleSavings > 0 && (
+                <div
+                  className='px-4 py-3 text-sm font-medium text-emerald-700 sm:px-5'
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.10)' }}
+                >
+                  Te ahorras {formatPrice(bundleSavings.toFixed(2))} comprando el paquete completo.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Amazon-style Variant Selector ── */}
           {hasVariants && (

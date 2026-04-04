@@ -10,6 +10,11 @@ import { generateSku } from '@/modules/products/lib/generate-sku';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import type { CreateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import { catalogs, products, businesses, catalogProducts, productAttributeValues } from '@/db/schema';
+import {
+  replaceBundleItems,
+  syncBundleProductState,
+  validateBundleItemsForBusiness,
+} from '@/modules/products/server/lib/bundles';
 
 export async function createProductAction(
   catalogId: string | undefined,
@@ -53,6 +58,17 @@ export async function createProductAction(
       };
     }
 
+    const isBundle = values.type === 'bundle';
+
+    let normalizedBundleItems: { productId: string; quantity: number }[] = [];
+    if (isBundle) {
+      const validatedBundleItems = await validateBundleItemsForBusiness(business.id, values.bundleItems);
+      if (validatedBundleItems.error) {
+        return { error: validatedBundleItems.error };
+      }
+      normalizedBundleItems = validatedBundleItems.items;
+    }
+
     const parsedTags = values.tags
       ? values.tags
           .split(',')
@@ -72,17 +88,24 @@ export async function createProductAction(
         name: values.name,
         slug: generateSlug(values.name),
         description: values.description || null,
-        price: values.price,
-        compareAtPrice: values.compareAtPrice || null,
+        price: isBundle
+          ? values.bundlePriceMode === 'custom_price'
+            ? values.bundleCustomPrice || '0'
+            : '0'
+          : values.price,
+        compareAtPrice: isBundle ? null : values.compareAtPrice || null,
         sku: values.sku || generateSku(business.slug),
-        stock: values.type === 'service' ? null : (values.stock ?? 0),
+        stock: values.type === 'service' ? null : isBundle ? 0 : (values.stock ?? 0),
         status: values.status,
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
-        weight: values.type === 'service' ? null : values.weight || null,
-        dimensions: values.type === 'service' ? null : (values.dimensions ?? null),
-        minStock: values.type === 'service' ? null : (values.minStock ?? 0),
-        trackInventory: values.type === 'service' ? false : (values.trackInventory ?? true),
+        bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,
+        bundleCustomPrice:
+          isBundle && values.bundlePriceMode === 'custom_price' ? values.bundleCustomPrice || null : null,
+        weight: values.type === 'service' || isBundle ? null : values.weight || null,
+        dimensions: values.type === 'service' || isBundle ? null : (values.dimensions ?? null),
+        minStock: values.type === 'service' || isBundle ? null : (values.minStock ?? 0),
+        trackInventory: values.type === 'service' || isBundle ? false : (values.trackInventory ?? true),
         tags: parsedTags,
       })
       .returning({ id: products.id });
@@ -109,6 +132,11 @@ export async function createProductAction(
           }))
         );
       }
+    }
+
+    if (isBundle) {
+      await replaceBundleItems(product.id, normalizedBundleItems);
+      await syncBundleProductState(product.id, { revalidate: false });
     }
 
     revalidateProductsCache(business.id);

@@ -27,6 +27,16 @@ interface Brand {
   name: string;
 }
 
+interface BundleComponentOption {
+  id: string;
+  name: string;
+  type: 'product' | 'service';
+  price: string;
+  stock: number | null;
+  trackInventory: boolean;
+  status: 'active' | 'inactive' | 'out_of_stock';
+}
+
 interface EditProductWrapperProps {
   productId: string;
   catalogId?: string;
@@ -35,6 +45,7 @@ interface EditProductWrapperProps {
   catalogs?: Catalog[];
   brands?: Brand[];
   attributes?: AttributeDefinition[];
+  bundleComponentOptions?: BundleComponentOption[];
   defaultValues: Partial<CreateProductFormValues>;
   hasVariants?: boolean;
 }
@@ -47,6 +58,7 @@ export function EditProductWrapper({
   catalogs,
   brands,
   attributes,
+  bundleComponentOptions,
   defaultValues,
   hasVariants,
 }: EditProductWrapperProps) {
@@ -63,6 +75,7 @@ export function EditProductWrapper({
       catalogs={catalogs}
       brands={brands}
       attributes={attributes}
+      bundleComponentOptions={bundleComponentOptions}
       defaultValues={defaultValues}
       hasVariants={hasVariants}
       onSubmitAction={handleSubmit}

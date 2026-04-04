@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
   orders,
   products,
@@ -13,6 +14,7 @@ import {
   productVariants,
   inventoryMovements,
   orderStatusHistory,
+  orderBundleComponents,
 } from '@/db/schema';
 
 type OrderStatus = 'pending_payment' | 'payment_verified' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
@@ -36,6 +38,51 @@ async function restoreInventory(orderId: string, orderNumber: string) {
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
   for (const item of items) {
+    const bundleComponents = await db
+      .select()
+      .from(orderBundleComponents)
+      .where(eq(orderBundleComponents.orderItemId, item.id));
+
+    if (bundleComponents.length > 0) {
+      for (const component of bundleComponents) {
+        if (!component.componentProductId || !component.tracksInventory) continue;
+
+        const [product] = await db
+          .select({ stock: products.stock, status: products.status })
+          .from(products)
+          .where(eq(products.id, component.componentProductId))
+          .limit(1);
+
+        if (!product) continue;
+
+        const previousStock = product.stock ?? 0;
+        const newStock = previousStock + component.totalQuantity;
+
+        await db
+          .update(products)
+          .set({
+            stock: newStock,
+            status: product.status === 'out_of_stock' && newStock > 0 ? 'active' : undefined,
+            updatedAt: new Date(),
+          })
+          .where(eq(products.id, component.componentProductId));
+
+        await db.insert(inventoryMovements).values({
+          productId: component.componentProductId,
+          type: 'adjustment',
+          quantity: component.totalQuantity,
+          reason: `Cancelación pedido ${orderNumber} (paquete: ${item.productName})`,
+          referenceId: orderId,
+          previousStock,
+          newStock,
+        });
+
+        await syncBundlesForComponent(component.componentProductId);
+      }
+
+      continue;
+    }
+
     if (!item.productId) continue;
 
     const [product] = await db
@@ -74,6 +121,7 @@ async function restoreInventory(orderId: string, orderNumber: string) {
         });
       }
       await syncProductStockWithVariants(item.productId);
+      await syncBundlesForComponent(item.productId);
     } else {
       // Restore product stock
       const previousStock = product.stock ?? 0;
@@ -97,6 +145,8 @@ async function restoreInventory(orderId: string, orderNumber: string) {
         previousStock,
         newStock,
       });
+
+      await syncBundlesForComponent(item.productId);
     }
   }
 }
