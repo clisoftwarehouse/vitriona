@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_settings" ADD COLUMN "show_floating_socials" boolean DEFAULT false NOT NULL;

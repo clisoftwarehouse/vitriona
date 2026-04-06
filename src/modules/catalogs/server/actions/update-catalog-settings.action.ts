@@ -69,6 +69,7 @@ export type CatalogSettingsInput = {
   socialWhatsapp?: string | null;
   socialEmail?: string | null;
   socialPhone?: string | null;
+  showFloatingSocials?: boolean;
   seoTitle?: string | null;
   seoDescription?: string | null;
   ogImageUrl?: string | null;
@@ -202,6 +203,11 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
           email: business.email,
           address: business.address,
           currency: business.currency,
+          instagramUrl: business.instagramUrl,
+          facebookUrl: business.facebookUrl,
+          twitterUrl: business.twitterUrl,
+          tiktokUrl: business.tiktokUrl,
+          youtubeUrl: business.youtubeUrl,
         },
         categories: cats.map((c) => ({ id: c.id, name: c.name })),
         products: previewProducts,

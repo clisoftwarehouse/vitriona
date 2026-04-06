@@ -2,11 +2,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Mail, Phone, Store, MapPin } from 'lucide-react';
+import { Mail, Phone, Store, MapPin, Twitter, Youtube, Facebook, Instagram } from 'lucide-react';
 
 import { getPlanLimits } from '@/lib/plan-limits';
 import { incrementVisit } from '@/lib/visit-tracker';
 import { CartSheet } from '@/modules/storefront/ui/components/cart-sheet';
+import { FloatingSocials } from '@/modules/storefront/ui/components/floating-socials';
 import { GoogleAnalytics } from '@/modules/storefront/ui/components/google-analytics';
 import { ChatWidgetLoader } from '@/modules/ai-chat/ui/components/chat-widget-loader';
 import { StorefrontThemeStyle } from '@/modules/storefront/ui/components/storefront-theme';
@@ -96,7 +97,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
 
   const currentYear = new Date().getFullYear();
 
-  // Support individual social columns with fallback to legacy jsonb
+  // Support individual social columns with fallback to legacy jsonb, then business-level fields
   const legacySocial = settings?.socialLinks as {
     instagram?: string;
     facebook?: string;
@@ -105,14 +106,14 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     youtube?: string;
   } | null;
   const socialLinks = {
-    instagram: settings?.socialInstagram ?? legacySocial?.instagram,
-    facebook: settings?.socialFacebook ?? legacySocial?.facebook,
-    twitter: settings?.socialTwitter ?? legacySocial?.twitter,
-    tiktok: settings?.socialTiktok ?? legacySocial?.tiktok,
-    youtube: settings?.socialYoutube ?? legacySocial?.youtube,
-    whatsapp: settings?.socialWhatsapp,
-    email: settings?.socialEmail,
-    phone: settings?.socialPhone,
+    instagram: settings?.socialInstagram ?? legacySocial?.instagram ?? business.instagramUrl,
+    facebook: settings?.socialFacebook ?? legacySocial?.facebook ?? business.facebookUrl,
+    twitter: settings?.socialTwitter ?? legacySocial?.twitter ?? business.twitterUrl,
+    tiktok: settings?.socialTiktok ?? legacySocial?.tiktok ?? business.tiktokUrl,
+    youtube: settings?.socialYoutube ?? legacySocial?.youtube ?? business.youtubeUrl,
+    whatsapp: settings?.socialWhatsapp ?? business.whatsappNumber,
+    email: settings?.socialEmail ?? business.email,
+    phone: settings?.socialPhone ?? business.phone,
   };
   const hasSocials = Object.values(socialLinks).some(Boolean);
 
@@ -254,10 +255,10 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                 <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Contacto</h4>
                 <div className='flex flex-col gap-2.5 text-sm opacity-70'>
                   {business.phone && (
-                    <span className='flex items-center gap-2'>
+                    <a href={`tel:${business.phone}`} className='flex items-center gap-2 hover:opacity-100'>
                       <Phone className='size-3.5 shrink-0' />
                       {business.phone}
-                    </span>
+                    </a>
                   )}
                   {business.email && (
                     <a href={`mailto:${business.email}`} className='flex items-center gap-2 hover:opacity-100'>
@@ -301,15 +302,16 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
               {hasSocials && (
                 <div>
                   <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Redes sociales</h4>
-                  <div className='flex flex-col gap-2 text-sm opacity-70'>
+                  <div className='flex flex-wrap gap-3'>
                     {socialLinks?.instagram && (
                       <a
                         href={socialLinks.instagram}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='Instagram'
                       >
-                        Instagram
+                        <Instagram className='size-5' />
                       </a>
                     )}
                     {socialLinks?.facebook && (
@@ -317,9 +319,10 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         href={socialLinks.facebook}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='Facebook'
                       >
-                        Facebook
+                        <Facebook className='size-5' />
                       </a>
                     )}
                     {socialLinks?.tiktok && (
@@ -327,9 +330,20 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         href={socialLinks.tiktok}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='TikTok'
                       >
-                        TikTok
+                        <svg
+                          className='size-5'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                        >
+                          <path d='M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5' />
+                        </svg>
                       </a>
                     )}
                     {socialLinks?.twitter && (
@@ -337,9 +351,10 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         href={socialLinks.twitter}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='Twitter / X'
                       >
-                        Twitter / X
+                        <Twitter className='size-5' />
                       </a>
                     )}
                     {socialLinks?.youtube && (
@@ -347,9 +362,10 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         href={socialLinks.youtube}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='YouTube'
                       >
-                        YouTube
+                        <Youtube className='size-5' />
                       </a>
                     )}
                     {socialLinks?.whatsapp && (
@@ -357,19 +373,39 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                         href={`https://wa.me/${socialLinks.whatsapp.replace(/\D/g, '')}`}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='hover:opacity-100'
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='WhatsApp'
                       >
-                        WhatsApp
+                        <svg
+                          className='size-5'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                        >
+                          <path d='M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21' />
+                          <path d='M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1' />
+                        </svg>
                       </a>
                     )}
                     {socialLinks?.email && (
-                      <a href={`mailto:${socialLinks.email}`} className='hover:opacity-100'>
-                        {socialLinks.email}
+                      <a
+                        href={`mailto:${socialLinks.email}`}
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='Email'
+                      >
+                        <Mail className='size-5' />
                       </a>
                     )}
                     {socialLinks?.phone && (
-                      <a href={`tel:${socialLinks.phone}`} className='hover:opacity-100'>
-                        {socialLinks.phone}
+                      <a
+                        href={`tel:${socialLinks.phone}`}
+                        className='opacity-60 transition-opacity hover:opacity-100'
+                        aria-label='Teléfono'
+                      >
+                        <Phone className='size-5' />
                       </a>
                     )}
                   </div>
@@ -388,6 +424,8 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
             </div>
           </div>
         </footer>
+
+        {settings?.showFloatingSocials && hasSocials && <FloatingSocials socials={socialLinks} />}
 
         <ChatWidgetLoader businessId={business.id} />
       </div>

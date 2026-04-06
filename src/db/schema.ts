@@ -294,6 +294,7 @@ export const catalogSettings = pgTable('catalog_settings', {
   socialWhatsapp: text('social_whatsapp'),
   socialEmail: text('social_email'),
   socialPhone: text('social_phone'),
+  showFloatingSocials: boolean('show_floating_socials').notNull().default(false),
 
   // ── SEO ──
   seoTitle: text('seo_title'),

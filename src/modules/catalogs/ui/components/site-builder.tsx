@@ -4,7 +4,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useRef, useState, useCallback, useTransition } from 'react';
-import { Mail, Store, Phone, Search, MapPin, Sparkles, ArrowRight, ShoppingBag, ChevronRight } from 'lucide-react';
+import {
+  Mail,
+  Store,
+  Phone,
+  Search,
+  MapPin,
+  Twitter,
+  Youtube,
+  Sparkles,
+  Facebook,
+  Instagram,
+  ArrowRight,
+  ShoppingBag,
+  ChevronRight,
+} from 'lucide-react';
 import {
   Eye,
   Type,
@@ -29,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useModifierKey } from '@/hooks/use-os';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { FloatingSocials } from '@/modules/storefront/ui/components/floating-socials';
 import {
   type CatalogSettingsInput,
   updateCatalogSettingsAction,
@@ -96,6 +111,7 @@ interface Settings {
   socialWhatsapp: string;
   socialEmail: string;
   socialPhone: string;
+  showFloatingSocials: boolean;
   headerTitle: string;
   announcementEnabled: boolean;
   announcementText: string;
@@ -132,6 +148,11 @@ interface PreviewBusiness {
   email: string | null;
   address: string | null;
   currency: string;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
+  twitterUrl: string | null;
+  tiktokUrl: string | null;
+  youtubeUrl: string | null;
 }
 
 interface PreviewCategory {
@@ -336,6 +357,7 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     socialWhatsapp: (raw?.socialWhatsapp as string) ?? '',
     socialEmail: (raw?.socialEmail as string) ?? '',
     socialPhone: (raw?.socialPhone as string) ?? '',
+    showFloatingSocials: (raw?.showFloatingSocials as boolean) ?? false,
     headerTitle: (raw?.headerTitle as string) ?? '',
     announcementEnabled: (raw?.announcementEnabled as boolean) ?? false,
     announcementText: (raw?.announcementText as string) ?? '',
@@ -431,6 +453,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     socialWhatsapp: settings.socialWhatsapp || null,
     socialEmail: settings.socialEmail || null,
     socialPhone: settings.socialPhone || null,
+    showFloatingSocials: settings.showFloatingSocials,
     headerTitle: settings.headerTitle || null,
     announcementEnabled: settings.announcementEnabled,
     announcementText: settings.announcementText || null,
@@ -595,13 +618,11 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
       </div>
 
       {/* Mobile bottom toggle bar */}
-      <div className='flex h-12 shrink-0 items-center justify-center gap-1 border-t border-gray-200 bg-white px-4 lg:hidden dark:border-neutral-800 dark:bg-neutral-950'>
+      <div className='bg-background border-border hidden h-12 shrink-0 items-center justify-center gap-1 border-t px-4 max-lg:flex'>
         <button
           onClick={() => setMobileView('settings')}
           className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-            mobileView === 'settings'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
-              : 'text-gray-500 hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+            mobileView === 'settings' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
           }`}
         >
           <PanelLeft className='size-3.5' />
@@ -610,9 +631,7 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
         <button
           onClick={() => setMobileView('preview')}
           className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-            mobileView === 'preview'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
-              : 'text-gray-500 hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+            mobileView === 'preview' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
           }`}
         >
           <Eye className='size-3.5' />
@@ -1343,6 +1362,14 @@ function SeoPanel({ settings, update }: PanelProps) {
           placeholder='+1234567890'
         />
       </FieldGroup>
+
+      <SectionDivider title='Botón flotante' />
+      <Toggle
+        label='Mostrar botón flotante'
+        description='Muestra un botón flotante con tus redes sociales y contacto directo en la tienda.'
+        checked={settings.showFloatingSocials}
+        onChange={(v) => update('showFloatingSocials', v)}
+      />
     </div>
   );
 }
@@ -1393,13 +1420,21 @@ function BuilderPreview({
 
   const hasSocials =
     s.socialInstagram ||
+    business.instagramUrl ||
     s.socialFacebook ||
+    business.facebookUrl ||
     s.socialTwitter ||
+    business.twitterUrl ||
     s.socialTiktok ||
+    business.tiktokUrl ||
     s.socialYoutube ||
+    business.youtubeUrl ||
     s.socialWhatsapp ||
+    business.whatsappNumber ||
     s.socialEmail ||
-    s.socialPhone;
+    business.email ||
+    s.socialPhone ||
+    business.phone;
 
   const googleFontParam = GOOGLE_FONTS_URL[s.font];
   const fontImportCss =
@@ -1409,7 +1444,7 @@ function BuilderPreview({
 
   return (
     <div
-      className='flex size-full flex-col overflow-y-auto scroll-smooth'
+      className='relative flex size-full flex-col overflow-y-auto scroll-smooth'
       style={{ backgroundColor: s.backgroundColor, color: s.textColor, fontFamily: font }}
     >
       {fontImportCss && <style dangerouslySetInnerHTML={{ __html: fontImportCss }} />}
@@ -1703,15 +1738,68 @@ function BuilderPreview({
             {hasSocials && (
               <div>
                 <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Redes sociales</h4>
-                <div className='flex flex-col gap-2 text-sm opacity-70'>
-                  {s.socialInstagram && <span>Instagram</span>}
-                  {s.socialFacebook && <span>Facebook</span>}
-                  {s.socialTiktok && <span>TikTok</span>}
-                  {s.socialTwitter && <span>Twitter / X</span>}
-                  {s.socialYoutube && <span>YouTube</span>}
-                  {s.socialWhatsapp && <span>WhatsApp</span>}
-                  {s.socialEmail && <span>Email</span>}
-                  {s.socialPhone && <span>Teléfono</span>}
+                <div className='flex flex-wrap gap-3'>
+                  {(s.socialInstagram || business.instagramUrl) && (
+                    <span className='opacity-60'>
+                      <Instagram className='size-5' />
+                    </span>
+                  )}
+                  {(s.socialFacebook || business.facebookUrl) && (
+                    <span className='opacity-60'>
+                      <Facebook className='size-5' />
+                    </span>
+                  )}
+                  {(s.socialTiktok || business.tiktokUrl) && (
+                    <span className='opacity-60'>
+                      <svg
+                        className='size-5'
+                        viewBox='0 0 24 24'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='2'
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                      >
+                        <path d='M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5' />
+                      </svg>
+                    </span>
+                  )}
+                  {(s.socialTwitter || business.twitterUrl) && (
+                    <span className='opacity-60'>
+                      <Twitter className='size-5' />
+                    </span>
+                  )}
+                  {(s.socialYoutube || business.youtubeUrl) && (
+                    <span className='opacity-60'>
+                      <Youtube className='size-5' />
+                    </span>
+                  )}
+                  {(s.socialWhatsapp || business.whatsappNumber) && (
+                    <span className='opacity-60'>
+                      <svg
+                        className='size-5'
+                        viewBox='0 0 24 24'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='2'
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                      >
+                        <path d='M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21' />
+                        <path d='M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1' />
+                      </svg>
+                    </span>
+                  )}
+                  {(s.socialEmail || business.email) && (
+                    <span className='opacity-60'>
+                      <Mail className='size-5' />
+                    </span>
+                  )}
+                  {(s.socialPhone || business.phone) && (
+                    <span className='opacity-60'>
+                      <Phone className='size-5' />
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -1724,6 +1812,23 @@ function BuilderPreview({
           </div>
         </div>
       </footer>
+
+      {/* Floating socials preview */}
+      {s.showFloatingSocials && hasSocials && (
+        <FloatingSocials
+          socials={{
+            instagram: s.socialInstagram || business.instagramUrl,
+            facebook: s.socialFacebook || business.facebookUrl,
+            twitter: s.socialTwitter || business.twitterUrl,
+            tiktok: s.socialTiktok || business.tiktokUrl,
+            youtube: s.socialYoutube || business.youtubeUrl,
+            whatsapp: s.socialWhatsapp || business.whatsappNumber,
+            email: s.socialEmail || business.email,
+            phone: s.socialPhone || business.phone,
+          }}
+          preview
+        />
+      )}
     </div>
   );
 }
