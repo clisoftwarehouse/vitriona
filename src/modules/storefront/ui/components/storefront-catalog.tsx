@@ -393,7 +393,7 @@ export function StorefrontCatalog({
         {/* ── All Products (paginated) ── */}
         <section id='products' className='scroll-mt-6'>
           {/* Toolbar: title + sort + view toggle */}
-          <div className='relative z-50 mb-6 flex flex-wrap items-center justify-between gap-3'>
+          <div className='relative z-10 mb-6 flex flex-wrap items-center justify-between gap-3'>
             <div className='flex items-center gap-3'>
               <h2 className='text-xl font-bold tracking-tight'>
                 {isSearching ? 'Resultados' : viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
@@ -423,7 +423,7 @@ export function StorefrontCatalog({
                 </button>
                 {sortOpen && (
                   <div
-                    className='absolute right-0 z-50 mt-1 min-w-[200px] overflow-hidden border py-1 shadow-lg'
+                    className='absolute right-0 z-20 mt-1 min-w-[200px] overflow-hidden border py-1 shadow-lg'
                     style={{
                       borderRadius: 'var(--sf-radius, 0.75rem)',
                       borderColor: 'var(--sf-border, #e5e7eb)',
