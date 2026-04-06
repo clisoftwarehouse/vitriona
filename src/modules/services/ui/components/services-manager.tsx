@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useState, useTransition } from 'react';
 import { Plus, Clock, Pencil, Trash2 } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,11 +50,12 @@ interface ServicesManagerProps {
   catalogId: string;
   initialServices: Service[];
   categories: Category[];
+  currency?: string;
 }
 
 // ── Component ──
 
-export function ServicesManager({ catalogId, initialServices, categories }: ServicesManagerProps) {
+export function ServicesManager({ catalogId, initialServices, categories, currency = 'USD' }: ServicesManagerProps) {
   const [servicesList, setServicesList] = useState<Service[]>(initialServices);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -170,8 +172,7 @@ export function ServicesManager({ catalogId, initialServices, categories }: Serv
     });
   };
 
-  const formatPrice = (p: string) =>
-    new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(parseFloat(p));
+  const fmt = (p: string) => formatPrice(p, currency);
 
   return (
     <div className='space-y-6'>
@@ -315,7 +316,7 @@ export function ServicesManager({ catalogId, initialServices, categories }: Serv
                   </Badge>
                 </div>
                 <div className='text-muted-foreground mt-0.5 flex items-center gap-3 text-xs'>
-                  <span>{formatPrice(svc.price)}</span>
+                  <span>{fmt(svc.price)}</span>
                   {svc.durationMinutes && (
                     <span className='flex items-center gap-1'>
                       <Clock className='size-3' />

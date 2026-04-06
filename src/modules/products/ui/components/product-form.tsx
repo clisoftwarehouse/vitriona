@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, useEffect, useTransition } from 'react';
 
+import { formatPrice } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,6 +71,7 @@ interface ProductFormProps {
   bundleComponentOptions?: BundleComponentOption[];
   defaultValues?: Partial<CreateProductFormValues>;
   hasVariants?: boolean;
+  currency?: string;
   onSubmitAction: (
     values: CreateProductFormValues
   ) => Promise<{ error?: string; success?: boolean; productId?: string }>;
@@ -86,6 +88,7 @@ export function ProductForm({
   bundleComponentOptions = [],
   defaultValues,
   hasVariants = false,
+  currency = 'USD',
   onSubmitAction,
 }: ProductFormProps) {
   const router = useRouter();
@@ -181,7 +184,7 @@ export function ProductForm({
       ? form.formState.errors.bundleCustomPrice.message
       : null;
 
-  const formatBundlePrice = (value: number) => `$${value.toFixed(2)}`;
+  const formatBundlePrice = (value: number) => formatPrice(value, currency);
 
   const updateBundleItems = (items: NonNullable<CreateProductFormValues['bundleItems']>) => {
     form.setValue('bundleItems', items, {

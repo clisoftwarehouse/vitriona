@@ -55,6 +55,7 @@ export default async function NewProductPage({ params }: NewProductPageProps) {
             catalogs={allCatalogs}
             brands={brands}
             bundleComponentOptions={bundleComponentOptions}
+            currency={business.currency}
           />
         </CardContent>
       </Card>

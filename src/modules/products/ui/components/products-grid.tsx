@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useMemo, useState, useEffect, useTransition } from 'react';
 import { Plus, Star, Search, Loader2, Package, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ interface ProductsGridProps {
   businessId: string;
   catalogId?: string;
   categories?: Category[];
+  currency: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -82,7 +84,7 @@ function sortProducts<T extends { name: string; price: string; createdAt: Date; 
   });
 }
 
-export function ProductsGrid({ businessId, catalogId, categories = [] }: ProductsGridProps) {
+export function ProductsGrid({ businessId, catalogId, categories = [], currency }: ProductsGridProps) {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortOption>('newest');
   const [search, setSearch] = useState('');
@@ -279,10 +281,10 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
                           </div>
                           <div className='mt-0.5 flex items-center gap-2'>
                             <span className='text-muted-foreground text-sm font-medium'>
-                              ${Number(product.price).toFixed(2)}
+                              {formatPrice(product.price, currency)}
                               {product.compareAtPrice && (
                                 <span className='ml-1.5 line-through'>
-                                  ${Number(product.compareAtPrice).toFixed(2)}
+                                  {formatPrice(product.compareAtPrice, currency)}
                                 </span>
                               )}
                             </span>

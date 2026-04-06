@@ -201,6 +201,7 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
           whatsappNumber: business.whatsappNumber,
           email: business.email,
           address: business.address,
+          currency: business.currency,
         },
         categories: cats.map((c) => ({ id: c.id, name: c.name })),
         products: previewProducts,

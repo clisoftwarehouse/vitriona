@@ -62,7 +62,7 @@ export default async function EditCatalogPage({ params }: EditCatalogPageProps) 
           <p className='text-muted-foreground text-sm'>Selecciona qué productos aparecerán en este catálogo.</p>
         </CardHeader>
         <CardContent>
-          <CatalogProductAssigner businessId={id} catalogId={catalogId} />
+          <CatalogProductAssigner businessId={id} catalogId={catalogId} currency={business.currency} />
         </CardContent>
       </Card>
 

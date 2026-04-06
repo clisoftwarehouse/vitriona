@@ -8,6 +8,7 @@ import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Search, Loader2, Package, ChevronLeft, GripVertical, ChevronRight } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { reorderCatalogProductsAction } from '@/modules/catalogs/server/actions/
 interface CatalogProductAssignerProps {
   businessId: string;
   catalogId: string;
+  currency?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -70,7 +72,7 @@ interface ProductRow {
   status: string;
 }
 
-function SortableProductRow({ product }: { product: ProductRow }) {
+function SortableProductRow({ product, currency }: { product: ProductRow; currency: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
@@ -91,7 +93,7 @@ function SortableProductRow({ product }: { product: ProductRow }) {
       <div className='min-w-0 flex-1'>
         <p className='truncate text-sm font-medium'>{product.name}</p>
         <p className='text-muted-foreground text-xs'>
-          ${Number(product.price).toFixed(2)}
+          {formatPrice(product.price, currency)}
           {product.sku && ` · SKU: ${product.sku}`}
         </p>
       </div>
@@ -102,7 +104,7 @@ function SortableProductRow({ product }: { product: ProductRow }) {
   );
 }
 
-export function CatalogProductAssigner({ businessId, catalogId }: CatalogProductAssignerProps) {
+export function CatalogProductAssigner({ businessId, catalogId, currency = 'USD' }: CatalogProductAssignerProps) {
   const { data: products, isLoading } = useCatalogProducts(businessId, catalogId);
   const sync = useSyncCatalogProducts(businessId, catalogId);
   const [, startReorder] = useTransition();
@@ -271,7 +273,7 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
           <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             <div className='max-h-96 space-y-1 overflow-y-auto'>
               {filtered.map((product) => (
-                <SortableProductRow key={product.id} product={product} />
+                <SortableProductRow key={product.id} product={product} currency={currency} />
               ))}
             </div>
           </SortableContext>
@@ -287,7 +289,7 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
               <div className='min-w-0 flex-1'>
                 <p className='truncate text-sm font-medium'>{product.name}</p>
                 <p className='text-muted-foreground text-xs'>
-                  ${Number(product.price).toFixed(2)}
+                  {formatPrice(product.price, currency)}
                   {product.sku && ` · SKU: ${product.sku}`}
                 </p>
               </div>

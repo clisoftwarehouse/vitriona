@@ -159,7 +159,7 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   // Get business owner for notifications
   const [businessOwner] = await db
-    .select({ userId: businesses.userId })
+    .select({ userId: businesses.userId, currency: businesses.currency })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
@@ -581,7 +581,7 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   // Create notification for business owner
   if (businessOwner?.userId) {
-    const fmtTotal = new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(total);
+    const fmtTotal = new Intl.NumberFormat('es', { style: 'currency', currency: businessOwner.currency }).format(total);
     await db.insert(notifications).values({
       userId: businessOwner.userId,
       businessId,

@@ -2,6 +2,7 @@
 
 import { BarChart3 } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
 interface TopProductsProps {
@@ -9,10 +10,6 @@ interface TopProductsProps {
   currency: string;
   title: string;
   emptyMessage: string;
-}
-
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 }
 
 export function TopProducts({ products, currency, title, emptyMessage }: TopProductsProps) {
@@ -38,7 +35,7 @@ export function TopProducts({ products, currency, title, emptyMessage }: TopProd
                 <div className='mb-1 flex items-center justify-between text-sm'>
                   <span className='truncate font-medium'>{p.name}</span>
                   <span className='text-muted-foreground ml-2 shrink-0 text-xs'>
-                    {p.quantity} uds · {formatCurrency(p.revenue, currency)}
+                    {p.quantity} uds · {formatPrice(p.revenue, currency)}
                   </span>
                 </div>
                 <div className='bg-muted h-2 overflow-hidden rounded-full'>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Eye, Clock, Truck, Loader2, Package, XCircle, BadgeCheck, CheckCircle, CalendarClock } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ interface Order {
 
 interface OrdersTableProps {
   businessId: string;
+  currency: string;
 }
 
 const STATUS_CONFIG: Record<
@@ -71,7 +73,7 @@ const STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
   cancelled: [],
 };
 
-export function OrdersTable({ businessId }: OrdersTableProps) {
+export function OrdersTable({ businessId, currency }: OrdersTableProps) {
   const queryClient = useQueryClient();
   const { data: orders = [], isLoading } = useOrders(businessId);
   const updateStatus = useUpdateOrderStatus(businessId);
@@ -90,8 +92,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
 
   const isPending = updateStatus.isPending || cancelOrder.isPending;
 
-  const formatPrice = (price: string) =>
-    new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(parseFloat(price));
+  const fmt = (price: string) => formatPrice(price, currency);
 
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date));
@@ -201,7 +202,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                       )}
                     </div>
                     <div className='text-right'>
-                      <span className='text-lg font-bold'>{formatPrice(order.total)}</span>
+                      <span className='text-lg font-bold'>{fmt(order.total)}</span>
                       <p className='text-muted-foreground text-xs'>{formatDate(order.createdAt)}</p>
                     </div>
                   </div>
@@ -390,7 +391,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                           <span>
                             {item.productName} <span className='text-muted-foreground'>x{item.quantity}</span>
                           </span>
-                          <span className='font-medium'>{formatPrice(item.subtotal)}</span>
+                          <span className='font-medium'>{fmt(item.subtotal)}</span>
                         </div>
                         {item.bundleSelections &&
                           (
@@ -423,7 +424,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                                     )}
                                   </span>
                                   <span className='text-muted-foreground'>
-                                    {formatPrice((parseFloat(sel.unitPrice) * sel.quantity).toFixed(2))}
+                                    {fmt((parseFloat(sel.unitPrice) * sel.quantity).toFixed(2))}
                                   </span>
                                 </div>
                               ))}
@@ -438,7 +439,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                                   <span>
                                     {component.totalQuantity}x {component.componentProductName}
                                   </span>
-                                  <span className='text-muted-foreground'>{formatPrice(component.subtotal)}</span>
+                                  <span className='text-muted-foreground'>{fmt(component.subtotal)}</span>
                                 </div>
                               ))}
                             </div>
@@ -450,23 +451,23 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 <div className='mt-3 space-y-1 border-t pt-3'>
                   <div className='flex items-center justify-between text-sm opacity-60'>
                     <span>Subtotal</span>
-                    <span>{formatPrice(selectedOrder.subtotal)}</span>
+                    <span>{fmt(selectedOrder.subtotal)}</span>
                   </div>
                   {parseFloat(selectedOrder.discount) > 0 && (
                     <div className='flex items-center justify-between text-sm text-green-600'>
                       <span>Descuento</span>
-                      <span>-{formatPrice(selectedOrder.discount)}</span>
+                      <span>-{fmt(selectedOrder.discount)}</span>
                     </div>
                   )}
                   {parseFloat(selectedOrder.shippingCost) > 0 && (
                     <div className='flex items-center justify-between text-sm opacity-60'>
                       <span>Envío</span>
-                      <span>{formatPrice(selectedOrder.shippingCost)}</span>
+                      <span>{fmt(selectedOrder.shippingCost)}</span>
                     </div>
                   )}
                   <div className='flex items-center justify-between pt-1'>
                     <span className='font-semibold'>Total</span>
-                    <span className='text-lg font-bold'>{formatPrice(selectedOrder.total)}</span>
+                    <span className='text-lg font-bold'>{fmt(selectedOrder.total)}</span>
                   </div>
                 </div>
               </div>

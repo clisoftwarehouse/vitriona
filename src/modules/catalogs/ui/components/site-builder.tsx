@@ -131,6 +131,7 @@ interface PreviewBusiness {
   whatsappNumber: string | null;
   email: string | null;
   address: string | null;
+  currency: string;
 }
 
 interface PreviewCategory {
@@ -1387,7 +1388,7 @@ function BuilderPreview({
 
   const fmt = (v: string) => {
     const n = parseFloat(v);
-    return isNaN(n) ? v : new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(n);
+    return isNaN(n) ? v : new Intl.NumberFormat('es', { style: 'currency', currency: business.currency }).format(n);
   };
 
   const hasSocials =

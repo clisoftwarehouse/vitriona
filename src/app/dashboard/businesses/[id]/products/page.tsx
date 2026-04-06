@@ -33,7 +33,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
         </Button>
       </div>
 
-      <ProductsGrid businessId={id} categories={categories} />
+      <ProductsGrid businessId={id} categories={categories} currency={business.currency} />
     </div>
   );
 }

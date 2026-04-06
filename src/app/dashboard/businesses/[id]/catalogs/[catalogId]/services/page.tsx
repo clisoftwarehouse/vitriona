@@ -44,7 +44,12 @@ export default async function ServicesPage({ params }: ServicesPageProps) {
         </div>
       </div>
 
-      <ServicesManager catalogId={catalogId} initialServices={servicesList} categories={categories} />
+      <ServicesManager
+        catalogId={catalogId}
+        initialServices={servicesList}
+        categories={categories}
+        currency={business.currency}
+      />
     </div>
   );
 }

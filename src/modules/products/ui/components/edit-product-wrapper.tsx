@@ -48,6 +48,7 @@ interface EditProductWrapperProps {
   bundleComponentOptions?: BundleComponentOption[];
   defaultValues: Partial<CreateProductFormValues>;
   hasVariants?: boolean;
+  currency?: string;
 }
 
 export function EditProductWrapper({
@@ -61,6 +62,7 @@ export function EditProductWrapper({
   bundleComponentOptions,
   defaultValues,
   hasVariants,
+  currency,
 }: EditProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return updateProductAction(productId, values);
@@ -78,6 +80,7 @@ export function EditProductWrapper({
       bundleComponentOptions={bundleComponentOptions}
       defaultValues={defaultValues}
       hasVariants={hasVariants}
+      currency={currency}
       onSubmitAction={handleSubmit}
     />
   );

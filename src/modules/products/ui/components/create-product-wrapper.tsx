@@ -45,6 +45,7 @@ interface CreateProductWrapperProps {
   brands?: Brand[];
   attributes?: AttributeDefinition[];
   bundleComponentOptions?: BundleComponentOption[];
+  currency?: string;
 }
 
 export function CreateProductWrapper({
@@ -55,6 +56,7 @@ export function CreateProductWrapper({
   brands,
   attributes,
   bundleComponentOptions,
+  currency,
 }: CreateProductWrapperProps) {
   const handleSubmit = async (values: CreateProductFormValues) => {
     return createProductAction(catalogId, values, businessId);
@@ -70,6 +72,7 @@ export function CreateProductWrapper({
       brands={brands}
       attributes={attributes}
       bundleComponentOptions={bundleComponentOptions}
+      currency={currency}
       onSubmitAction={handleSubmit}
     />
   );

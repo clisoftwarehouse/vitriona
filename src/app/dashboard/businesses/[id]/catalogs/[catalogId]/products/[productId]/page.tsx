@@ -111,6 +111,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
             brands={brands}
             attributes={attributes}
             hasVariants={hasVariants}
+            currency={business.currency}
             defaultValues={{
               name: product.name,
               description: product.description ?? '',
@@ -154,6 +155,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           <CardContent>
             <BundleSlotsEditor
               bundleProductId={product.id}
+              currency={business.currency}
               businessProducts={bundleComponentOptions.map((o) => ({
                 id: o.id,
                 name: o.name,

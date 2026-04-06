@@ -8,6 +8,7 @@ import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { Plus, Pencil, Search, Trash2, ChevronDown, GripVertical } from 'lucide-react';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
+import { formatPrice } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +36,7 @@ interface Product {
 interface BundleSlotsEditorProps {
   bundleProductId: string;
   businessProducts: Product[];
+  currency?: string;
 }
 
 interface SlotFormState {
@@ -85,7 +87,7 @@ function SortableSlotWrapper({
   );
 }
 
-export function BundleSlotsEditor({ bundleProductId, businessProducts }: BundleSlotsEditorProps) {
+export function BundleSlotsEditor({ bundleProductId, businessProducts, currency = 'USD' }: BundleSlotsEditorProps) {
   const [slots, setSlots] = useState<SlotWithItems[]>([]);
   const [isPending, startTransition] = useTransition();
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
@@ -460,7 +462,7 @@ export function BundleSlotsEditor({ bundleProductId, businessProducts }: BundleS
                                     <div className='min-w-0 flex-1'>
                                       <p className='truncate text-sm'>{product.name}</p>
                                       <span className='text-muted-foreground text-xs'>
-                                        ${Number(product.price).toFixed(2)}
+                                        {formatPrice(product.price, currency)}
                                         {product.trackInventory &&
                                           product.stock !== null &&
                                           ` · Stock: ${product.stock}`}

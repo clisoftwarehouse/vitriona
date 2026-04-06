@@ -16,6 +16,7 @@ import {
   TicketPercent,
 } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -60,7 +61,7 @@ interface SimpleProduct {
   name: string;
 }
 
-export function CouponsDashboard({ businessId }: { businessId: string }) {
+export function CouponsDashboard({ businessId, currency = 'USD' }: { businessId: string; currency?: string }) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +240,7 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
                       <p className='text-muted-foreground mt-0.5 text-xs'>
                         {coupon.discountType === 'percentage'
                           ? `${parseFloat(coupon.discountValue)}% de descuento`
-                          : `$${parseFloat(coupon.discountValue).toFixed(2)} de descuento`}
+                          : `${formatPrice(coupon.discountValue, currency)} de descuento`}
                         {coupon.description && ` · ${coupon.description}`}
                         {coupon.applicableProductIds && coupon.applicableProductIds.length > 0 && (
                           <span className='ml-1 inline-flex items-center gap-0.5'>
@@ -253,7 +254,7 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
                         Usos: {coupon.usageCount}
                         {coupon.usageLimit !== null ? `/${coupon.usageLimit}` : ''}
                         {coupon.expiresAt && ` · Expira: ${formatDate(coupon.expiresAt)}`}
-                        {coupon.minOrderAmount && ` · Mín: $${parseFloat(coupon.minOrderAmount).toFixed(2)}`}
+                        {coupon.minOrderAmount && ` · Mín: ${formatPrice(coupon.minOrderAmount, currency)}`}
                       </p>
                     </div>
                   </div>
