@@ -15,6 +15,7 @@ import { ProductImageUpload } from '@/modules/products/ui/components/product-ima
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
 import { DeleteProductButton } from '@/modules/products/ui/components/delete-product-button';
 import { getCategoriesAction } from '@/modules/categories/server/actions/get-categories.action';
+import { RelatedProductsEditor } from '@/modules/products/ui/components/related-products-editor';
 import { ProductVariantsEditor } from '@/modules/products/ui/components/product-variants-editor';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
 import { getProductVariantsAction } from '@/modules/products/server/actions/product-variants.action';
@@ -172,6 +173,18 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           </CardHeader>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <h3 className='font-semibold'>Productos relacionados</h3>
+          <p className='text-muted-foreground text-sm'>
+            Sugerencias que se mostrarán en la página del producto en el Storefront.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <RelatedProductsEditor productId={product.id} businessId={id} />
+        </CardContent>
+      </Card>
 
       <Card className='border-destructive/50'>
         <CardHeader>

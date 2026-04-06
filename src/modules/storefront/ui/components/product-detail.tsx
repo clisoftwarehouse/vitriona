@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import {
   Tag,
   Box,
+  Plus,
   Ruler,
   Share2,
   Weight,
@@ -689,5 +690,129 @@ export function ProductDetail({
         </div>
       </div>
     </>
+  );
+}
+
+/* ─── Related Products Section ─── */
+
+interface RelatedProduct {
+  id: string;
+  name: string;
+  slug: string;
+  price: string;
+  compareAtPrice: string | null;
+  images: { url: string; alt: string | null }[];
+  brandName: string | null;
+  hasVariants: boolean;
+}
+
+interface RelatedProductsSectionProps {
+  products: RelatedProduct[];
+  slug: string;
+  currency: string;
+  showWatermark?: boolean;
+}
+
+export function RelatedProductsSection({
+  products,
+  slug,
+  currency,
+  showWatermark = false,
+}: RelatedProductsSectionProps) {
+  const addItem = useCartStore((s) => s.addItem);
+
+  const handleAddToCart = (e: React.MouseEvent, product: RelatedProduct) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.hasVariants) {
+      window.location.assign(`/${slug}/producto/${product.slug}`);
+      return;
+    }
+    addItem(
+      {
+        productId: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        imageUrl: product.images[0]?.url ?? null,
+      },
+      slug
+    );
+    toast.success(`${product.name} agregado al carrito`);
+  };
+
+  const fmt = (price: string) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(parseFloat(price));
+
+  return (
+    <section className='mt-12 pt-10' style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}>
+      <h2 className='mb-6 text-xl font-bold tracking-tight'>También te puede interesar</h2>
+      <div className='flex gap-4 overflow-x-auto pb-4'>
+        {products.map((product) => {
+          const hasDisc = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price);
+          return (
+            <Link
+              key={product.id}
+              href={`/${slug}/producto/${product.slug}`}
+              className='group flex w-44 shrink-0 flex-col overflow-hidden border transition-shadow hover:shadow-lg sm:w-52'
+              style={{
+                borderRadius: 'var(--sf-radius-lg, 1rem)',
+                borderColor: 'var(--sf-border, #e5e7eb)',
+                backgroundColor: 'var(--sf-bg, #fff)',
+              }}
+            >
+              <div
+                className='relative aspect-square overflow-hidden'
+                style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+              >
+                {product.images[0] ? (
+                  <Image
+                    src={product.images[0].url}
+                    alt={product.images[0].alt || product.name}
+                    fill
+                    unoptimized
+                    sizes='(max-width: 640px) 44vw, 13rem'
+                    className='object-cover transition-transform duration-500 group-hover:scale-105'
+                  />
+                ) : (
+                  <div className='flex size-full items-center justify-center'>
+                    <ImageOff className='size-6 opacity-20' />
+                  </div>
+                )}
+                {showWatermark && product.images[0] && <WatermarkOverlay />}
+                {!product.hasVariants && (
+                  <button
+                    onClick={(e) => handleAddToCart(e, product)}
+                    className='absolute right-2 bottom-2 flex size-8 items-center justify-center opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
+                    style={{
+                      backgroundColor: 'var(--sf-primary, #000)',
+                      color: 'var(--sf-primary-contrast, #fff)',
+                      borderRadius: 'var(--sf-radius-full, 9999px)',
+                    }}
+                    aria-label={`Agregar ${product.name} al carrito`}
+                  >
+                    <Plus className='size-4' />
+                  </button>
+                )}
+              </div>
+              <div className='p-3'>
+                {product.brandName && (
+                  <span
+                    className='mb-0.5 block text-[11px] font-semibold tracking-wide uppercase'
+                    style={{ color: 'var(--sf-primary, #000)', opacity: 0.6 }}
+                  >
+                    {product.brandName}
+                  </span>
+                )}
+                <h3 className='line-clamp-2 text-sm leading-snug font-medium'>{product.name}</h3>
+                <div className='mt-1.5 flex items-baseline gap-1.5'>
+                  <span className='text-sm font-bold'>{fmt(product.price)}</span>
+                  {hasDisc && <span className='text-xs line-through opacity-40'>{fmt(product.compareAtPrice!)}</span>}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }

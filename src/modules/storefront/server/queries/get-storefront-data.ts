@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { or, eq, and, asc, avg, sql, count, inArray } from 'drizzle-orm';
+import { or, eq, and, asc, avg, sql, desc, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import {
@@ -9,6 +9,7 @@ import {
   products,
   categories,
   businesses,
+  orderItems,
   bundleItems,
   productImages,
   productReviews,
@@ -17,6 +18,7 @@ import {
   productVariants,
   productAttributes,
   productAttributeValues,
+  relatedProducts as relatedProductsTable,
 } from '@/db/schema';
 
 // ── Cache durations (seconds) ────────────────────────────────────────────────
@@ -462,4 +464,82 @@ async function _getProductBySlug(businessId: string, productSlug: string) {
     variants,
     bundleItems: bundleComponentRows,
   };
+}
+
+// ── Related products (admin-curated) or best-sellers fallback ────────────────
+export const getRelatedOrBestSellerProducts = cache((businessId: string, productId: string, limit = 8) =>
+  unstable_cache(
+    async () => _getRelatedOrBestSellerProducts(businessId, productId, limit),
+    [`related-products-${businessId}-${productId}-${limit}`],
+    { revalidate: CACHE_SHORT, tags: [`products-${businessId}`] }
+  )()
+);
+
+async function _getRelatedOrBestSellerProducts(businessId: string, productId: string, limit: number) {
+  // 1. Try admin-curated related products
+  const relatedRows = await db
+    .select({ relatedProductId: relatedProductsTable.relatedProductId })
+    .from(relatedProductsTable)
+    .where(eq(relatedProductsTable.productId, productId))
+    .orderBy(asc(relatedProductsTable.sortOrder));
+
+  const relatedIds = relatedRows.map((r) => r.relatedProductId);
+
+  if (relatedIds.length > 0) {
+    const relatedProductList = await db
+      .select()
+      .from(products)
+      .where(and(inArray(products.id, relatedIds), eq(products.status, 'active')));
+
+    // Preserve admin sort order
+    const orderMap = new Map(relatedIds.map((id, i) => [id, i]));
+    relatedProductList.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+
+    return _enrichProducts(relatedProductList.slice(0, limit));
+  }
+
+  // 2. Fallback: best-selling products (by order count)
+  const bestSellerRows = await db
+    .select({
+      productId: orderItems.productId,
+      totalSold: sql<number>`CAST(SUM(${orderItems.quantity}) AS INTEGER)`,
+    })
+    .from(orderItems)
+    .where(sql`${orderItems.productId} IS NOT NULL`)
+    .groupBy(orderItems.productId)
+    .orderBy(desc(sql`SUM(${orderItems.quantity})`))
+    .limit(limit + 1);
+
+  const bestSellerIds = bestSellerRows
+    .map((r) => r.productId)
+    .filter((id): id is string => id !== null && id !== productId);
+
+  if (bestSellerIds.length > 0) {
+    const bestSellerProducts = await db
+      .select()
+      .from(products)
+      .where(
+        and(
+          inArray(products.id, bestSellerIds.slice(0, limit)),
+          eq(products.businessId, businessId),
+          eq(products.status, 'active')
+        )
+      );
+
+    // Preserve best-seller order
+    const orderMap = new Map(bestSellerIds.map((id, i) => [id, i]));
+    bestSellerProducts.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+
+    return _enrichProducts(bestSellerProducts);
+  }
+
+  // 3. Final fallback: random active products from the same business
+  const fallbackProducts = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.businessId, businessId), eq(products.status, 'active'), sql`${products.id} != ${productId}`))
+    .orderBy(sql`RANDOM()`)
+    .limit(limit);
+
+  return _enrichProducts(fallbackProducts);
 }

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCatalogsAction } from '@/modules/catalogs/server/actions/get-catalogs.action';
+import { CatalogReorderList } from '@/modules/catalogs/ui/components/catalog-reorder-list';
 import { getBusinessByIdAction } from '@/modules/businesses/server/actions/get-businesses.action';
 
 interface CatalogsPageProps {
@@ -62,44 +63,61 @@ export default async function CatalogsPage({ params }: CatalogsPageProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-          {catalogs.map((catalog) => (
-            <Link key={catalog.id} href={`/dashboard/businesses/${id}/catalogs/${catalog.id}`} className='group'>
-              <Card className='flex h-full flex-col transition-shadow group-hover:shadow-md'>
-                <CardContent className='flex flex-1 flex-col p-5'>
-                  <div className='flex items-start justify-between'>
-                    <div className='flex items-center gap-3'>
-                      <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-                        <BookOpen className='text-primary size-5' />
+        <>
+          {catalogs.length > 1 && (
+            <Card>
+              <CardContent className='pt-5'>
+                <CatalogReorderList
+                  businessId={id}
+                  catalogs={catalogs.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    isDefault: c.isDefault,
+                    isActive: c.isActive,
+                  }))}
+                />
+              </CardContent>
+            </Card>
+          )}
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+            {catalogs.map((catalog) => (
+              <Link key={catalog.id} href={`/dashboard/businesses/${id}/catalogs/${catalog.id}`} className='group'>
+                <Card className='flex h-full flex-col transition-shadow group-hover:shadow-md'>
+                  <CardContent className='flex flex-1 flex-col p-5'>
+                    <div className='flex items-start justify-between'>
+                      <div className='flex items-center gap-3'>
+                        <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
+                          <BookOpen className='text-primary size-5' />
+                        </div>
+                        <div>
+                          <h3 className='flex items-center gap-1.5 font-semibold'>
+                            {catalog.name}
+                            {catalog.isDefault && <Star className='size-3.5 fill-amber-500 text-amber-500' />}
+                          </h3>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className='flex items-center gap-1.5 font-semibold'>
-                          {catalog.name}
-                          {catalog.isDefault && <Star className='size-3.5 fill-amber-500 text-amber-500' />}
-                        </h3>
-                      </div>
-                    </div>
-                    <Badge variant={catalog.isActive ? 'default' : 'secondary'} className='text-[10px]'>
-                      {catalog.isActive ? 'Activo' : 'Inactivo'}
-                    </Badge>
-                  </div>
-
-                  <p className='text-muted-foreground mt-3 line-clamp-2 flex-1 text-sm'>
-                    {catalog.description || '\u00A0'}
-                  </p>
-
-                  <div className='mt-4'>
-                    {catalog.isDefault && (
-                      <Badge variant='outline' className='text-xs'>
-                        Catálogo principal
+                      <Badge variant={catalog.isActive ? 'default' : 'secondary'} className='text-[10px]'>
+                        {catalog.isActive ? 'Activo' : 'Inactivo'}
                       </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                    </div>
+
+                    <p className='text-muted-foreground mt-3 line-clamp-2 flex-1 text-sm'>
+                      {catalog.description || '\u00A0'}
+                    </p>
+
+                    <div className='mt-4'>
+                      {catalog.isDefault && (
+                        <Badge variant='outline' className='text-xs'>
+                          Catálogo principal
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

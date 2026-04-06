@@ -3,17 +3,21 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import {
   X,
   Plus,
   Star,
+  List,
   Search,
   ImageOff,
   Sparkles,
   ArrowRight,
+  LayoutGrid,
   ChevronLeft,
+  ChevronDown,
   ShoppingBag,
+  ArrowUpDown,
   ChevronRight,
 } from 'lucide-react';
 
@@ -129,6 +133,36 @@ function discountPercent(p: Product) {
 
 const PRODUCTS_PER_PAGE = 12;
 
+type SortOption = 'default' | 'az' | 'za' | 'price_asc' | 'price_desc' | 'newest';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'default', label: 'Orden predeterminado' },
+  { value: 'az', label: 'Nombre: A → Z' },
+  { value: 'za', label: 'Nombre: Z → A' },
+  { value: 'price_asc', label: 'Precio: menor a mayor' },
+  { value: 'price_desc', label: 'Precio: mayor a menor' },
+  { value: 'newest', label: 'Más recientes' },
+];
+
+function sortProducts(list: Product[], sort: SortOption): Product[] {
+  if (sort === 'default') return list;
+  const sorted = [...list];
+  switch (sort) {
+    case 'az':
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case 'za':
+      return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    case 'price_asc':
+      return sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    case 'price_desc':
+      return sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    case 'newest':
+      return sorted.reverse();
+    default:
+      return sorted;
+  }
+}
+
 /* ─── Main Component ─── */
 
 export function StorefrontCatalog({
@@ -145,9 +179,23 @@ export function StorefrontCatalog({
   const [search, setSearch] = useState(searchQuery ?? '');
   const [activeCat, setActiveCat] = useState<string | undefined>(initialCategory);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortOption>('default');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [userViewMode, setUserViewMode] = useState<'grid' | 'list' | null>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((s) => s.addItem);
 
-  // Client-side category + search filtering
+  // Close sort dropdown on click outside
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [sortOpen]);
+
+  // Client-side category + search filtering + sorting
   const products = useMemo(() => {
     let list = allProducts;
     if (activeCat) {
@@ -157,8 +205,8 @@ export function StorefrontCatalog({
       const q = search.toLowerCase();
       list = list.filter((p) => p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
     }
-    return list;
-  }, [allProducts, activeCat, search]);
+    return sortProducts(list, sortBy);
+  }, [allProducts, activeCat, search, sortBy]);
 
   const heroEnabled = settings?.heroEnabled ?? true;
   const heroTitle = settings?.heroTitle || business.name;
@@ -240,12 +288,15 @@ export function StorefrontCatalog({
     toast.success(`${product.name} agregado al carrito`);
   };
 
+  // User can toggle between grid/list; fallback to admin-configured layout
+  const effectiveLayout = userViewMode ?? layout;
+
   const gridClass =
-    layout === 'list'
+    effectiveLayout === 'list'
       ? 'flex flex-col gap-3'
-      : layout === 'magazine'
+      : effectiveLayout === 'magazine'
         ? 'grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5'
-        : layout === 'restaurant'
+        : effectiveLayout === 'restaurant'
           ? 'flex flex-col'
           : cols === 3
             ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5'
@@ -341,16 +392,106 @@ export function StorefrontCatalog({
 
         {/* ── All Products (paginated) ── */}
         <section id='products' className='scroll-mt-6'>
-          <SectionHeader
-            title={isSearching ? 'Resultados' : viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
-            count={products.length}
-          />
+          {/* Toolbar: title + sort + view toggle */}
+          <div className='relative z-50 mb-6 flex flex-wrap items-center justify-between gap-3'>
+            <div className='flex items-center gap-3'>
+              <h2 className='text-xl font-bold tracking-tight'>
+                {isSearching ? 'Resultados' : viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
+              </h2>
+              <span className='text-sm opacity-40'>
+                {products.length} producto{products.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div className='flex items-center gap-2'>
+              {/* Sort dropdown */}
+              <div className='relative' ref={sortRef}>
+                <button
+                  onClick={() => setSortOpen((v) => !v)}
+                  className='inline-flex items-center gap-1.5 border px-3 py-2 text-xs font-medium transition-colors hover:opacity-70'
+                  style={{
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    borderColor: 'var(--sf-border, #e5e7eb)',
+                    backgroundColor: 'var(--sf-bg, #fff)',
+                  }}
+                >
+                  <ArrowUpDown className='size-3.5 opacity-60' />
+                  <span className='hidden sm:inline'>
+                    {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Ordenar'}
+                  </span>
+                  <ChevronDown className='size-3 opacity-40' />
+                </button>
+                {sortOpen && (
+                  <div
+                    className='absolute right-0 z-50 mt-1 min-w-[200px] overflow-hidden border py-1 shadow-lg'
+                    style={{
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                      borderColor: 'var(--sf-border, #e5e7eb)',
+                      backgroundColor: 'var(--sf-bg, #fff)',
+                    }}
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value);
+                          setPage(1);
+                          setSortOpen(false);
+                        }}
+                        className='flex w-full items-center px-3 py-2 text-left text-xs transition-colors hover:opacity-70'
+                        style={{
+                          backgroundColor: sortBy === option.value ? 'var(--sf-surface, #f9fafb)' : 'transparent',
+                          fontWeight: sortBy === option.value ? 600 : 400,
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* View toggle (grid / list) — only when not in restaurant mode */}
+              {viewMode !== 'restaurant' && (
+                <div
+                  className='inline-flex overflow-hidden border'
+                  style={{
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    borderColor: 'var(--sf-border, #e5e7eb)',
+                  }}
+                >
+                  <button
+                    onClick={() => setUserViewMode('grid')}
+                    className='flex items-center justify-center p-2 transition-colors'
+                    style={{
+                      backgroundColor: effectiveLayout !== 'list' ? 'var(--sf-primary, #000)' : 'var(--sf-bg, #fff)',
+                      color: effectiveLayout !== 'list' ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
+                    }}
+                    aria-label='Vista de cuadrícula'
+                  >
+                    <LayoutGrid className='size-3.5' />
+                  </button>
+                  <button
+                    onClick={() => setUserViewMode('list')}
+                    className='flex items-center justify-center p-2 transition-colors'
+                    style={{
+                      backgroundColor: effectiveLayout === 'list' ? 'var(--sf-primary, #000)' : 'var(--sf-bg, #fff)',
+                      color: effectiveLayout === 'list' ? 'var(--sf-primary-contrast, #fff)' : 'inherit',
+                    }}
+                    aria-label='Vista de lista'
+                  >
+                    <List className='size-3.5' />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {products.length === 0 ? (
             <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
           ) : (
             <>
-              {viewMode === 'restaurant' ? (
+              {viewMode === 'restaurant' && effectiveLayout !== 'list' && effectiveLayout !== 'grid' ? (
                 <RestaurantMenu
                   products={paginatedProducts}
                   categories={categories}
@@ -370,11 +511,11 @@ export function StorefrontCatalog({
                       currency={business.currency}
                       onAddToCart={handleAddToCart}
                       cardStyle={cardStyle}
-                      layout={layout}
+                      layout={effectiveLayout}
                       showPrices={showPrices}
                       showStock={showStock}
                       showWatermark={business.plan === 'free'}
-                      magazineHero={layout === 'magazine' && idx === 0}
+                      magazineHero={effectiveLayout === 'magazine' && idx === 0}
                     />
                   ))}
                 </div>

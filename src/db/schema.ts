@@ -430,6 +430,23 @@ export const bundleItems = pgTable('bundle_items', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+// ── Related Products (admin-curated) ──
+
+export const relatedProducts = pgTable(
+  'related_products',
+  {
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    relatedProductId: text('related_product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.productId, t.relatedProductId] })]
+);
+
 // ── Product Attributes (definitions per business) ──
 
 export const productAttributes = pgTable('product_attributes', {
