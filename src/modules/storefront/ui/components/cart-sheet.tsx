@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useSyncExternalStore } from 'react';
 import { X, Plus, Minus, Trash2, ImageOff, ShoppingBag } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 import {
   Sheet,
@@ -217,7 +218,17 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         >
                           <Minus className='size-3' />
                         </button>
-                        <span className='w-8 text-center text-xs font-semibold'>{item.quantity}</span>
+                        <Input
+                          type='number'
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val >= 1)
+                              updateQuantity(item.productId, val, slug, item.variantId, item.bundleKey);
+                          }}
+                          className='w-10 [appearance:textfield] border-0 px-1 py-0 text-center text-xs font-semibold shadow-none focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+                        />
                         <button
                           onClick={() =>
                             updateQuantity(item.productId, item.quantity + 1, slug, item.variantId, item.bundleKey)

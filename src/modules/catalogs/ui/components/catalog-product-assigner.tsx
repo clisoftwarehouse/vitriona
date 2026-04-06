@@ -1,8 +1,12 @@
 'use client';
 
 import { toast } from 'sonner';
+import { CSS } from '@dnd-kit/utilities';
+import { useSortable } from '@dnd-kit/sortable';
 import { useMemo, useState, useTransition } from 'react';
-import { Search, Loader2, Package, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Search, Loader2, Package, ChevronLeft, GripVertical, ChevronRight } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -58,10 +62,50 @@ function sortProducts<T extends { name: string; price: string; createdAt: Date }
   });
 }
 
+interface ProductRow {
+  id: string;
+  name: string;
+  price: string;
+  sku: string | null;
+  status: string;
+}
+
+function SortableProductRow({ product }: { product: ProductRow }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className='hover:bg-muted/50 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors'
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className='text-muted-foreground hover:text-foreground shrink-0 cursor-grab active:cursor-grabbing'
+        aria-label='Reordenar'
+      >
+        <GripVertical className='size-4' />
+      </button>
+      <div className='min-w-0 flex-1'>
+        <p className='truncate text-sm font-medium'>{product.name}</p>
+        <p className='text-muted-foreground text-xs'>
+          ${Number(product.price).toFixed(2)}
+          {product.sku && ` · SKU: ${product.sku}`}
+        </p>
+      </div>
+      <Badge variant={product.status === 'active' ? 'default' : 'secondary'} className='shrink-0 text-[10px]'>
+        {statusLabels[product.status] ?? product.status}
+      </Badge>
+    </div>
+  );
+}
+
 export function CatalogProductAssigner({ businessId, catalogId }: CatalogProductAssignerProps) {
   const { data: products, isLoading } = useCatalogProducts(businessId, catalogId);
   const sync = useSyncCatalogProducts(businessId, catalogId);
-  const [isReordering, startReorder] = useTransition();
+  const [startReorder] = useTransition();
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [search, setSearch] = useState('');
@@ -93,14 +137,16 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
     return sortProducts(result, sort);
   }, [products, search, sort, localOrder]);
 
-  const handleReorder = (index: number, direction: 'up' | 'down') => {
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     const ids = filtered.map((p) => p.id);
-    const target = direction === 'up' ? index - 1 : index + 1;
-    if (target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
-    setLocalOrder(ids);
+    const oldIndex = ids.indexOf(active.id as string);
+    const newIndex = ids.indexOf(over.id as string);
+    const reordered = arrayMove(ids, oldIndex, newIndex);
+    setLocalOrder(reordered);
     startReorder(async () => {
-      const res = await reorderCatalogProductsAction(businessId, catalogId, ids);
+      const res = await reorderCatalogProductsAction(businessId, catalogId, reordered);
       if (res.error) toast.error(res.error);
     });
   };
@@ -220,36 +266,24 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
         </span>
       </div>
 
-      <div className='max-h-96 space-y-1 overflow-y-auto'>
-        {paginated.map((product, idx) => {
-          const globalIdx = (page - 1) * ITEMS_PER_PAGE + idx;
-          return (
+      {sort === 'storefront' ? (
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            <div className='max-h-96 space-y-1 overflow-y-auto'>
+              {filtered.map((product) => (
+                <SortableProductRow key={product.id} product={product} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className='max-h-96 space-y-1 overflow-y-auto'>
+          {paginated.map((product) => (
             <div
               key={product.id}
               className='hover:bg-muted/50 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors'
             >
-              {sort === 'storefront' ? (
-                <div className='flex flex-col gap-0.5'>
-                  <button
-                    type='button'
-                    disabled={globalIdx === 0 || isReordering}
-                    onClick={() => handleReorder(globalIdx, 'up')}
-                    className='text-muted-foreground hover:text-foreground disabled:opacity-20'
-                  >
-                    <ArrowUp className='size-3.5' />
-                  </button>
-                  <button
-                    type='button'
-                    disabled={globalIdx === filtered.length - 1 || isReordering}
-                    onClick={() => handleReorder(globalIdx, 'down')}
-                    className='text-muted-foreground hover:text-foreground disabled:opacity-20'
-                  >
-                    <ArrowDown className='size-3.5' />
-                  </button>
-                </div>
-              ) : (
-                <Checkbox checked={currentSelected.has(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
-              )}
+              <Checkbox checked={currentSelected.has(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
               <div className='min-w-0 flex-1'>
                 <p className='truncate text-sm font-medium'>{product.name}</p>
                 <p className='text-muted-foreground text-xs'>
@@ -261,11 +295,11 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
                 {statusLabels[product.status] ?? product.status}
               </Badge>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {totalPages > 1 && (
+      {sort !== 'storefront' && totalPages > 1 && (
         <div className='flex items-center justify-center gap-2 pt-2'>
           <Button
             variant='outline'

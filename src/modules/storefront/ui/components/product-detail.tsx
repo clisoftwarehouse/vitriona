@@ -19,6 +19,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
 import { WatermarkOverlay } from './watermark-overlay';
 import { BundleConfigurator } from './bundle-configurator';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
@@ -652,7 +653,17 @@ export function ProductDetail({
                     >
                       −
                     </button>
-                    <span className='min-w-12 px-2 py-2 text-center text-sm font-semibold'>{quantity}</span>
+                    <Input
+                      type='number'
+                      min={1}
+                      max={maxQty}
+                      value={quantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (!isNaN(val)) setQuantity(Math.min(maxQty, Math.max(1, val)));
+                      }}
+                      className='min-w-12 [appearance:textfield] border-0 bg-transparent px-2 py-2 text-center text-sm font-semibold shadow-none focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+                    />
                     <button
                       onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
                       className='px-3 py-2 text-sm font-medium transition-colors hover:opacity-70'

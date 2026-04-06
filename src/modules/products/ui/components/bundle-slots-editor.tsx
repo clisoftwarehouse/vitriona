@@ -1,8 +1,12 @@
 'use client';
 
 import { toast } from 'sonner';
+import { CSS } from '@dnd-kit/utilities';
+import { useSortable } from '@dnd-kit/sortable';
 import { useState, useEffect, useTransition } from 'react';
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { Plus, Pencil, Search, Trash2, ChevronDown, GripVertical } from 'lucide-react';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -16,6 +20,7 @@ import {
   deleteBundleSlotAction,
   updateBundleSlotAction,
   getBundleSlotsWithItems,
+  reorderBundleSlotsAction,
 } from '@/modules/products/server/actions/bundle-slots.action';
 
 interface Product {
@@ -50,6 +55,36 @@ const emptySlotForm: SlotFormState = {
   isRequired: false,
 };
 
+function SortableSlotWrapper({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandle: React.ReactNode) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const dragHandle = (
+    <button
+      type='button'
+      {...attributes}
+      {...listeners}
+      onClick={(e) => e.stopPropagation()}
+      className='text-muted-foreground hover:text-foreground shrink-0 cursor-grab active:cursor-grabbing'
+      aria-label='Reordenar'
+    >
+      <GripVertical className='size-4' />
+    </button>
+  );
+
+  return (
+    <div ref={setNodeRef} style={style} className='rounded-lg border'>
+      {children(dragHandle)}
+    </div>
+  );
+}
+
 export function BundleSlotsEditor({ bundleProductId, businessProducts }: BundleSlotsEditorProps) {
   const [slots, setSlots] = useState<SlotWithItems[]>([]);
   const [isPending, startTransition] = useTransition();
@@ -63,6 +98,22 @@ export function BundleSlotsEditor({ bundleProductId, businessProducts }: BundleS
     startTransition(async () => {
       const data = await getBundleSlotsWithItems(bundleProductId);
       setSlots(data);
+    });
+  };
+
+  const handleSlotDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = slots.findIndex((s) => s.id === active.id);
+    const newIndex = slots.findIndex((s) => s.id === over.id);
+    const reordered = arrayMove(slots, oldIndex, newIndex);
+    setSlots(reordered);
+    startTransition(async () => {
+      const res = await reorderBundleSlotsAction(
+        bundleProductId,
+        reordered.map((s) => s.id)
+      );
+      if ('error' in res) toast.error(res.error);
     });
   };
 
@@ -312,128 +363,140 @@ export function BundleSlotsEditor({ bundleProductId, businessProducts }: BundleS
           No hay slots configurados. Crea uno para empezar.
         </div>
       ) : (
-        <div className='space-y-2'>
-          {slots.map((slot) => {
-            const isExpanded = expandedSlot === slot.id;
-            const filteredProducts = isExpanded ? getFilteredProducts(slot) : [];
-            const selectedIds = new Set(slot.items.map((i) => i.itemProductId));
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleSlotDragEnd}>
+          <SortableContext items={slots.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            <div className='space-y-2'>
+              {slots.map((slot) => {
+                const isExpanded = expandedSlot === slot.id;
+                const filteredProducts = isExpanded ? getFilteredProducts(slot) : [];
+                const selectedIds = new Set(slot.items.map((i) => i.itemProductId));
 
-            return (
-              <div key={slot.id} className='rounded-lg border'>
-                <div
-                  className='flex cursor-pointer items-center gap-2 px-4 py-3'
-                  onClick={() => setExpandedSlot(isExpanded ? null : slot.id)}
-                >
-                  <GripVertical className='text-muted-foreground size-4 shrink-0' />
-                  <div className='min-w-0 flex-1'>
-                    <div className='flex items-center gap-2'>
-                      <span className='text-sm font-medium'>{slot.name}</span>
-                      {slot.isRequired && (
-                        <Badge variant='secondary' className='text-[10px]'>
-                          Obligatorio
-                        </Badge>
-                      )}
-                      <Badge variant='outline' className='text-[10px]'>
-                        {slot.items.length} producto{slot.items.length !== 1 ? 's' : ''}
-                      </Badge>
-                      {slot.minItems > 0 && (
-                        <span className='text-muted-foreground text-[10px]'>Min: {slot.minItems}</span>
-                      )}
-                      {slot.maxItems && <span className='text-muted-foreground text-[10px]'>Max: {slot.maxItems}</span>}
-                    </div>
-                    {slot.description && <p className='text-muted-foreground text-xs'>{slot.description}</p>}
-                  </div>
-                  <div className='flex shrink-0 items-center gap-1'>
-                    <Button
-                      variant='ghost'
-                      size='icon-sm'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditing(slot);
-                      }}
-                    >
-                      <Pencil className='size-3.5' />
-                    </Button>
-                    <Button
-                      variant='ghost'
-                      size='icon-sm'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSlot(slot.id);
-                      }}
-                    >
-                      <Trash2 className='text-destructive size-3.5' />
-                    </Button>
-                    <ChevronDown
-                      className={`text-muted-foreground size-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    />
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className='border-t px-4 py-3'>
-                    <div className='mb-3'>
-                      <div className='relative'>
-                        <Search className='text-muted-foreground absolute top-2.5 left-2.5 size-3.5' />
-                        <Input
-                          value={itemSearch}
-                          onChange={(e) => setItemSearch(e.target.value)}
-                          placeholder='Buscar productos...'
-                          className='pl-8'
-                          disabled={isPending}
-                        />
-                      </div>
-                    </div>
-
-                    <div className='max-h-60 space-y-1 overflow-y-auto'>
-                      {filteredProducts.map((product) => {
-                        const isSelected = selectedIds.has(product.id);
-                        const slotItem = slot.items.find((i) => i.itemProductId === product.id);
-
-                        return (
-                          <div
-                            key={product.id}
-                            className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${isSelected ? 'bg-primary/5 border' : 'hover:bg-muted/50'}`}
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => handleToggleProduct(slot, product.id)}
-                              disabled={isPending}
-                            />
-                            <div className='min-w-0 flex-1'>
-                              <p className='truncate text-sm'>{product.name}</p>
-                              <span className='text-muted-foreground text-xs'>
-                                ${Number(product.price).toFixed(2)}
-                                {product.trackInventory && product.stock !== null && ` · Stock: ${product.stock}`}
-                              </span>
+                return (
+                  <SortableSlotWrapper key={slot.id} id={slot.id}>
+                    {(dragHandle) => (
+                      <>
+                        <div
+                          className='flex cursor-pointer items-center gap-2 px-4 py-3'
+                          onClick={() => setExpandedSlot(isExpanded ? null : slot.id)}
+                        >
+                          {dragHandle}
+                          <div className='min-w-0 flex-1'>
+                            <div className='flex items-center gap-2'>
+                              <span className='text-sm font-medium'>{slot.name}</span>
+                              {slot.isRequired && (
+                                <Badge variant='secondary' className='text-[10px]'>
+                                  Obligatorio
+                                </Badge>
+                              )}
+                              <Badge variant='outline' className='text-[10px]'>
+                                {slot.items.length} producto{slot.items.length !== 1 ? 's' : ''}
+                              </Badge>
+                              {slot.minItems > 0 && (
+                                <span className='text-muted-foreground text-[10px]'>Min: {slot.minItems}</span>
+                              )}
+                              {slot.maxItems && (
+                                <span className='text-muted-foreground text-[10px]'>Max: {slot.maxItems}</span>
+                              )}
                             </div>
-                            {isSelected && (
-                              <div className='flex items-center gap-2'>
-                                <Label className='text-muted-foreground text-[10px]'>Max qty:</Label>
+                            {slot.description && <p className='text-muted-foreground text-xs'>{slot.description}</p>}
+                          </div>
+                          <div className='flex shrink-0 items-center gap-1'>
+                            <Button
+                              variant='ghost'
+                              size='icon-sm'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(slot);
+                              }}
+                            >
+                              <Pencil className='size-3.5' />
+                            </Button>
+                            <Button
+                              variant='ghost'
+                              size='icon-sm'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSlot(slot.id);
+                              }}
+                            >
+                              <Trash2 className='text-destructive size-3.5' />
+                            </Button>
+                            <ChevronDown
+                              className={`text-muted-foreground size-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className='border-t px-4 py-3'>
+                            <div className='mb-3'>
+                              <div className='relative'>
+                                <Search className='text-muted-foreground absolute top-2.5 left-2.5 size-3.5' />
                                 <Input
-                                  type='number'
-                                  min='1'
-                                  value={slotItem?.maxQuantity ?? ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value ? parseInt(e.target.value) : null;
-                                    handleUpdateItemMaxQty(slot, product.id, val);
-                                  }}
-                                  className='h-7 w-16 text-xs'
-                                  placeholder='∞'
+                                  value={itemSearch}
+                                  onChange={(e) => setItemSearch(e.target.value)}
+                                  placeholder='Buscar productos...'
+                                  className='pl-8'
                                   disabled={isPending}
                                 />
                               </div>
-                            )}
+                            </div>
+
+                            <div className='max-h-60 space-y-1 overflow-y-auto'>
+                              {filteredProducts.map((product) => {
+                                const isSelected = selectedIds.has(product.id);
+                                const slotItem = slot.items.find((i) => i.itemProductId === product.id);
+
+                                return (
+                                  <div
+                                    key={product.id}
+                                    className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${isSelected ? 'bg-primary/5 border' : 'hover:bg-muted/50'}`}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleToggleProduct(slot, product.id)}
+                                      disabled={isPending}
+                                    />
+                                    <div className='min-w-0 flex-1'>
+                                      <p className='truncate text-sm'>{product.name}</p>
+                                      <span className='text-muted-foreground text-xs'>
+                                        ${Number(product.price).toFixed(2)}
+                                        {product.trackInventory &&
+                                          product.stock !== null &&
+                                          ` · Stock: ${product.stock}`}
+                                      </span>
+                                    </div>
+                                    {isSelected && (
+                                      <div className='flex items-center gap-2'>
+                                        <Label className='text-muted-foreground text-[10px]'>Max qty:</Label>
+                                        <Input
+                                          type='number'
+                                          min='1'
+                                          value={slotItem?.maxQuantity ?? ''}
+                                          onChange={(e) => {
+                                            const val = e.target.value ? parseInt(e.target.value) : null;
+                                            handleUpdateItemMaxQty(slot, product.id, val);
+                                          }}
+                                          className='h-7 w-16 text-xs'
+                                          placeholder='∞'
+                                          disabled={isPending}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                        )}
+                      </>
+                    )}
+                  </SortableSlotWrapper>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
