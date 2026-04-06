@@ -695,21 +695,43 @@ export function ProductForm({
                   )}
                 </div>
 
-                <div className='bg-muted/40 space-y-2 rounded-lg border p-4'>
-                  <div className='flex items-center justify-between text-sm'>
-                    <span className='text-muted-foreground'>Valor de los componentes</span>
-                    <span className='font-medium'>{formatBundlePrice(bundleComponentsTotal)}</span>
+                {bundleSelectionMode === 'fixed' && (
+                  <div className='bg-muted/40 space-y-2 rounded-lg border p-4'>
+                    <div className='flex items-center justify-between text-sm'>
+                      <span className='text-muted-foreground'>Valor de los componentes</span>
+                      <span className='font-medium'>{formatBundlePrice(bundleComponentsTotal)}</span>
+                    </div>
+                    <div className='flex items-center justify-between text-sm'>
+                      <span className='text-muted-foreground'>Precio final del paquete</span>
+                      <span className='font-semibold'>{formatBundlePrice(bundleEffectivePrice)}</span>
+                    </div>
+                    {bundleSavings > 0 && (
+                      <div className='text-sm font-medium text-emerald-600'>
+                        El paquete muestra un ahorro de {formatBundlePrice(bundleSavings)} frente a comprar por
+                        separado.
+                      </div>
+                    )}
                   </div>
-                  <div className='flex items-center justify-between text-sm'>
-                    <span className='text-muted-foreground'>Precio final del paquete</span>
-                    <span className='font-semibold'>{formatBundlePrice(bundleEffectivePrice)}</span>
-                  </div>
-                  {bundleSavings > 0 && (
-                    <div className='text-sm font-medium text-emerald-600'>
-                      El paquete muestra un ahorro de {formatBundlePrice(bundleSavings)} frente a comprar por separado.
+                )}
+                {bundleSelectionMode === 'customer_choice' &&
+                  (bundlePriceMode === 'custom_price' || bundlePriceMode === 'base_plus_items') &&
+                  bundleCustomPrice && (
+                    <div className='bg-muted/40 space-y-2 rounded-lg border p-4'>
+                      <div className='flex items-center justify-between text-sm'>
+                        <span className='text-muted-foreground'>
+                          {bundlePriceMode === 'base_plus_items'
+                            ? 'Precio base del paquete'
+                            : 'Precio fijo del paquete'}
+                        </span>
+                        <span className='font-semibold'>{formatBundlePrice(parseFloat(bundleCustomPrice) || 0)}</span>
+                      </div>
+                      {bundlePriceMode === 'base_plus_items' && (
+                        <p className='text-muted-foreground text-xs'>
+                          El precio final será este monto más la selección del cliente.
+                        </p>
+                      )}
                     </div>
                   )}
-                </div>
               </div>
             </>
           )}
