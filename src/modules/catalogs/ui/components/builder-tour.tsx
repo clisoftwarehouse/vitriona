@@ -12,11 +12,14 @@ export function BuilderTour() {
     if (localStorage.getItem(TOUR_KEY)) return;
 
     const timeout = setTimeout(() => {
+      const isMobile = window.innerWidth < 768;
+
       const tour = driver({
         showProgress: true,
         animate: true,
-        overlayColor: 'rgba(0, 0, 0, 0.5)',
-        stagePadding: 8,
+        overlayColor: 'rgba(0, 0, 0, 0.75)',
+        overlayOpacity: 1,
+        stagePadding: isMobile ? 4 : 8,
         stageRadius: 12,
         nextBtnText: 'Siguiente',
         prevBtnText: 'Anterior',
@@ -51,8 +54,8 @@ export function BuilderTour() {
               title: 'Panel de ajustes',
               description:
                 'Aquí configuras cada sección. Empieza eligiendo un tema prediseñado o personaliza los colores a tu gusto.',
-              side: 'right',
-              align: 'start',
+              side: isMobile ? 'bottom' : 'right',
+              align: isMobile ? 'center' : 'start',
             },
           },
           {
@@ -61,7 +64,7 @@ export function BuilderTour() {
               title: 'Vista previa en tiempo real',
               description:
                 'Todos los cambios que hagas se reflejan aquí al instante. Puedes alternar entre vista de escritorio y móvil.',
-              side: 'left',
+              side: isMobile ? 'bottom' : 'left',
               align: 'center',
             },
           },
@@ -71,7 +74,7 @@ export function BuilderTour() {
               title: 'Ver tu tienda',
               description: 'Abre tu storefront público en una nueva pestaña para ver cómo se ve en vivo.',
               side: 'bottom',
-              align: 'end',
+              align: isMobile ? 'center' : 'end',
             },
           },
           {
@@ -81,7 +84,7 @@ export function BuilderTour() {
               description:
                 'Cuando estés satisfecho con tus cambios, presiona este botón para publicarlos. ¡Tu tienda se actualizará al instante!',
               side: 'bottom',
-              align: 'end',
+              align: isMobile ? 'center' : 'end',
             },
           },
         ],

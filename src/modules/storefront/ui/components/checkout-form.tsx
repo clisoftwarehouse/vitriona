@@ -176,7 +176,8 @@ export function CheckoutForm({
   const total = Math.max(0, subtotal - discount + shippingCost);
   const isReservation = orderType === 'reservation';
 
-  const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(amount);
 
   const buildWhatsAppMessage = () => {
     let msg = `Hola! Acabo de hacer una ${isReservation ? 'reserva' : 'pedido'} en ${businessName}.\n\n`;

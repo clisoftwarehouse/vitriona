@@ -16,6 +16,8 @@ export function DashboardTour() {
       const hasSidebarNav = document.getElementById('sidebar-nav');
       if (!hasSidebarNav) return;
 
+      const isMobile = window.innerWidth < 768;
+
       const steps: DriveStep[] = [
         {
           popover: {
@@ -35,7 +37,7 @@ export function DashboardTour() {
             title: 'Selector de negocio',
             description:
               'Si tienes varios negocios, puedes cambiar entre ellos aquí. Todo el dashboard se adapta al negocio seleccionado.',
-            side: 'right' as const,
+            side: isMobile ? ('bottom' as const) : ('right' as const),
             align: 'start' as const,
           },
         });
@@ -48,7 +50,7 @@ export function DashboardTour() {
             title: 'Navegación principal',
             description:
               'Desde aquí accedes a todas las secciones: catálogos, productos, pedidos, inventario, reseñas, cupones, métodos de pago y más.',
-            side: 'right' as const,
+            side: isMobile ? ('bottom' as const) : ('right' as const),
             align: 'start' as const,
           },
         },
@@ -58,7 +60,7 @@ export function DashboardTour() {
             title: 'Site Builder',
             description:
               'Personaliza la apariencia de tu tienda: colores, fuentes, hero, secciones y SEO. Tu storefront se actualiza al instante.',
-            side: 'right' as const,
+            side: isMobile ? ('bottom' as const) : ('right' as const),
             align: 'center' as const,
           },
         },
@@ -68,7 +70,7 @@ export function DashboardTour() {
             title: 'Ver tu tienda',
             description:
               'Abre tu tienda digital en una nueva pestaña. Comparte este enlace con tus clientes para que vean tu catálogo.',
-            side: 'right' as const,
+            side: isMobile ? ('bottom' as const) : ('right' as const),
             align: 'center' as const,
           },
         },
@@ -86,8 +88,9 @@ export function DashboardTour() {
       const tour = driver({
         showProgress: true,
         animate: true,
-        overlayColor: 'rgba(0, 0, 0, 0.5)',
-        stagePadding: 8,
+        overlayColor: 'rgba(0, 0, 0, 0.75)',
+        overlayOpacity: 1,
+        stagePadding: isMobile ? 4 : 8,
         stageRadius: 12,
         nextBtnText: 'Siguiente',
         prevBtnText: 'Anterior',

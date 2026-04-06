@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { useModifierKey } from '@/hooks/use-os';
 import { WatermarkOverlay } from './watermark-overlay';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
@@ -118,10 +119,6 @@ interface StorefrontCatalogProps {
 }
 
 /* ─── Helpers ─── */
-
-function formatPrice(price: string, currency = 'USD') {
-  return new Intl.NumberFormat('es', { style: 'currency', currency }).format(parseFloat(price));
-}
 
 function hasDiscount(p: Product) {
   return p.compareAtPrice ? parseFloat(p.compareAtPrice) > parseFloat(p.price) : false;
@@ -423,7 +420,7 @@ export function StorefrontCatalog({
                 </button>
                 {sortOpen && (
                   <div
-                    className='absolute right-0 z-20 mt-1 min-w-[200px] overflow-hidden border py-1 shadow-lg'
+                    className='absolute left-0 z-20 mt-1 min-w-[200px] overflow-hidden border py-1 shadow-lg sm:right-0 sm:left-auto'
                     style={{
                       borderRadius: 'var(--sf-radius, 0.75rem)',
                       borderColor: 'var(--sf-border, #e5e7eb)',

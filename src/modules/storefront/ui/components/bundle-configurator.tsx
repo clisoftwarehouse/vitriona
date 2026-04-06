@@ -81,7 +81,7 @@ export function BundleConfigurator({ product, config, currency, businessSlug }: 
   const addBundleItem = useCartStore((s) => s.addBundleItem);
 
   const fmt = (price: string | number) =>
-    new Intl.NumberFormat('es', { style: 'currency', currency }).format(
+    new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(
       typeof price === 'number' ? price : parseFloat(price)
     );
 

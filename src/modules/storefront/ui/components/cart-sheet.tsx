@@ -46,7 +46,8 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
   const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
   const total = cartItems.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0);
 
-  const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(amount);
 
   return (
     <Sheet>

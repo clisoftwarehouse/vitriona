@@ -581,7 +581,9 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   // Create notification for business owner
   if (businessOwner?.userId) {
-    const fmtTotal = new Intl.NumberFormat('es', { style: 'currency', currency: businessOwner.currency }).format(total);
+    const fmtTotal = new Intl.NumberFormat('es-ES', { style: 'currency', currency: businessOwner.currency }).format(
+      total
+    );
     await db.insert(notifications).values({
       userId: businessOwner.userId,
       businessId,

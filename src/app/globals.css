@@ -291,3 +291,14 @@ html {
 .driver-popover-close-btn:hover {
   color: oklch(var(--foreground)) !important;
 }
+
+.driver-overlay {
+  opacity: 1 !important;
+}
+
+@media (max-width: 640px) {
+  .driver-popover {
+    max-width: calc(100vw - 2rem) !important;
+    margin: 0 auto !important;
+  }
+}

@@ -242,7 +242,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                       <Store className='size-4' />
                     </div>
                   )}
-                  <span className='font-bold'>{business.name}</span>
+                  {!business.logoUrl && <span className='font-bold'>{business.name}</span>}
                 </div>
                 {business.description && (
                   <p className='mt-3 text-sm leading-relaxed opacity-60'>{business.description}</p>

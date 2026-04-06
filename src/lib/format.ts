@@ -8,5 +8,5 @@
 export function formatPrice(amount: string | number, currency: string = 'USD'): string {
   const n = typeof amount === 'string' ? parseFloat(amount) : amount;
   if (isNaN(n)) return String(amount);
-  return new Intl.NumberFormat('es', { style: 'currency', currency }).format(n);
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(n);
 }

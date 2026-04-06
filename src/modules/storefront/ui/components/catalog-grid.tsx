@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { Plus, ImageOff, ArrowRight } from 'lucide-react';
 
+import { formatPrice } from '@/lib/format';
 import { WatermarkOverlay } from './watermark-overlay';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
 
@@ -48,10 +49,6 @@ interface CatalogSectionsProps {
 }
 
 /* ─── Helpers ─── */
-
-function formatPrice(price: string, currency = 'USD') {
-  return new Intl.NumberFormat('es', { style: 'currency', currency }).format(parseFloat(price));
-}
 
 function hasDiscount(p: Product) {
   return p.compareAtPrice ? parseFloat(p.compareAtPrice) > parseFloat(p.price) : false;

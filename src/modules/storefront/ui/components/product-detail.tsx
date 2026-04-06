@@ -172,7 +172,7 @@ export function ProductDetail({
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
-    return new Intl.NumberFormat('es', { style: 'currency', currency }).format(num);
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(num);
   };
 
   const hasDiscount = product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(effectivePrice);
@@ -771,7 +771,8 @@ export function RelatedProductsSection({
     toast.success(`${product.name} agregado al carrito`);
   };
 
-  const fmt = (price: string) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(parseFloat(price));
+  const fmt = (price: string) =>
+    new Intl.NumberFormat('es-ES', { style: 'currency', currency, useGrouping: true }).format(parseFloat(price));
 
   return (
     <section className='mt-12 pt-10' style={{ borderTop: '1px solid var(--sf-border, #e5e7eb)' }}>
