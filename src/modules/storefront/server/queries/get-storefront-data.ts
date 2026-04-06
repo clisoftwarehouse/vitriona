@@ -11,6 +11,7 @@ import {
   businesses,
   orderItems,
   bundleItems,
+  bundleSlots,
   productImages,
   productReviews,
   catalogProducts,
@@ -542,4 +543,121 @@ async function _getRelatedOrBestSellerProducts(businessId: string, productId: st
     .limit(limit);
 
   return _enrichProducts(fallbackProducts);
+}
+
+// ── Bundle configuration (for customer_choice bundles) ──────────────────────
+export const getBundleConfiguration = cache(async (productId: string) => {
+  const [row] = await db
+    .select({ businessId: products.businessId })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+  if (!row) return null;
+
+  return unstable_cache(async () => _getBundleConfiguration(productId), [`bundle-config-${productId}`], {
+    revalidate: CACHE_SHORT,
+    tags: [`products-${row.businessId}`],
+  })();
+});
+
+async function _getBundleConfiguration(productId: string) {
+  const [product] = await db
+    .select({
+      id: products.id,
+      bundleSelectionMode: products.bundleSelectionMode,
+      bundlePriceMode: products.bundlePriceMode,
+      bundleMinimumAmount: products.bundleMinimumAmount,
+      bundleCustomPrice: products.bundleCustomPrice,
+      price: products.price,
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+
+  if (!product || product.bundleSelectionMode !== 'customer_choice') return null;
+
+  const slots = await db
+    .select()
+    .from(bundleSlots)
+    .where(eq(bundleSlots.bundleProductId, productId))
+    .orderBy(asc(bundleSlots.sortOrder));
+
+  const allItems = await db
+    .select({
+      id: bundleItems.id,
+      slotId: bundleItems.slotId,
+      itemProductId: bundleItems.itemProductId,
+      quantity: bundleItems.quantity,
+      maxQuantity: bundleItems.maxQuantity,
+      sortOrder: bundleItems.sortOrder,
+      productName: products.name,
+      productPrice: products.price,
+      productStatus: products.status,
+      productStock: products.stock,
+      productTrackInventory: products.trackInventory,
+    })
+    .from(bundleItems)
+    .innerJoin(products, eq(bundleItems.itemProductId, products.id))
+    .where(eq(bundleItems.bundleProductId, productId))
+    .orderBy(asc(bundleItems.sortOrder));
+
+  // Fetch images for all eligible products
+  const eligibleProductIds = allItems.map((i) => i.itemProductId);
+  const images =
+    eligibleProductIds.length > 0
+      ? await db
+          .select({ productId: productImages.productId, url: productImages.url, alt: productImages.alt })
+          .from(productImages)
+          .where(inArray(productImages.productId, eligibleProductIds))
+      : [];
+
+  const imageMap = new Map<string, { url: string; alt: string | null }>();
+  for (const img of images) {
+    if (!imageMap.has(img.productId)) imageMap.set(img.productId, { url: img.url, alt: img.alt });
+  }
+
+  const mapItem = (item: (typeof allItems)[number]) => ({
+    id: item.id,
+    productId: item.itemProductId,
+    name: item.productName,
+    price: item.productPrice,
+    stock: item.productStock,
+    trackInventory: item.productTrackInventory,
+    status: item.productStatus,
+    defaultQuantity: item.quantity,
+    maxQuantity: item.maxQuantity,
+    sortOrder: item.sortOrder,
+    image: imageMap.get(item.itemProductId) ?? null,
+  });
+
+  if (slots.length > 0) {
+    return {
+      mode: 'slots' as const,
+      basePrice: product.bundleCustomPrice ?? product.price,
+      pricingMode: product.bundlePriceMode,
+      minimumAmount: product.bundleMinimumAmount,
+      slots: slots.map((slot) => ({
+        id: slot.id,
+        name: slot.name,
+        description: slot.description,
+        minItems: slot.minItems,
+        maxItems: slot.maxItems,
+        minAmount: slot.minAmount,
+        isRequired: slot.isRequired,
+        items: allItems.filter((i) => i.slotId === slot.id).map(mapItem),
+      })),
+    };
+  }
+
+  // Flat mode: no slots, just a pool of eligible products
+  return {
+    mode: 'flat' as const,
+    basePrice:
+      product.bundlePriceMode === 'base_plus_items' || product.bundlePriceMode === 'custom_price'
+        ? (product.bundleCustomPrice ?? product.price)
+        : product.price,
+    pricingMode: product.bundlePriceMode,
+    minimumAmount: product.bundleMinimumAmount,
+    items: allItems.filter((i) => i.slotId === null).map(mapItem),
+  };
 }

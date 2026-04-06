@@ -126,7 +126,13 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
             <div className='flex-1 overflow-y-auto'>
               {items.map((item, idx) => (
                 <div
-                  key={item.variantId ? `${item.productId}:${item.variantId}` : item.productId}
+                  key={
+                    item.bundleKey
+                      ? `${item.productId}:bundle:${item.bundleKey}`
+                      : item.variantId
+                        ? `${item.productId}:${item.variantId}`
+                        : item.productId
+                  }
                   className='flex gap-3 px-5 py-4'
                   style={idx > 0 ? { borderTop: '1px solid var(--sf-border, #e5e7eb)', opacity: 1 } : undefined}
                 >
@@ -168,7 +174,7 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         </Link>
                       </SheetClose>
                       <button
-                        onClick={() => removeItem(item.productId, slug, item.variantId)}
+                        onClick={() => removeItem(item.productId, slug, item.variantId, item.bundleKey)}
                         className='shrink-0 rounded-md p-0.5 opacity-40 transition-opacity hover:opacity-100'
                         style={{ color: '#ef4444' }}
                         aria-label='Eliminar'
@@ -176,6 +182,24 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         <Trash2 className='size-3.5' />
                       </button>
                     </div>
+
+                    {item.bundleSelections && item.bundleSelections.length > 0 && (
+                      <div
+                        className='mt-1.5 space-y-0.5 rounded-md px-2 py-1.5'
+                        style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                      >
+                        {item.bundleSelections.map((sel, sIdx) => (
+                          <div key={sIdx} className='flex items-center justify-between text-[11px] opacity-60'>
+                            <span className='truncate'>
+                              {sel.quantity}x {sel.productName}
+                            </span>
+                            <span className='ml-2 shrink-0'>
+                              {formatPrice(parseFloat(sel.unitPrice) * sel.quantity)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     <div className='mt-2 flex items-center justify-between'>
                       <div
@@ -186,14 +210,18 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                         }}
                       >
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1, slug, item.variantId)}
+                          onClick={() =>
+                            updateQuantity(item.productId, item.quantity - 1, slug, item.variantId, item.bundleKey)
+                          }
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Minus className='size-3' />
                         </button>
                         <span className='w-8 text-center text-xs font-semibold'>{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1, slug, item.variantId)}
+                          onClick={() =>
+                            updateQuantity(item.productId, item.quantity + 1, slug, item.variantId, item.bundleKey)
+                          }
                           className='flex size-7 items-center justify-center opacity-60 transition-opacity hover:opacity-100'
                         >
                           <Plus className='size-3' />

@@ -401,8 +401,10 @@ export const products = pgTable('products', {
   type: text('type', { enum: ['product', 'service', 'bundle'] })
     .notNull()
     .default('product'),
-  bundlePriceMode: text('bundle_price_mode', { enum: ['sum_items', 'custom_price'] }),
+  bundlePriceMode: text('bundle_price_mode', { enum: ['sum_items', 'custom_price', 'base_plus_items'] }),
+  bundleSelectionMode: text('bundle_selection_mode', { enum: ['fixed', 'customer_choice'] }).default('fixed'),
   bundleCustomPrice: numeric('bundle_custom_price', { precision: 10, scale: 2 }),
+  bundleMinimumAmount: numeric('bundle_minimum_amount', { precision: 10, scale: 2 }),
   weight: numeric('weight', { precision: 10, scale: 2 }),
   dimensions: jsonb('dimensions').$type<{ length?: number; width?: number; height?: number; unit?: string }>(),
   minStock: integer('min_stock').default(0),
@@ -415,6 +417,23 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+export const bundleSlots = pgTable('bundle_slots', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  bundleProductId: text('bundle_product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  minItems: integer('min_items').notNull().default(0),
+  maxItems: integer('max_items'),
+  minAmount: numeric('min_amount', { precision: 10, scale: 2 }),
+  isRequired: boolean('is_required').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 export const bundleItems = pgTable('bundle_items', {
   id: text('id')
     .primaryKey()
@@ -422,10 +441,12 @@ export const bundleItems = pgTable('bundle_items', {
   bundleProductId: text('bundle_product_id')
     .notNull()
     .references(() => products.id, { onDelete: 'cascade' }),
+  slotId: text('slot_id').references(() => bundleSlots.id, { onDelete: 'cascade' }),
   itemProductId: text('item_product_id')
     .notNull()
     .references(() => products.id, { onDelete: 'cascade' }),
   quantity: integer('quantity').notNull().default(1),
+  maxQuantity: integer('max_quantity'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
@@ -671,6 +692,16 @@ export const orderItems = pgTable('order_items', {
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   quantity: integer('quantity').notNull().default(1),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+  bundleSelections: jsonb('bundle_selections').$type<
+    {
+      slotId: string | null;
+      slotName: string | null;
+      productId: string;
+      productName: string;
+      quantity: number;
+      unitPrice: string;
+    }[]
+  >(),
 });
 
 export const orderBundleComponents = pgTable('order_bundle_components', {

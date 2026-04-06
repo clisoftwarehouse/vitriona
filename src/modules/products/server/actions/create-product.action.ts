@@ -60,8 +60,10 @@ export async function createProductAction(
 
     const isBundle = values.type === 'bundle';
 
+    const isCustomerChoice = isBundle && values.bundleSelectionMode === 'customer_choice';
+
     let normalizedBundleItems: { productId: string; quantity: number }[] = [];
-    if (isBundle) {
+    if (isBundle && !isCustomerChoice) {
       const validatedBundleItems = await validateBundleItemsForBusiness(business.id, values.bundleItems);
       if (validatedBundleItems.error) {
         return { error: validatedBundleItems.error };
@@ -89,7 +91,7 @@ export async function createProductAction(
         slug: generateSlug(values.name),
         description: values.description || null,
         price: isBundle
-          ? values.bundlePriceMode === 'custom_price'
+          ? values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items'
             ? values.bundleCustomPrice || '0'
             : '0'
           : values.price,
@@ -100,8 +102,12 @@ export async function createProductAction(
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
         bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,
+        bundleSelectionMode: isBundle ? (values.bundleSelectionMode ?? 'fixed') : null,
         bundleCustomPrice:
-          isBundle && values.bundlePriceMode === 'custom_price' ? values.bundleCustomPrice || null : null,
+          isBundle && (values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items')
+            ? values.bundleCustomPrice || null
+            : null,
+        bundleMinimumAmount: isCustomerChoice && values.bundleMinimumAmount ? values.bundleMinimumAmount : null,
         weight: values.type === 'service' || isBundle ? null : values.weight || null,
         dimensions: values.type === 'service' || isBundle ? null : (values.dimensions ?? null),
         minStock: values.type === 'service' || isBundle ? null : (values.minStock ?? 0),
@@ -134,7 +140,7 @@ export async function createProductAction(
       }
     }
 
-    if (isBundle) {
+    if (isBundle && !isCustomerChoice) {
       await replaceBundleItems(product.id, normalizedBundleItems);
       await syncBundleProductState(product.id, { revalidate: false });
     }

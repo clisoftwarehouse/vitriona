@@ -9,6 +9,7 @@ import { StorefrontAnalyticsTracker } from '@/modules/storefront/ui/components/s
 import {
   getProductBySlug,
   getBusinessBySlug,
+  getBundleConfiguration,
   getRelatedOrBestSellerProducts,
 } from '@/modules/storefront/server/queries/get-storefront-data';
 
@@ -46,10 +47,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductBySlug(business.id, productSlug);
   if (!product) notFound();
 
-  const [reviews, stats, relatedProducts] = await Promise.all([
+  const [reviews, stats, relatedProducts, bundleConfig] = await Promise.all([
     getProductReviews(product.id),
     getProductReviewStats(product.id),
     getRelatedOrBestSellerProducts(business.id, product.id),
+    product.type === 'bundle' ? getBundleConfiguration(product.id) : null,
   ]);
 
   return (
@@ -68,6 +70,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         currency={business.currency}
         reviewStats={stats}
         showWatermark={business.plan === 'free'}
+        bundleConfig={bundleConfig}
       />
       {relatedProducts.length > 0 && (
         <RelatedProductsSection

@@ -22,12 +22,22 @@ import {
   orderBundleComponents,
 } from '@/db/schema';
 
+interface BundleSelectionInput {
+  slotId: string | null;
+  slotName: string | null;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: string;
+}
+
 interface OrderItemInput {
   productId: string;
   variantId?: string;
   productName: string;
   unitPrice: string;
   quantity: number;
+  bundleSelections?: BundleSelectionInput[];
 }
 
 interface CreateOrderInput {
@@ -71,6 +81,7 @@ interface ValidatedOrderItem {
   quantity: number;
   productType: 'product' | 'service' | 'bundle';
   bundleComponents?: ValidatedBundleComponent[];
+  bundleSelections?: BundleSelectionInput[];
 }
 
 interface DeductedInventoryEntry {
@@ -177,6 +188,61 @@ export async function createOrderAction(input: CreateOrderInput) {
         return { error: `"${product.name}" es un paquete y no admite variantes.` };
       }
 
+      // Customer-choice bundle: validate selections from cart
+      if (item.bundleSelections && item.bundleSelections.length > 0) {
+        const selectionComponents: ValidatedBundleComponent[] = [];
+
+        for (const sel of item.bundleSelections) {
+          const [selProduct] = await db
+            .select({
+              id: products.id,
+              name: products.name,
+              price: products.price,
+              stock: products.stock,
+              trackInventory: products.trackInventory,
+            })
+            .from(products)
+            .where(
+              and(eq(products.id, sel.productId), eq(products.businessId, businessId), eq(products.status, 'active'))
+            )
+            .limit(1);
+
+          if (!selProduct) {
+            return { error: `Producto "${sel.productName}" no disponible en el paquete "${product.name}".` };
+          }
+
+          const totalQty = sel.quantity * item.quantity;
+          if (!isReservation && selProduct.trackInventory && (selProduct.stock ?? 0) < totalQty) {
+            return {
+              error: `Stock insuficiente para "${selProduct.name}" dentro de "${product.name}". Disponible: ${selProduct.stock ?? 0}`,
+            };
+          }
+
+          selectionComponents.push({
+            componentProductId: selProduct.id,
+            componentProductName: selProduct.name,
+            unitQuantity: sel.quantity,
+            totalQuantity: totalQty,
+            unitPrice: selProduct.price,
+            subtotal: (parseFloat(selProduct.price) * totalQty).toFixed(2),
+            tracksInventory: selProduct.trackInventory,
+          });
+        }
+
+        validatedItems.push({
+          productId: product.id,
+          productName: product.name,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+          productType: 'bundle',
+          bundleComponents: selectionComponents,
+          bundleSelections: item.bundleSelections,
+        });
+
+        continue;
+      }
+
+      // Fixed bundle: use predefined components
       const bundleComponents = await getBundleComponents(product.id);
       if (bundleComponents.length === 0) {
         return { error: `"${product.name}" no tiene componentes configurados.` };
@@ -461,6 +527,7 @@ export async function createOrderAction(input: CreateOrderInput) {
         unitPrice: item.unitPrice,
         quantity: item.quantity,
         subtotal: (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
+        bundleSelections: item.bundleSelections ?? null,
       }))
     )
     .returning({ id: orderItems.id });

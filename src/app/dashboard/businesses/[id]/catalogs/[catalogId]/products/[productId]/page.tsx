@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { getBrandsAction } from '@/modules/brands/server/actions/get-brands.action';
+import { BundleSlotsEditor } from '@/modules/products/ui/components/bundle-slots-editor';
 import { EditProductWrapper } from '@/modules/products/ui/components/edit-product-wrapper';
 import { ProductImageUpload } from '@/modules/products/ui/components/product-image-upload';
 import { getAttributesAction } from '@/modules/attributes/server/actions/attribute.actions';
@@ -123,7 +124,9 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
               isFeatured: product.isFeatured,
               type: product.type as 'product' | 'service' | 'bundle',
               bundlePriceMode: product.bundlePriceMode ?? 'sum_items',
+              bundleSelectionMode: (product.bundleSelectionMode as 'fixed' | 'customer_choice') ?? 'fixed',
               bundleCustomPrice: product.bundleCustomPrice ?? '',
+              bundleMinimumAmount: product.bundleMinimumAmount ?? '',
               bundleItems: bundleItems.map((item) => ({
                 productId: item.productId,
                 quantity: item.quantity,
@@ -139,6 +142,30 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           />
         </CardContent>
       </Card>
+
+      {product.type === 'bundle' && product.bundleSelectionMode === 'customer_choice' && (
+        <Card>
+          <CardHeader>
+            <h3 className='font-semibold'>Configuración de slots</h3>
+            <p className='text-muted-foreground text-sm'>
+              Define los grupos de productos que el cliente puede elegir al armar su paquete.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <BundleSlotsEditor
+              bundleProductId={product.id}
+              businessProducts={bundleComponentOptions.map((o) => ({
+                id: o.id,
+                name: o.name,
+                price: o.price,
+                type: o.type,
+                stock: o.stock,
+                trackInventory: o.trackInventory,
+              }))}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {product.type === 'product' && (
         <Card>

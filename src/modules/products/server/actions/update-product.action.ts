@@ -73,8 +73,10 @@ export async function updateProductAction(productId: string, values: UpdateProdu
       }
     }
 
+    const isCustomerChoice = isBundle && values.bundleSelectionMode === 'customer_choice';
+
     let normalizedBundleItems: { productId: string; quantity: number }[] = [];
-    if (isBundle) {
+    if (isBundle && !isCustomerChoice) {
       const validatedBundleItems = await validateBundleItemsForBusiness(business.id, values.bundleItems, productId);
       if (validatedBundleItems.error) {
         return { error: validatedBundleItems.error };
@@ -91,7 +93,7 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         slug: generateSlug(values.name),
         description: values.description || null,
         price: isBundle
-          ? values.bundlePriceMode === 'custom_price'
+          ? values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items'
             ? values.bundleCustomPrice || '0'
             : '0'
           : values.price,
@@ -107,8 +109,12 @@ export async function updateProductAction(productId: string, values: UpdateProdu
         isFeatured: values.isFeatured,
         type: nextType,
         bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,
+        bundleSelectionMode: isBundle ? (values.bundleSelectionMode ?? 'fixed') : null,
         bundleCustomPrice:
-          isBundle && values.bundlePriceMode === 'custom_price' ? values.bundleCustomPrice || null : null,
+          isBundle && (values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items')
+            ? values.bundleCustomPrice || null
+            : null,
+        bundleMinimumAmount: isCustomerChoice && values.bundleMinimumAmount ? values.bundleMinimumAmount : null,
         weight: values.type === 'service' || isBundle ? null : values.weight || null,
         dimensions: values.type === 'service' || isBundle ? null : (values.dimensions ?? null),
         minStock: values.type === 'service' || isBundle ? null : (values.minStock ?? 0),
@@ -123,10 +129,12 @@ export async function updateProductAction(productId: string, values: UpdateProdu
       await syncProductStockWithVariants(productId);
     }
 
-    if (isBundle) {
+    if (isBundle && !isCustomerChoice) {
       await replaceBundleItems(productId, normalizedBundleItems);
       await syncBundleProductState(productId, { revalidate: false });
-    } else if (wasBundle) {
+    } else if (wasBundle && !isBundle) {
+      // Only delete bundle items when transitioning AWAY from bundle type
+      // customer_choice bundles manage items via slots separately
       await db.delete(bundleItems).where(eq(bundleItems.bundleProductId, productId));
     }
 

@@ -37,12 +37,18 @@ export const createProductSchema = z
     status: z.enum(['active', 'inactive', 'out_of_stock']),
     isFeatured: z.boolean(),
     type: z.enum(['product', 'service', 'bundle']),
-    bundlePriceMode: z.enum(['sum_items', 'custom_price']).optional(),
+    bundlePriceMode: z.enum(['sum_items', 'custom_price', 'base_plus_items']).optional(),
+    bundleSelectionMode: z.enum(['fixed', 'customer_choice']).optional(),
     bundleCustomPrice: z
       .string()
       .optional()
       .or(z.literal(''))
       .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), 'Precio inválido'),
+    bundleMinimumAmount: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), 'Monto inválido'),
     bundleItems: z.array(bundleItemSchema).optional(),
     weight: z.string().optional().or(z.literal('')),
     dimensions: z
@@ -62,7 +68,8 @@ export const createProductSchema = z
   .superRefine((values, ctx) => {
     if (values.type !== 'bundle') return;
 
-    if (!values.bundleItems?.length) {
+    // Fixed bundles require at least one item; customer_choice bundles manage items via slots separately
+    if (values.bundleSelectionMode !== 'customer_choice' && !values.bundleItems?.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Agrega al menos un producto o servicio al paquete.',
@@ -70,7 +77,7 @@ export const createProductSchema = z
       });
     }
 
-    if (values.bundlePriceMode === 'custom_price') {
+    if (values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items') {
       const customPrice = values.bundleCustomPrice?.trim();
       if (!customPrice) {
         ctx.addIssue({

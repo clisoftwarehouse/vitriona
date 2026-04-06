@@ -117,7 +117,9 @@ export function ProductForm({
       isFeatured: false,
       type: 'product',
       bundlePriceMode: 'sum_items',
+      bundleSelectionMode: 'fixed',
       bundleCustomPrice: '',
+      bundleMinimumAmount: '',
       bundleItems: [],
       weight: '',
       minStock: 0,
@@ -131,6 +133,8 @@ export function ProductForm({
 
   const productType = useWatch({ control: form.control, name: 'type' }) ?? 'product';
   const bundlePriceMode = useWatch({ control: form.control, name: 'bundlePriceMode' }) ?? 'sum_items';
+  const bundleSelectionMode = useWatch({ control: form.control, name: 'bundleSelectionMode' }) ?? 'fixed';
+  const bundleMinimumAmount = useWatch({ control: form.control, name: 'bundleMinimumAmount' }) ?? '';
   const bundleCustomPrice = useWatch({ control: form.control, name: 'bundleCustomPrice' }) ?? '';
   const watchedBundleItemsValue = useWatch({ control: form.control, name: 'bundleItems' });
   const watchedBundleItems = useMemo(() => watchedBundleItemsValue ?? [], [watchedBundleItemsValue]);
@@ -233,7 +237,10 @@ export function ProductForm({
         values.type === 'bundle'
           ? {
               ...values,
-              price: values.bundlePriceMode === 'custom_price' ? values.bundleCustomPrice || '0' : '0',
+              price:
+                values.bundlePriceMode === 'custom_price' || values.bundlePriceMode === 'base_plus_items'
+                  ? values.bundleCustomPrice || '0'
+                  : '0',
               compareAtPrice: '',
               stock: 0,
               weight: '',
@@ -456,132 +463,17 @@ export function ProductForm({
               <Separator />
               <div className='space-y-4'>
                 <div>
-                  <h3 className='text-sm font-semibold'>Contenido del paquete</h3>
-                  <p className='text-muted-foreground text-xs'>
-                    Selecciona productos o servicios sin variantes. El precio y la disponibilidad del paquete se
-                    sincronizan automaticamente con sus componentes.
-                  </p>
+                  <h3 className='text-sm font-semibold'>Configuración del paquete</h3>
+                  <p className='text-muted-foreground text-xs'>Define cómo funciona este paquete.</p>
                 </div>
-
-                <div className='space-y-3 rounded-lg border p-4'>
-                  <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center'>
-                    <Input
-                      value={bundleSearch}
-                      onChange={(event) => setBundleSearch(event.target.value)}
-                      placeholder='Buscar productos o servicios para agregar...'
-                      disabled={isPending}
-                    />
-                    <span className='text-muted-foreground text-xs'>
-                      No se permiten paquetes anidados ni componentes con variantes.
-                    </span>
-                  </div>
-
-                  {filteredBundleOptions.length > 0 ? (
-                    <div className='grid gap-2 sm:grid-cols-2'>
-                      {filteredBundleOptions.slice(0, 8).map((option) => (
-                        <button
-                          key={option.id}
-                          type='button'
-                          onClick={() => handleAddBundleItem(option.id)}
-                          disabled={isPending}
-                          className='hover:bg-muted/50 flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors'
-                        >
-                          <div className='min-w-0'>
-                            <p className='truncate text-sm font-medium'>{option.name}</p>
-                            <div className='mt-1 flex flex-wrap items-center gap-2'>
-                              <Badge variant='secondary' className='text-[10px] uppercase'>
-                                {option.type === 'service' ? 'Servicio' : 'Producto'}
-                              </Badge>
-                              {option.trackInventory && option.stock !== null && (
-                                <Badge variant='outline' className='text-[10px]'>
-                                  Stock: {option.stock}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <span className='text-sm font-semibold'>{formatBundlePrice(Number(option.price))}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className='text-muted-foreground text-sm'>
-                      {bundleComponentOptions.length === 0
-                        ? 'No hay productos o servicios elegibles para agregar al paquete.'
-                        : 'No hay resultados con esa busqueda.'}
-                    </p>
-                  )}
-                </div>
-
-                {selectedBundleItems.length > 0 ? (
-                  <div className='space-y-3'>
-                    {selectedBundleItems.map((item) => {
-                      if (!item.product) return null;
-
-                      return (
-                        <div
-                          key={item.productId}
-                          className='flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center'
-                        >
-                          <div className='min-w-0 flex-1'>
-                            <div className='flex flex-wrap items-center gap-2'>
-                              <p className='truncate text-sm font-medium'>{item.product.name}</p>
-                              <Badge variant='secondary' className='text-[10px] uppercase'>
-                                {item.product.type === 'service' ? 'Servicio' : 'Producto'}
-                              </Badge>
-                            </div>
-                            <p className='text-muted-foreground mt-1 text-xs'>
-                              Precio unitario: {formatBundlePrice(Number(item.product.price))}
-                              {item.product.trackInventory && item.product.stock !== null
-                                ? ` · Stock disponible: ${item.product.stock}`
-                                : ' · Sin seguimiento de inventario'}
-                            </p>
-                          </div>
-
-                          <div className='flex items-center gap-2'>
-                            <Input
-                              type='number'
-                              min='1'
-                              value={item.quantity}
-                              onChange={(event) =>
-                                handleUpdateBundleQuantity(item.productId, parseInt(event.target.value) || 1)
-                              }
-                              disabled={isPending}
-                              className='w-24'
-                            />
-                            <Button
-                              type='button'
-                              variant='ghost'
-                              size='icon'
-                              className='text-red-500 hover:text-red-600'
-                              onClick={() =>
-                                updateBundleItems(
-                                  watchedBundleItems.filter((bundleItem) => bundleItem.productId !== item.productId)
-                                )
-                              }
-                              disabled={isPending}
-                            >
-                              <Trash2 className='size-4' />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className='text-muted-foreground rounded-lg border border-dashed p-4 text-sm'>
-                    Este paquete aun no tiene componentes.
-                  </div>
-                )}
-
-                {bundleItemsError && <p className='text-sm text-red-500'>{bundleItemsError}</p>}
 
                 <div className='grid gap-4 sm:grid-cols-2'>
                   <div className='space-y-2'>
-                    <Label>Modo de precio</Label>
+                    <Label>Modo de selección</Label>
                     <Select
-                      value={bundlePriceMode}
+                      value={bundleSelectionMode}
                       onValueChange={(value) =>
-                        form.setValue('bundlePriceMode', value as 'sum_items' | 'custom_price', {
+                        form.setValue('bundleSelectionMode', value as 'fixed' | 'customer_choice', {
                           shouldDirty: true,
                           shouldValidate: true,
                         })
@@ -592,13 +484,195 @@ export function ProductForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='sum_items'>Usar suma de componentes</SelectItem>
-                        <SelectItem value='custom_price'>Usar precio personalizado</SelectItem>
+                        <SelectItem value='fixed'>Fijo (admin define items y cantidades)</SelectItem>
+                        <SelectItem value='customer_choice'>Configurable (cliente elige)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {bundlePriceMode === 'custom_price' && (
+                  {bundleSelectionMode === 'customer_choice' && (
+                    <div className='space-y-2'>
+                      <Label htmlFor='bundle-min-amount'>Monto mínimo de consumo</Label>
+                      <Input
+                        id='bundle-min-amount'
+                        type='number'
+                        step='0.01'
+                        min='0'
+                        value={bundleMinimumAmount}
+                        onChange={(e) =>
+                          form.setValue('bundleMinimumAmount', e.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        disabled={isPending}
+                        placeholder='0.00 (opcional)'
+                      />
+                      <p className='text-muted-foreground text-xs'>
+                        Si se define, el cliente debe alcanzar este monto para completar el pedido.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {bundleSelectionMode === 'customer_choice' && (
+                  <Alert>
+                    <AlertDescription>
+                      Los slots y productos elegibles se configuran desde la página de edición del producto una vez
+                      creado.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {bundleSelectionMode === 'fixed' && (
+                  <>
+                    <div>
+                      <h4 className='text-sm font-semibold'>Contenido del paquete</h4>
+                      <p className='text-muted-foreground text-xs'>
+                        Selecciona productos o servicios sin variantes. El precio y la disponibilidad del paquete se
+                        sincronizan automaticamente con sus componentes.
+                      </p>
+                    </div>
+
+                    <div className='space-y-3 rounded-lg border p-4'>
+                      <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center'>
+                        <Input
+                          value={bundleSearch}
+                          onChange={(event) => setBundleSearch(event.target.value)}
+                          placeholder='Buscar productos o servicios para agregar...'
+                          disabled={isPending}
+                        />
+                        <span className='text-muted-foreground text-xs'>
+                          No se permiten paquetes anidados ni componentes con variantes.
+                        </span>
+                      </div>
+
+                      {filteredBundleOptions.length > 0 ? (
+                        <div className='grid gap-2 sm:grid-cols-2'>
+                          {filteredBundleOptions.slice(0, 8).map((option) => (
+                            <button
+                              key={option.id}
+                              type='button'
+                              onClick={() => handleAddBundleItem(option.id)}
+                              disabled={isPending}
+                              className='hover:bg-muted/50 flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors'
+                            >
+                              <div className='min-w-0'>
+                                <p className='truncate text-sm font-medium'>{option.name}</p>
+                                <div className='mt-1 flex flex-wrap items-center gap-2'>
+                                  <Badge variant='secondary' className='text-[10px] uppercase'>
+                                    {option.type === 'service' ? 'Servicio' : 'Producto'}
+                                  </Badge>
+                                  {option.trackInventory && option.stock !== null && (
+                                    <Badge variant='outline' className='text-[10px]'>
+                                      Stock: {option.stock}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <span className='text-sm font-semibold'>{formatBundlePrice(Number(option.price))}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className='text-muted-foreground text-sm'>
+                          {bundleComponentOptions.length === 0
+                            ? 'No hay productos o servicios elegibles para agregar al paquete.'
+                            : 'No hay resultados con esa busqueda.'}
+                        </p>
+                      )}
+                    </div>
+
+                    {selectedBundleItems.length > 0 ? (
+                      <div className='space-y-3'>
+                        {selectedBundleItems.map((item) => {
+                          if (!item.product) return null;
+
+                          return (
+                            <div
+                              key={item.productId}
+                              className='flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center'
+                            >
+                              <div className='min-w-0 flex-1'>
+                                <div className='flex flex-wrap items-center gap-2'>
+                                  <p className='truncate text-sm font-medium'>{item.product.name}</p>
+                                  <Badge variant='secondary' className='text-[10px] uppercase'>
+                                    {item.product.type === 'service' ? 'Servicio' : 'Producto'}
+                                  </Badge>
+                                </div>
+                                <p className='text-muted-foreground mt-1 text-xs'>
+                                  Precio unitario: {formatBundlePrice(Number(item.product.price))}
+                                  {item.product.trackInventory && item.product.stock !== null
+                                    ? ` · Stock disponible: ${item.product.stock}`
+                                    : ' · Sin seguimiento de inventario'}
+                                </p>
+                              </div>
+
+                              <div className='flex items-center gap-2'>
+                                <Input
+                                  type='number'
+                                  min='1'
+                                  value={item.quantity}
+                                  onChange={(event) =>
+                                    handleUpdateBundleQuantity(item.productId, parseInt(event.target.value) || 1)
+                                  }
+                                  disabled={isPending}
+                                  className='w-24'
+                                />
+                                <Button
+                                  type='button'
+                                  variant='ghost'
+                                  size='icon'
+                                  className='text-red-500 hover:text-red-600'
+                                  onClick={() =>
+                                    updateBundleItems(
+                                      watchedBundleItems.filter((bundleItem) => bundleItem.productId !== item.productId)
+                                    )
+                                  }
+                                  disabled={isPending}
+                                >
+                                  <Trash2 className='size-4' />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className='text-muted-foreground rounded-lg border border-dashed p-4 text-sm'>
+                        Este paquete aun no tiene componentes.
+                      </div>
+                    )}
+
+                    {bundleItemsError && <p className='text-sm text-red-500'>{bundleItemsError}</p>}
+                  </>
+                )}
+
+                <div className='grid gap-4 sm:grid-cols-2'>
+                  <div className='space-y-2'>
+                    <Label>Modo de precio</Label>
+                    <Select
+                      value={bundlePriceMode}
+                      onValueChange={(value) =>
+                        form.setValue('bundlePriceMode', value as 'sum_items' | 'custom_price' | 'base_plus_items', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      disabled={isPending}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='sum_items'>Suma de componentes</SelectItem>
+                        <SelectItem value='custom_price'>Precio fijo personalizado</SelectItem>
+                        <SelectItem value='base_plus_items'>Precio base + selección del cliente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(bundlePriceMode === 'custom_price' || bundlePriceMode === 'base_plus_items') && (
                     <div className='space-y-2'>
                       <Label htmlFor='bundle-custom-price'>Precio personalizado</Label>
                       <Input

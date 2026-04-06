@@ -392,19 +392,57 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                           </span>
                           <span className='font-medium'>{formatPrice(item.subtotal)}</span>
                         </div>
-                        {item.bundleComponents?.length > 0 && (
-                          <div className='bg-muted/40 space-y-1 rounded-lg px-3 py-2 text-xs'>
-                            <p className='text-muted-foreground font-medium'>Incluye:</p>
-                            {item.bundleComponents.map((component) => (
-                              <div key={component.id} className='flex items-center justify-between gap-3'>
-                                <span>
-                                  {component.totalQuantity}x {component.componentProductName}
-                                </span>
-                                <span className='text-muted-foreground'>{formatPrice(component.subtotal)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {item.bundleSelections &&
+                          (
+                            item.bundleSelections as {
+                              slotId: string | null;
+                              slotName: string | null;
+                              productId: string;
+                              productName: string;
+                              quantity: number;
+                              unitPrice: string;
+                            }[]
+                          ).length > 0 && (
+                            <div className='bg-muted/40 space-y-1 rounded-lg px-3 py-2 text-xs'>
+                              <p className='text-muted-foreground font-medium'>Selección del cliente:</p>
+                              {(
+                                item.bundleSelections as {
+                                  slotId: string | null;
+                                  slotName: string | null;
+                                  productId: string;
+                                  productName: string;
+                                  quantity: number;
+                                  unitPrice: string;
+                                }[]
+                              ).map((sel, sIdx) => (
+                                <div key={sIdx} className='flex items-center justify-between gap-3'>
+                                  <span>
+                                    {sel.quantity}x {sel.productName}
+                                    {sel.slotName && (
+                                      <span className='text-muted-foreground ml-1'>({sel.slotName})</span>
+                                    )}
+                                  </span>
+                                  <span className='text-muted-foreground'>
+                                    {formatPrice((parseFloat(sel.unitPrice) * sel.quantity).toFixed(2))}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        {item.bundleComponents?.length > 0 &&
+                          !(item.bundleSelections && (item.bundleSelections as unknown[]).length > 0) && (
+                            <div className='bg-muted/40 space-y-1 rounded-lg px-3 py-2 text-xs'>
+                              <p className='text-muted-foreground font-medium'>Incluye:</p>
+                              {item.bundleComponents.map((component) => (
+                                <div key={component.id} className='flex items-center justify-between gap-3'>
+                                  <span>
+                                    {component.totalQuantity}x {component.componentProductName}
+                                  </span>
+                                  <span className='text-muted-foreground'>{formatPrice(component.subtotal)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
                     ))
                   )}

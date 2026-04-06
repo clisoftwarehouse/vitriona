@@ -241,6 +241,7 @@ export function CheckoutForm({
           productName: item.variantName ? `${item.name} (${item.variantName})` : item.name,
           unitPrice: item.price,
           quantity: item.quantity,
+          bundleSelections: item.bundleSelections,
         })),
         couponId: appliedCoupon?.couponId,
         couponCode: appliedCoupon?.code,
