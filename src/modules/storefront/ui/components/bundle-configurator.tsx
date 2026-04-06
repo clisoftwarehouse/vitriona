@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
-import { Plus, Minus, ImageOff, ShoppingBag } from 'lucide-react';
+import { Plus, Minus, ImageOff, ShoppingBag, ChevronDown } from 'lucide-react';
 
 import { useCartStore, type BundleSelection } from '@/modules/storefront/stores/cart-store';
 
@@ -68,6 +68,16 @@ interface BundleConfiguratorProps {
 
 export function BundleConfigurator({ product, config, currency, businessSlug }: BundleConfiguratorProps) {
   const [selections, setSelections] = useState<SelectedItem[]>([]);
+  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
+
+  const toggleSlot = (slotId: string) => {
+    setExpandedSlots((prev) => {
+      const next = new Set(prev);
+      if (next.has(slotId)) next.delete(slotId);
+      else next.add(slotId);
+      return next;
+    });
+  };
   const addBundleItem = useCartStore((s) => s.addBundleItem);
 
   const fmt = (price: string | number) =>
@@ -293,29 +303,40 @@ export function BundleConfigurator({ product, config, currency, businessSlug }: 
         <div>
           {config.slots.map((slot) => {
             const count = getSlotItemCount(slot.id);
+            const isExpanded = expandedSlots.has(slot.id);
             return (
               <div key={slot.id} className='border-t' style={{ borderColor: 'var(--sf-border, #e5e7eb)' }}>
-                <div className='px-4 py-3 sm:px-5' style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}>
-                  <div className='flex items-center justify-between'>
-                    <div>
+                <button
+                  type='button'
+                  onClick={() => toggleSlot(slot.id)}
+                  className='w-full px-4 py-3 text-left sm:px-5'
+                  style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                >
+                  <div className='flex items-center justify-between gap-2'>
+                    <div className='min-w-0'>
                       <p className='text-sm font-semibold'>{slot.name}</p>
                       {slot.description && <p className='text-xs opacity-55'>{slot.description}</p>}
                     </div>
-                    <div className='text-right text-xs opacity-60'>
+                    <div className='flex shrink-0 items-center gap-2 text-right text-xs opacity-60'>
                       {slot.isRequired && <span className='font-medium text-red-500'>Requerido</span>}
-                      {slot.minItems > 0 && <span className='ml-2'>Min: {slot.minItems}</span>}
-                      {slot.maxItems && <span className='ml-2'>Max: {slot.maxItems}</span>}
+                      {slot.minItems > 0 && <span>Min: {slot.minItems}</span>}
+                      {slot.maxItems && <span>Max: {slot.maxItems}</span>}
                       {count > 0 && (
-                        <span className='ml-2 font-medium opacity-100'>
+                        <span className='font-medium opacity-100'>
                           {count} elegido{count !== 1 ? 's' : ''}
                         </span>
                       )}
+                      <ChevronDown
+                        className={`size-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                      />
                     </div>
                   </div>
-                </div>
-                <div className='px-4 sm:px-5'>
-                  {slot.items.map((item) => renderItem(item, slot.id, slot.name, slot.maxItems))}
-                </div>
+                </button>
+                {isExpanded && (
+                  <div className='px-4 sm:px-5'>
+                    {slot.items.map((item) => renderItem(item, slot.id, slot.name, slot.maxItems))}
+                  </div>
+                )}
               </div>
             );
           })}

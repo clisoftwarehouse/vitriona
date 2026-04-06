@@ -105,7 +105,7 @@ function SortableProductRow({ product }: { product: ProductRow }) {
 export function CatalogProductAssigner({ businessId, catalogId }: CatalogProductAssignerProps) {
   const { data: products, isLoading } = useCatalogProducts(businessId, catalogId);
   const sync = useSyncCatalogProducts(businessId, catalogId);
-  const [startReorder] = useTransition();
+  const [, startReorder] = useTransition();
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [search, setSearch] = useState('');
