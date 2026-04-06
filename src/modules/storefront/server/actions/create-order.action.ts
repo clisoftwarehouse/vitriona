@@ -6,6 +6,7 @@ import { eq, and, sql, gte } from 'drizzle-orm';
 import { db } from '@/db/drizzle';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { validateReservationSelection } from '@/modules/orders/lib/reservations';
 import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
 import { getBundleComponents, syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
@@ -36,6 +37,9 @@ interface CreateOrderInput {
   customerPhone?: string;
   customerEmail?: string;
   customerNotes?: string;
+  orderType?: 'order' | 'reservation';
+  reservationDate?: string;
+  reservationTime?: string;
   checkoutType: 'whatsapp' | 'internal';
   items: OrderItemInput[];
   couponId?: string;
@@ -85,8 +89,20 @@ function generateOrderNumber(): string {
 }
 
 export async function createOrderAction(input: CreateOrderInput) {
-  const { businessId, catalogId, customerName, customerPhone, customerEmail, customerNotes, checkoutType, items } =
-    input;
+  const {
+    businessId,
+    catalogId,
+    customerName,
+    customerPhone,
+    customerEmail,
+    customerNotes,
+    orderType = 'order',
+    reservationDate,
+    reservationTime,
+    checkoutType,
+    items,
+  } = input;
+  const isReservation = orderType === 'reservation';
 
   // Rate limit: 10 orders per minute per businessId (storefront)
   const rl = await rateLimitAction(businessId, 'create-order', 10, 60);
@@ -102,6 +118,15 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   if (items.length > 100) {
     return { error: 'El carrito tiene demasiados artículos' };
+  }
+
+  const reservationValidation = validateReservationSelection({
+    orderType,
+    reservationDate,
+    reservationTime,
+  });
+  if (!reservationValidation.ok) {
+    return { error: reservationValidation.error };
   }
 
   // --- VULN-05 fix: Validate business and catalog exist and are active ---
@@ -157,12 +182,14 @@ export async function createOrderAction(input: CreateOrderInput) {
         return { error: `"${product.name}" no tiene componentes configurados.` };
       }
 
-      for (const component of bundleComponents) {
-        const requiredQuantity = component.quantity * item.quantity;
-        if (component.trackInventory && (component.stock ?? 0) < requiredQuantity) {
-          return {
-            error: `Stock insuficiente para "${component.name}" dentro de "${product.name}". Disponible: ${component.stock ?? 0}`,
-          };
+      if (!isReservation) {
+        for (const component of bundleComponents) {
+          const requiredQuantity = component.quantity * item.quantity;
+          if (component.trackInventory && (component.stock ?? 0) < requiredQuantity) {
+            return {
+              error: `Stock insuficiente para "${component.name}" dentro de "${product.name}". Disponible: ${component.stock ?? 0}`,
+            };
+          }
         }
       }
 
@@ -223,7 +250,7 @@ export async function createOrderAction(input: CreateOrderInput) {
       return { error: `La variante seleccionada para "${product.name}" no existe.` };
     }
 
-    if (product.trackInventory && variant.stock < item.quantity) {
+    if (!isReservation && product.trackInventory && variant.stock < item.quantity) {
       return { error: `Stock insuficiente para "${product.name} (${variant.name})". Disponible: ${variant.stock}` };
     }
 
@@ -248,141 +275,148 @@ export async function createOrderAction(input: CreateOrderInput) {
   const deducted: DeductedInventoryEntry[] = [];
   const affectedProductIds = new Set<string>();
 
-  for (const item of validatedItems) {
-    if (item.productType === 'bundle') {
-      for (const component of item.bundleComponents ?? []) {
-        if (!component.tracksInventory) continue;
+  if (!isReservation) {
+    for (const item of validatedItems) {
+      if (item.productType === 'bundle') {
+        for (const component of item.bundleComponents ?? []) {
+          if (!component.tracksInventory) continue;
 
-        const [componentProduct] = await db
-          .select({ id: products.id, stock: products.stock })
-          .from(products)
-          .where(eq(products.id, component.componentProductId))
-          .limit(1);
+          const [componentProduct] = await db
+            .select({ id: products.id, stock: products.stock })
+            .from(products)
+            .where(eq(products.id, component.componentProductId))
+            .limit(1);
 
+          const [updated] = await db
+            .update(products)
+            .set({
+              stock: sql`${products.stock} - ${component.totalQuantity}`,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(products.id, component.componentProductId), gte(products.stock, component.totalQuantity)))
+            .returning({ id: products.id, stock: products.stock });
+
+          if (!updated) {
+            await rollbackDeductions(deducted);
+            return {
+              error: `Stock insuficiente para "${component.componentProductName}" dentro del paquete "${item.productName}". Disponible: ${componentProduct?.stock ?? 0}`,
+            };
+          }
+
+          const newStock = updated.stock ?? 0;
+
+          if (newStock === 0) {
+            await db
+              .update(products)
+              .set({ status: 'out_of_stock' })
+              .where(eq(products.id, component.componentProductId));
+          }
+
+          if (newStock <= 5 && newStock >= 0 && businessOwner?.userId) {
+            await db.insert(notifications).values({
+              userId: businessOwner.userId,
+              businessId,
+              type: 'low_stock',
+              title: newStock === 0 ? 'Producto agotado' : 'Stock bajo',
+              description: `"${component.componentProductName}" tiene ${newStock} unidades disponibles`,
+              href: `/dashboard/businesses/${businessId}/products`,
+            });
+          }
+
+          deducted.push({
+            productId: component.componentProductId,
+            quantity: component.totalQuantity,
+            previousStock: newStock + component.totalQuantity,
+            reasonLabel: `Pedido ${orderNumber} (paquete: ${item.productName})`,
+          });
+          affectedProductIds.add(component.componentProductId);
+        }
+
+        continue;
+      }
+
+      const [product] = await db
+        .select({
+          id: products.id,
+          stock: products.stock,
+          trackInventory: products.trackInventory,
+          name: products.name,
+        })
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
+
+      if (!product?.trackInventory) continue;
+
+      if (item.variantId) {
+        // Atomic variant stock deduction
+        const [updated] = await db
+          .update(productVariants)
+          .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
+          .where(and(eq(productVariants.id, item.variantId), gte(productVariants.stock, item.quantity)))
+          .returning({ id: productVariants.id, stock: productVariants.stock });
+
+        if (!updated) {
+          // Rollback previously deducted items
+          await rollbackDeductions(deducted);
+          const [v] = await db
+            .select({ name: productVariants.name, stock: productVariants.stock })
+            .from(productVariants)
+            .where(eq(productVariants.id, item.variantId))
+            .limit(1);
+          return { error: `Stock insuficiente para "${v?.name ?? item.productName}". Disponible: ${v?.stock ?? 0}` };
+        }
+        deducted.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          previousStock: (updated.stock ?? 0) + item.quantity,
+          reasonLabel: `Pedido ${orderNumber} (variante)`,
+        });
+        affectedProductIds.add(item.productId);
+      } else {
+        // Atomic product stock deduction
         const [updated] = await db
           .update(products)
           .set({
-            stock: sql`${products.stock} - ${component.totalQuantity}`,
+            stock: sql`${products.stock} - ${item.quantity}`,
             updatedAt: new Date(),
           })
-          .where(and(eq(products.id, component.componentProductId), gte(products.stock, component.totalQuantity)))
+          .where(and(eq(products.id, item.productId), gte(products.stock, item.quantity)))
           .returning({ id: products.id, stock: products.stock });
 
         if (!updated) {
           await rollbackDeductions(deducted);
-          return {
-            error: `Stock insuficiente para "${component.componentProductName}" dentro del paquete "${item.productName}". Disponible: ${componentProduct?.stock ?? 0}`,
-          };
+          return { error: `Stock insuficiente para "${product.name}". Disponible: ${product.stock ?? 0}` };
         }
 
         const newStock = updated.stock ?? 0;
 
+        // Mark out_of_stock if needed
         if (newStock === 0) {
-          await db
-            .update(products)
-            .set({ status: 'out_of_stock' })
-            .where(eq(products.id, component.componentProductId));
+          await db.update(products).set({ status: 'out_of_stock' }).where(eq(products.id, item.productId));
         }
 
+        // Low stock notification
         if (newStock <= 5 && newStock >= 0 && businessOwner?.userId) {
           await db.insert(notifications).values({
             userId: businessOwner.userId,
             businessId,
             type: 'low_stock',
             title: newStock === 0 ? 'Producto agotado' : 'Stock bajo',
-            description: `"${component.componentProductName}" tiene ${newStock} unidades disponibles`,
+            description: `"${product.name}" tiene ${newStock} unidades disponibles`,
             href: `/dashboard/businesses/${businessId}/products`,
           });
         }
 
         deducted.push({
-          productId: component.componentProductId,
-          quantity: component.totalQuantity,
-          previousStock: newStock + component.totalQuantity,
-          reasonLabel: `Pedido ${orderNumber} (paquete: ${item.productName})`,
+          productId: item.productId,
+          quantity: item.quantity,
+          previousStock: newStock + item.quantity,
+          reasonLabel: `Pedido ${orderNumber}`,
         });
-        affectedProductIds.add(component.componentProductId);
+        affectedProductIds.add(item.productId);
       }
-
-      continue;
-    }
-
-    const [product] = await db
-      .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
-      .from(products)
-      .where(eq(products.id, item.productId))
-      .limit(1);
-
-    if (!product?.trackInventory) continue;
-
-    if (item.variantId) {
-      // Atomic variant stock deduction
-      const [updated] = await db
-        .update(productVariants)
-        .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
-        .where(and(eq(productVariants.id, item.variantId), gte(productVariants.stock, item.quantity)))
-        .returning({ id: productVariants.id, stock: productVariants.stock });
-
-      if (!updated) {
-        // Rollback previously deducted items
-        await rollbackDeductions(deducted);
-        const [v] = await db
-          .select({ name: productVariants.name, stock: productVariants.stock })
-          .from(productVariants)
-          .where(eq(productVariants.id, item.variantId))
-          .limit(1);
-        return { error: `Stock insuficiente para "${v?.name ?? item.productName}". Disponible: ${v?.stock ?? 0}` };
-      }
-      deducted.push({
-        productId: item.productId,
-        variantId: item.variantId,
-        quantity: item.quantity,
-        previousStock: (updated.stock ?? 0) + item.quantity,
-        reasonLabel: `Pedido ${orderNumber} (variante)`,
-      });
-      affectedProductIds.add(item.productId);
-    } else {
-      // Atomic product stock deduction
-      const [updated] = await db
-        .update(products)
-        .set({
-          stock: sql`${products.stock} - ${item.quantity}`,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(products.id, item.productId), gte(products.stock, item.quantity)))
-        .returning({ id: products.id, stock: products.stock });
-
-      if (!updated) {
-        await rollbackDeductions(deducted);
-        return { error: `Stock insuficiente para "${product.name}". Disponible: ${product.stock ?? 0}` };
-      }
-
-      const newStock = updated.stock ?? 0;
-
-      // Mark out_of_stock if needed
-      if (newStock === 0) {
-        await db.update(products).set({ status: 'out_of_stock' }).where(eq(products.id, item.productId));
-      }
-
-      // Low stock notification
-      if (newStock <= 5 && newStock >= 0 && businessOwner?.userId) {
-        await db.insert(notifications).values({
-          userId: businessOwner.userId,
-          businessId,
-          type: 'low_stock',
-          title: newStock === 0 ? 'Producto agotado' : 'Stock bajo',
-          description: `"${product.name}" tiene ${newStock} unidades disponibles`,
-          href: `/dashboard/businesses/${businessId}/products`,
-        });
-      }
-
-      deducted.push({
-        productId: item.productId,
-        quantity: item.quantity,
-        previousStock: newStock + item.quantity,
-        reasonLabel: `Pedido ${orderNumber}`,
-      });
-      affectedProductIds.add(item.productId);
     }
   }
 
@@ -396,6 +430,9 @@ export async function createOrderAction(input: CreateOrderInput) {
       customerPhone: customerPhone?.trim() || null,
       customerEmail: customerEmail?.trim() || null,
       customerNotes: customerNotes?.trim() || null,
+      orderType,
+      reservationDate: isReservation ? reservationDate || null : null,
+      reservationTime: isReservation ? reservationTime || null : null,
       subtotal: subtotal.toFixed(2),
       discount: discount.toFixed(2),
       total: total.toFixed(2),
@@ -409,7 +446,7 @@ export async function createOrderAction(input: CreateOrderInput) {
       shippingCost: shippingCost.toFixed(2),
       status: 'pending_payment',
       checkoutType,
-      inventoryDeducted: true,
+      inventoryDeducted: !isReservation,
     })
     .returning();
 
@@ -467,7 +504,7 @@ export async function createOrderAction(input: CreateOrderInput) {
     orderId: order.id,
     fromStatus: null,
     toStatus: 'pending_payment',
-    note: 'Pedido creado',
+    note: isReservation ? 'Reserva creada' : 'Pedido creado',
   });
 
   // Increment coupon usage
@@ -482,8 +519,10 @@ export async function createOrderAction(input: CreateOrderInput) {
       userId: businessOwner.userId,
       businessId,
       type: 'new_order',
-      title: 'Nueva orden recibida',
-      description: `${customerName.trim()} realizó un pedido por ${fmtTotal}`,
+      title: isReservation ? 'Nueva reserva recibida' : 'Nueva orden recibida',
+      description: isReservation
+        ? `${customerName.trim()} solicitó una reserva por ${fmtTotal}`
+        : `${customerName.trim()} realizó un pedido por ${fmtTotal}`,
       href: `/dashboard/businesses/${businessId}/orders/${order.id}`,
     });
   }

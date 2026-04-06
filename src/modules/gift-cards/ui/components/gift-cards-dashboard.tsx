@@ -2,19 +2,7 @@
 
 import { toast } from 'sonner';
 import { useState, useEffect, useTransition } from 'react';
-import {
-  X,
-  Tag,
-  Copy,
-  Plus,
-  Check,
-  Trash2,
-  Loader2,
-  Package,
-  ToggleLeft,
-  ToggleRight,
-  TicketPercent,
-} from 'lucide-react';
+import { X, Copy, Plus, Check, Trash2, Loader2, Package, GiftIcon, ToggleLeft, ToggleRight } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,26 +20,26 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  getCouponsAction,
-  createCouponAction,
-  deleteCouponAction,
-  toggleCouponAction,
-} from '@/modules/coupons/server/actions/coupon-actions';
+  getGiftCardsAction,
+  createGiftCardAction,
+  deleteGiftCardAction,
+  toggleGiftCardAction,
+} from '@/modules/gift-cards/server/actions/gift-card-actions';
 
-interface Coupon {
+interface GiftCard {
   id: string;
   code: string;
-  description: string | null;
-  discountType: string;
-  discountValue: string;
+  type: string;
+  initialValue: string;
+  currentBalance: string;
   applicableProductIds: string[] | null;
-  minOrderAmount: string | null;
-  maxDiscount: string | null;
-  usageLimit: number | null;
-  usageCount: number;
-  startsAt: Date | null;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  senderName: string | null;
+  message: string | null;
   expiresAt: Date | null;
   isActive: boolean;
+  redeemedAt: Date | null;
   createdAt: Date;
 }
 
@@ -60,92 +48,88 @@ interface SimpleProduct {
   name: string;
 }
 
-export function CouponsDashboard({ businessId }: { businessId: string }) {
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
+export function GiftCardsDashboard({ businessId }: { businessId: string }) {
+  const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GiftCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Form state
   const [code, setCode] = useState('');
-  const [description, setDescription] = useState('');
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
-  const [discountValue, setDiscountValue] = useState('');
+  const [type, setType] = useState<'fixed' | 'percentage' | 'product'>('fixed');
+  const [initialValue, setInitialValue] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [minOrderAmount, setMinOrderAmount] = useState('');
-  const [maxDiscount, setMaxDiscount] = useState('');
-  const [usageLimit, setUsageLimit] = useState('');
-  const [startsAt, setStartsAt] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
 
-  const fetchCoupons = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const [couponsResult, productsResult] = await Promise.all([
-      getCouponsAction(businessId),
+    const [cardsResult, productsResult] = await Promise.all([
+      getGiftCardsAction(businessId),
       getProductsAction(businessId),
     ]);
-    if (couponsResult.data) setCoupons(couponsResult.data as Coupon[]);
+    if (cardsResult.data) setGiftCards(cardsResult.data as GiftCard[]);
     setProducts(productsResult.map((p) => ({ id: p.id, name: p.name })));
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchCoupons();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   const resetForm = () => {
     setCode('');
-    setDescription('');
-    setDiscountType('percentage');
-    setDiscountValue('');
+    setType('fixed');
+    setInitialValue('');
     setSelectedProductIds([]);
     setProductSearchQuery('');
-    setMinOrderAmount('');
-    setMaxDiscount('');
-    setUsageLimit('');
-    setStartsAt('');
+    setRecipientName('');
+    setRecipientEmail('');
+    setSenderName('');
+    setMessage('');
     setExpiresAt('');
   };
 
   const handleCreate = () => {
-    if (!code.trim()) return toast.error('El código es requerido');
-    if (!discountValue || parseFloat(discountValue) <= 0) return toast.error('El valor del descuento es requerido');
+    if (!initialValue || parseFloat(initialValue) <= 0) return toast.error('El valor es requerido');
 
     startTransition(async () => {
-      const result = await createCouponAction({
+      const result = await createGiftCardAction({
         businessId,
         code: code.trim(),
-        description: description.trim() || undefined,
-        discountType,
-        discountValue: parseFloat(discountValue),
-        applicableProductIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
-        minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : undefined,
-        maxDiscount: maxDiscount ? parseFloat(maxDiscount) : undefined,
-        usageLimit: usageLimit ? parseInt(usageLimit) : undefined,
-        startsAt: startsAt || undefined,
+        type,
+        initialValue: parseFloat(initialValue),
+        applicableProductIds: type === 'product' && selectedProductIds.length > 0 ? selectedProductIds : undefined,
+        recipientName: recipientName.trim() || undefined,
+        recipientEmail: recipientEmail.trim() || undefined,
+        senderName: senderName.trim() || undefined,
+        message: message.trim() || undefined,
         expiresAt: expiresAt || undefined,
       });
 
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success('Cupón creado');
+        toast.success(`Gift card creada: ${result.code}`);
         setCreateOpen(false);
         resetForm();
-        fetchCoupons();
+        fetchData();
       }
     });
   };
 
-  const handleToggle = (couponId: string, isActive: boolean) => {
+  const handleToggle = (id: string, isActive: boolean) => {
     startTransition(async () => {
-      const result = await toggleCouponAction(couponId, !isActive);
+      const result = await toggleGiftCardAction(id, !isActive);
       if (!result.error) {
-        setCoupons((prev) => prev.map((c) => (c.id === couponId ? { ...c, isActive: !isActive } : c)));
+        setGiftCards((prev) => prev.map((c) => (c.id === id ? { ...c, isActive: !isActive } : c)));
       }
     });
   };
@@ -153,25 +137,31 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
   const handleDelete = () => {
     if (!deleteTarget) return;
     startTransition(async () => {
-      const result = await deleteCouponAction(deleteTarget.id);
+      const result = await deleteGiftCardAction(deleteTarget.id);
       if (!result.error) {
-        setCoupons((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        setGiftCards((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         setDeleteTarget(null);
-        toast.success('Cupón eliminado');
+        toast.success('Gift card eliminada');
       } else {
         toast.error(result.error);
       }
     });
   };
 
-  const copyCode = (couponCode: string) => {
-    navigator.clipboard.writeText(couponCode);
+  const copyCode = (gcCode: string) => {
+    navigator.clipboard.writeText(gcCode);
     toast.success('Código copiado');
   };
 
   const formatDate = (d: Date | null) => {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const typeLabels: Record<string, string> = {
+    fixed: 'Monto fijo',
+    percentage: 'Porcentaje',
+    product: 'Producto específico',
   };
 
   if (loading) {
@@ -187,91 +177,90 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
       <div className='flex justify-end'>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className='size-4' />
-          Nuevo cupón
+          Nueva gift card
         </Button>
       </div>
 
-      {coupons.length === 0 ? (
+      {giftCards.length === 0 ? (
         <div className='flex flex-col items-center justify-center rounded-lg border border-dashed py-16'>
-          <TicketPercent className='text-muted-foreground mb-3 size-10 opacity-30' />
-          <p className='font-medium'>No hay cupones aún</p>
-          <p className='text-muted-foreground mt-1 text-sm'>Crea tu primer cupón de descuento.</p>
+          <GiftIcon className='text-muted-foreground mb-3 size-10 opacity-30' />
+          <p className='font-medium'>No hay gift cards aún</p>
+          <p className='text-muted-foreground mt-1 text-sm'>Crea tu primera gift card.</p>
         </div>
       ) : (
         <div className='space-y-3'>
-          {coupons.map((coupon) => {
-            const isExpired = coupon.expiresAt && new Date(coupon.expiresAt) < new Date();
-            const isExhausted = coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit;
+          {giftCards.map((card) => {
+            const isExpired = card.expiresAt && new Date(card.expiresAt) < new Date();
+            const balance = parseFloat(card.currentBalance);
+            const initial = parseFloat(card.initialValue);
+            const isFullyRedeemed = card.type === 'fixed' && balance <= 0;
 
             return (
-              <Card key={coupon.id} className={!coupon.isActive || isExpired || isExhausted ? 'opacity-60' : ''}>
+              <Card key={card.id} className={!card.isActive || isExpired || isFullyRedeemed ? 'opacity-60' : ''}>
                 <CardContent className='flex items-center justify-between p-4'>
                   <div className='flex items-center gap-4'>
                     <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
-                      <Tag className='text-primary size-5' />
+                      <GiftIcon className='text-primary size-5' />
                     </div>
                     <div>
                       <div className='flex items-center gap-2'>
                         <button
-                          onClick={() => copyCode(coupon.code)}
+                          onClick={() => copyCode(card.code)}
                           className='flex items-center gap-1.5 font-mono text-sm font-bold tracking-wider'
                           title='Copiar código'
                         >
-                          {coupon.code}
+                          {card.code}
                           <Copy className='text-muted-foreground size-3' />
                         </button>
-                        {!coupon.isActive && (
+                        {!card.isActive && (
                           <span className='rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500'>
-                            Inactivo
+                            Inactiva
                           </span>
                         )}
                         {isExpired && (
                           <span className='rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600'>
-                            Expirado
+                            Expirada
                           </span>
                         )}
-                        {isExhausted && (
+                        {isFullyRedeemed && (
                           <span className='rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-600'>
-                            Agotado
+                            Canjeada
                           </span>
                         )}
                       </div>
                       <p className='text-muted-foreground mt-0.5 text-xs'>
-                        {coupon.discountType === 'percentage'
-                          ? `${parseFloat(coupon.discountValue)}% de descuento`
-                          : `$${parseFloat(coupon.discountValue).toFixed(2)} de descuento`}
-                        {coupon.description && ` · ${coupon.description}`}
-                        {coupon.applicableProductIds && coupon.applicableProductIds.length > 0 && (
+                        {typeLabels[card.type] ?? card.type}
+                        {card.type === 'percentage' ? ` · ${initial}%` : ` · $${initial.toFixed(2)}`}
+                        {card.type === 'fixed' && ` · Saldo: $${balance.toFixed(2)}`}
+                        {card.applicableProductIds && card.applicableProductIds.length > 0 && (
                           <span className='ml-1 inline-flex items-center gap-0.5'>
                             · <Package className='inline size-3' />
-                            {coupon.applicableProductIds.length} producto
-                            {coupon.applicableProductIds.length !== 1 ? 's' : ''}
+                            {card.applicableProductIds.length} producto
+                            {card.applicableProductIds.length !== 1 ? 's' : ''}
                           </span>
                         )}
                       </p>
                       <p className='text-muted-foreground mt-0.5 text-[11px]'>
-                        Usos: {coupon.usageCount}
-                        {coupon.usageLimit !== null ? `/${coupon.usageLimit}` : ''}
-                        {coupon.expiresAt && ` · Expira: ${formatDate(coupon.expiresAt)}`}
-                        {coupon.minOrderAmount && ` · Mín: $${parseFloat(coupon.minOrderAmount).toFixed(2)}`}
+                        {card.recipientName && `Para: ${card.recipientName}`}
+                        {card.expiresAt && ` · Expira: ${formatDate(card.expiresAt)}`}
                       </p>
                     </div>
                   </div>
                   <div className='flex items-center gap-1'>
                     <button
-                      onClick={() => handleToggle(coupon.id, coupon.isActive)}
+                      onClick={() => handleToggle(card.id, card.isActive)}
                       disabled={isPending}
                       className='hover:bg-muted rounded-md p-2 transition-colors'
-                      title={coupon.isActive ? 'Desactivar' : 'Activar'}
+                      title={card.isActive ? 'Desactivar' : 'Activar'}
                     >
-                      {coupon.isActive ? (
+                      {card.isActive ? (
                         <ToggleRight className='size-5 text-green-600' />
                       ) : (
                         <ToggleLeft className='text-muted-foreground size-5' />
                       )}
                     </button>
                     <button
-                      onClick={() => setDeleteTarget(coupon)}
+                      onClick={() => setDeleteTarget(card)}
                       disabled={isPending}
                       className='hover:bg-muted rounded-md p-2 text-red-500 transition-colors'
                       title='Eliminar'
@@ -290,38 +279,30 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className='max-w-md'>
           <DialogHeader>
-            <DialogTitle>Nuevo cupón</DialogTitle>
-            <DialogDescription>Crea un cupón de descuento para tus clientes.</DialogDescription>
+            <DialogTitle>Nueva gift card</DialogTitle>
+            <DialogDescription>Crea una gift card para tus clientes.</DialogDescription>
           </DialogHeader>
-          <div className='space-y-4'>
+          <div className='max-h-[60vh] space-y-4 overflow-y-auto pr-1'>
             <div>
-              <Label>Código *</Label>
+              <Label>Código (opcional, se genera automáticamente)</Label>
               <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder='VERANO20'
+                placeholder='AUTO-GENERADO'
                 className='mt-1 font-mono tracking-wider uppercase'
-              />
-            </div>
-            <div>
-              <Label>Descripción (opcional)</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder='Descuento de verano'
-                className='mt-1'
               />
             </div>
             <div className='grid grid-cols-2 gap-3'>
               <div>
-                <Label>Tipo de descuento</Label>
-                <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percentage' | 'fixed')}>
+                <Label>Tipo</Label>
+                <Select value={type} onValueChange={(v) => setType(v as 'fixed' | 'percentage' | 'product')}>
                   <SelectTrigger className='mt-1'>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value='percentage'>Porcentaje (%)</SelectItem>
                     <SelectItem value='fixed'>Monto fijo ($)</SelectItem>
+                    <SelectItem value='percentage'>Porcentaje (%)</SelectItem>
+                    <SelectItem value='product'>Producto específico</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -329,94 +310,42 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
                 <Label>Valor *</Label>
                 <Input
                   type='number'
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder={discountType === 'percentage' ? '20' : '10.00'}
+                  value={initialValue}
+                  onChange={(e) => setInitialValue(e.target.value)}
+                  placeholder={type === 'percentage' ? '15' : '50.00'}
                   className='mt-1'
                   min='0'
-                  step={discountType === 'percentage' ? '1' : '0.01'}
+                  step={type === 'percentage' ? '1' : '0.01'}
                 />
               </div>
             </div>
-            <div className='grid grid-cols-2 gap-3'>
+
+            {/* Product selector for product type */}
+            {type === 'product' && products.length > 0 && (
               <div>
-                <Label>Pedido mínimo ($)</Label>
-                <Input
-                  type='number'
-                  value={minOrderAmount}
-                  onChange={(e) => setMinOrderAmount(e.target.value)}
-                  placeholder='0.00'
-                  className='mt-1'
-                  min='0'
-                  step='0.01'
-                />
-              </div>
-              <div>
-                <Label>{discountType === 'percentage' ? 'Descuento máximo ($)' : 'Límite de usos'}</Label>
-                {discountType === 'percentage' ? (
-                  <Input
-                    type='number'
-                    value={maxDiscount}
-                    onChange={(e) => setMaxDiscount(e.target.value)}
-                    placeholder='Sin límite'
-                    className='mt-1'
-                    min='0'
-                    step='0.01'
-                  />
-                ) : (
-                  <Input
-                    type='number'
-                    value={usageLimit}
-                    onChange={(e) => setUsageLimit(e.target.value)}
-                    placeholder='Ilimitado'
-                    className='mt-1'
-                    min='0'
-                    step='1'
-                  />
-                )}
-              </div>
-            </div>
-            {discountType === 'percentage' && (
-              <div>
-                <Label>Límite de usos</Label>
-                <Input
-                  type='number'
-                  value={usageLimit}
-                  onChange={(e) => setUsageLimit(e.target.value)}
-                  placeholder='Ilimitado'
-                  className='mt-1'
-                  min='0'
-                  step='1'
-                />
-              </div>
-            )}
-            {/* Product selector */}
-            <div>
-              <Label>Productos aplicables (opcional)</Label>
-              <p className='text-muted-foreground mb-2 text-xs'>Deja vacío para aplicar a todo el pedido.</p>
-              {selectedProductIds.length > 0 && (
-                <div className='mb-2 flex flex-wrap gap-1.5'>
-                  {selectedProductIds.map((pid) => {
-                    const p = products.find((pr) => pr.id === pid);
-                    return (
-                      <span
-                        key={pid}
-                        className='bg-primary/10 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium'
-                      >
-                        {p?.name ?? 'Producto'}
-                        <button
-                          type='button'
-                          onClick={() => setSelectedProductIds((prev) => prev.filter((id) => id !== pid))}
-                          className='hover:text-primary/70 -mr-0.5'
+                <Label>Productos aplicables</Label>
+                {selectedProductIds.length > 0 && (
+                  <div className='mt-1 mb-2 flex flex-wrap gap-1.5'>
+                    {selectedProductIds.map((pid) => {
+                      const p = products.find((pr) => pr.id === pid);
+                      return (
+                        <span
+                          key={pid}
+                          className='bg-primary/10 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium'
                         >
-                          <X className='size-3' />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {products.length > 0 && (
+                          {p?.name ?? 'Producto'}
+                          <button
+                            type='button'
+                            onClick={() => setSelectedProductIds((prev) => prev.filter((id) => id !== pid))}
+                            className='hover:text-primary/70 -mr-0.5'
+                          >
+                            <X className='size-3' />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className='rounded-lg border'>
                   <Input
                     value={productSearchQuery}
@@ -453,17 +382,51 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
                       })}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
             <div className='grid grid-cols-2 gap-3'>
               <div>
-                <Label>Inicia (opcional)</Label>
-                <Input type='date' value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className='mt-1' />
+                <Label>Destinatario</Label>
+                <Input
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder='Nombre'
+                  className='mt-1'
+                />
               </div>
               <div>
-                <Label>Expira (opcional)</Label>
-                <Input type='date' value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className='mt-1' />
+                <Label>Email destinatario</Label>
+                <Input
+                  type='email'
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder='email@ejemplo.com'
+                  className='mt-1'
+                />
               </div>
+            </div>
+            <div>
+              <Label>De parte de</Label>
+              <Input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder='Nombre del remitente'
+                className='mt-1'
+              />
+            </div>
+            <div>
+              <Label>Mensaje (opcional)</Label>
+              <Input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder='¡Feliz cumpleaños!'
+                className='mt-1'
+              />
+            </div>
+            <div>
+              <Label>Expira (opcional)</Label>
+              <Input type='date' value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className='mt-1' />
             </div>
           </div>
           <DialogFooter>
@@ -474,7 +437,7 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
             </DialogClose>
             <Button onClick={handleCreate} disabled={isPending}>
               {isPending ? <Loader2 className='size-4 animate-spin' /> : null}
-              Crear cupón
+              Crear gift card
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -484,9 +447,9 @@ export function CouponsDashboard({ businessId }: { businessId: string }) {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Eliminar cupón?</DialogTitle>
+            <DialogTitle>¿Eliminar gift card?</DialogTitle>
             <DialogDescription>
-              Estás a punto de eliminar el cupón <strong>{deleteTarget?.code}</strong>. Esta acción no se puede
+              Estás a punto de eliminar la gift card <strong>{deleteTarget?.code}</strong>. Esta acción no se puede
               deshacer.
             </DialogDescription>
           </DialogHeader>

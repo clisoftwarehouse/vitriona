@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useEffect } from 'react';
-import { Plus, Star, Search, Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
+import { useMemo, useState, useEffect, useTransition } from 'react';
+import { Plus, Star, Search, Loader2, Package, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useProducts } from '@/modules/products/ui/hooks/use-products';
+import { reorderProductsAction } from '@/modules/products/server/actions/reorder-products.action';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 
 const ITEMS_PER_PAGE = 12;
@@ -42,7 +44,7 @@ const typeLabels: Record<string, string> = {
   bundle: 'Paquete',
 };
 
-type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc';
+type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc' | 'storefront';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'newest', label: 'Más recientes' },
@@ -51,9 +53,13 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'za', label: 'Z → A' },
   { value: 'price_asc', label: 'Precio: menor a mayor' },
   { value: 'price_desc', label: 'Precio: mayor a menor' },
+  { value: 'storefront', label: 'Orden en tienda' },
 ];
 
-function sortProducts<T extends { name: string; price: string; createdAt: Date }>(items: T[], sort: SortOption): T[] {
+function sortProducts<T extends { name: string; price: string; createdAt: Date; sortOrder: number }>(
+  items: T[],
+  sort: SortOption
+): T[] {
   return [...items].sort((a, b) => {
     switch (sort) {
       case 'newest':
@@ -68,6 +74,8 @@ function sortProducts<T extends { name: string; price: string; createdAt: Date }
         return Number(a.price) - Number(b.price);
       case 'price_desc':
         return Number(b.price) - Number(a.price);
+      case 'storefront':
+        return a.sortOrder - b.sortOrder;
       default:
         return 0;
     }
@@ -81,6 +89,7 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [isReordering, startReorder] = useTransition();
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 300);
@@ -93,8 +102,28 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
     categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
   };
 
-  const { data: products = [], isLoading, isFetching } = useProducts(businessId, filters);
+  const { data: products = [], isLoading, isFetching, refetch } = useProducts(businessId, filters);
   const sorted = useMemo(() => sortProducts(products, sort), [products, sort]);
+
+  const isStorefrontSort = sort === 'storefront';
+
+  const handleMove = (index: number, direction: 'up' | 'down') => {
+    const globalIndex = (page - 1) * ITEMS_PER_PAGE + index;
+    const swapIndex = direction === 'up' ? globalIndex - 1 : globalIndex + 1;
+    if (swapIndex < 0 || swapIndex >= sorted.length) return;
+
+    const newOrder = sorted.map((p) => p.id);
+    [newOrder[globalIndex], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[globalIndex]];
+
+    startReorder(async () => {
+      const result = await reorderProductsAction(businessId, newOrder);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        await refetch();
+      }
+    });
+  };
   const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
   const paginatedProducts = useMemo(
     () => sorted.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
@@ -218,61 +247,91 @@ export function ProductsGrid({ businessId, catalogId, categories = [] }: Product
           )}
 
           <div className='grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3'>
-            {paginatedProducts.map((product) => (
-              <Link
-                key={product.id}
-                href={
-                  catalogId
-                    ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products/${product.id}`
-                    : `/dashboard/businesses/${businessId}/products/${product.id}`
-                }
-                className='group'
-              >
-                <Card className='h-full overflow-hidden transition-shadow group-hover:shadow-md'>
-                  <CardContent className='flex h-full flex-col p-4 sm:p-5'>
-                    <div className='flex items-center gap-3'>
-                      <div className='bg-primary/10 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10'>
-                        <Package className='text-primary size-4 sm:size-5' />
-                      </div>
-                      <div className='min-w-0 flex-1'>
-                        <div className='flex items-center justify-between gap-2'>
-                          <h3 className='min-w-0 flex-1 truncate text-sm font-semibold sm:text-base'>
-                            {product.name}
-                            {product.isFeatured && (
-                              <Star className='ml-1 inline size-3 shrink-0 fill-amber-500 text-amber-500 sm:size-3.5' />
-                            )}
-                          </h3>
-                          <Badge
-                            variant={statusVariants[product.status] ?? 'secondary'}
-                            className='shrink-0 text-[10px]'
-                          >
-                            {statusLabels[product.status] ?? product.status}
-                          </Badge>
+            {paginatedProducts.map((product, idx) => (
+              <div key={product.id} className='group relative'>
+                <Link
+                  href={
+                    catalogId
+                      ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products/${product.id}`
+                      : `/dashboard/businesses/${businessId}/products/${product.id}`
+                  }
+                >
+                  <Card className='h-full overflow-hidden transition-shadow group-hover:shadow-md'>
+                    <CardContent className='flex h-full flex-col p-4 sm:p-5'>
+                      <div className='flex items-center gap-3'>
+                        <div className='bg-primary/10 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10'>
+                          <Package className='text-primary size-4 sm:size-5' />
                         </div>
-                        <div className='mt-0.5 flex items-center gap-2'>
-                          <span className='text-muted-foreground text-sm font-medium'>
-                            ${Number(product.price).toFixed(2)}
-                            {product.compareAtPrice && (
-                              <span className='ml-1.5 line-through'>${Number(product.compareAtPrice).toFixed(2)}</span>
-                            )}
-                          </span>
-                          <Badge variant='outline' className='text-[10px]'>
-                            {typeLabels[product.type] ?? product.type}
-                          </Badge>
-                          {product.sku && (
-                            <span className='text-muted-foreground hidden text-xs sm:inline'>SKU: {product.sku}</span>
-                          )}
-                          {product.stock !== null && (
-                            <Badge variant='outline' className='text-[10px]'>
-                              Stock: {product.stock}
+                        <div className='min-w-0 flex-1'>
+                          <div className='flex items-center justify-between gap-2'>
+                            <h3 className='min-w-0 flex-1 truncate text-sm font-semibold sm:text-base'>
+                              {product.name}
+                              {product.isFeatured && (
+                                <Star className='ml-1 inline size-3 shrink-0 fill-amber-500 text-amber-500 sm:size-3.5' />
+                              )}
+                            </h3>
+                            <Badge
+                              variant={statusVariants[product.status] ?? 'secondary'}
+                              className='shrink-0 text-[10px]'
+                            >
+                              {statusLabels[product.status] ?? product.status}
                             </Badge>
-                          )}
+                          </div>
+                          <div className='mt-0.5 flex items-center gap-2'>
+                            <span className='text-muted-foreground text-sm font-medium'>
+                              ${Number(product.price).toFixed(2)}
+                              {product.compareAtPrice && (
+                                <span className='ml-1.5 line-through'>
+                                  ${Number(product.compareAtPrice).toFixed(2)}
+                                </span>
+                              )}
+                            </span>
+                            <Badge variant='outline' className='text-[10px]'>
+                              {typeLabels[product.type] ?? product.type}
+                            </Badge>
+                            {product.sku && (
+                              <span className='text-muted-foreground hidden text-xs sm:inline'>SKU: {product.sku}</span>
+                            )}
+                            {product.stock !== null && (
+                              <Badge variant='outline' className='text-[10px]'>
+                                Stock: {product.stock}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    </CardContent>
+                  </Card>
+                </Link>
+                {isStorefrontSort && (
+                  <div className='absolute top-2 right-2 z-10 flex flex-col gap-0.5'>
+                    <button
+                      type='button'
+                      disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === 0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleMove(idx, 'up');
+                      }}
+                      className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
+                      title='Mover arriba'
+                    >
+                      <ArrowUp className='size-3.5' />
+                    </button>
+                    <button
+                      type='button'
+                      disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === sorted.length - 1}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleMove(idx, 'down');
+                      }}
+                      className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
+                      title='Mover abajo'
+                    >
+                      <ArrowDown className='size-3.5' />
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 

@@ -161,7 +161,6 @@ export function ProductDetail({
   // Effective price/stock based on variant selection
   const effectivePrice = selectedVariant?.price ?? product.price;
   const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : product.stock;
-  const effectiveSku = selectedVariant?.sku ?? product.sku;
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
@@ -364,9 +363,6 @@ export function ProductDetail({
             </a>
           )}
 
-          {/* SKU */}
-          {effectiveSku && <p className='mt-1 text-xs tracking-wide opacity-40'>SKU: {effectiveSku}</p>}
-
           {/* Price */}
           <div className='mt-4 flex items-baseline gap-3'>
             <span className='text-3xl font-bold' style={{ color: 'var(--sf-primary, #000)' }}>
@@ -430,11 +426,9 @@ export function ProductDetail({
                           {item.type === 'service' ? 'Servicio' : 'Producto'}
                         </span>
                       </div>
-                      <p className='mt-1 text-xs opacity-55'>
-                        {item.trackInventory && item.stock !== null
-                          ? `Stock disponible: ${item.stock}`
-                          : 'Disponible sin control de inventario'}
-                      </p>
+                      {item.trackInventory && item.stock !== null && (
+                        <p className='mt-1 text-xs opacity-55'>Stock disponible: {item.stock}</p>
+                      )}
                     </div>
                     <span className='shrink-0 font-medium opacity-75'>
                       {formatPrice((parseFloat(item.price) * item.quantity).toFixed(2))}
@@ -476,8 +470,9 @@ export function ProductDetail({
                       const matchingVariant = variants.find((v) =>
                         Object.entries(testOpts).every(([k, val]) => v.options[k] === val)
                       );
-                      const isAvailable = matchingVariant && matchingVariant.stock > 0;
-                      const isOutOfStockVariant = matchingVariant && matchingVariant.stock <= 0;
+                      const isAvailable = matchingVariant && (!product.trackInventory || matchingVariant.stock > 0);
+                      const isOutOfStockVariant =
+                        product.trackInventory && matchingVariant && matchingVariant.stock <= 0;
 
                       return (
                         <button

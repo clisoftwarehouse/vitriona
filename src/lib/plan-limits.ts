@@ -3,7 +3,7 @@
  * Keep in sync with pricing in src/app/_components/pricing.tsx
  */
 
-export type PlanType = 'free' | 'pro' | 'business';
+export type PlanType = 'free' | 'pro' | 'business' | 'custom';
 
 export interface PlanLimits {
   maxProducts: number;

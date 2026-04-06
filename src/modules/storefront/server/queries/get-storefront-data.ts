@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { eq, and, asc, avg, sql, count, inArray } from 'drizzle-orm';
+import { or, eq, and, asc, avg, sql, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import {
@@ -107,16 +107,32 @@ export const getPublicProducts = cache((businessId: string, categoryId?: string,
 async function _getPublicProducts(businessId: string, categoryId?: string, catalogId?: string) {
   const conditions = [eq(products.businessId, businessId), eq(products.status, 'active')];
 
-  // If a specific catalog is requested, filter through the join table
+  // If a specific catalog is requested, get ordered IDs from catalog_products then fetch full products
   if (catalogId) {
     const linked = await db
       .select({ productId: catalogProducts.productId })
       .from(catalogProducts)
-      .where(eq(catalogProducts.catalogId, catalogId));
+      .where(eq(catalogProducts.catalogId, catalogId))
+      .orderBy(asc(catalogProducts.sortOrder));
 
     const linkedIds = linked.map((l) => l.productId);
     if (linkedIds.length === 0) return [];
     conditions.push(inArray(products.id, linkedIds));
+
+    if (categoryId) {
+      conditions.push(eq(products.categoryId, categoryId));
+    }
+
+    const productList = await db
+      .select()
+      .from(products)
+      .where(and(...conditions));
+
+    // Re-sort by catalog sortOrder
+    const orderMap = new Map(linkedIds.map((id, i) => [id, i]));
+    productList.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+
+    return _enrichProducts(productList);
   }
 
   if (categoryId) {
@@ -129,6 +145,12 @@ async function _getPublicProducts(businessId: string, categoryId?: string, catal
     .where(and(...conditions))
     .orderBy(asc(products.sortOrder));
 
+  return _enrichProducts(productList);
+}
+
+type RawProduct = typeof products.$inferSelect;
+
+async function _enrichProducts(productList: RawProduct[]) {
   const productIds = productList.map((p) => p.id);
   if (productIds.length === 0) return [];
 
@@ -221,7 +243,13 @@ export const getCatalogBySlug = cache((businessId: string, catalogSlug: string) 
       const [catalog] = await db
         .select()
         .from(catalogs)
-        .where(and(eq(catalogs.businessId, businessId), eq(catalogs.slug, catalogSlug), eq(catalogs.isActive, true)))
+        .where(
+          and(
+            eq(catalogs.businessId, businessId),
+            or(eq(catalogs.slug, catalogSlug), eq(catalogs.id, catalogSlug)),
+            eq(catalogs.isActive, true)
+          )
+        )
         .limit(1);
       return catalog ?? null;
     },

@@ -9,7 +9,7 @@ import { brands, catalogs, products, businesses, categories, productImages, cata
 
 type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'space-grotesk' | 'outfit';
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
-type LayoutOption = 'grid' | 'list' | 'magazine' | 'restaurant';
+type LayoutOption = 'grid' | 'list' | 'magazine';
 type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
 type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
@@ -30,8 +30,10 @@ export type CatalogSettingsInput = {
   borderColor?: string;
   layout?: LayoutOption;
   gridColumns?: number;
+  viewMode?: 'default' | 'restaurant' | 'services' | 'products' | 'experiences';
   showPrices?: boolean;
   showStock?: boolean;
+  headerTitle?: string | null;
   announcementEnabled?: boolean;
   announcementText?: string | null;
   announcementBgColor?: string;

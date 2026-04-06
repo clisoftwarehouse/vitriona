@@ -18,6 +18,7 @@ import {
   Palette,
   ArrowLeft,
   ImageIcon,
+  PanelLeft,
   Smartphone,
   ChevronDown,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useModifierKey } from '@/hooks/use-os';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import {
   type CatalogSettingsInput,
   updateCatalogSettingsAction,
@@ -38,7 +40,8 @@ type FontOption = 'inter' | 'playfair' | 'dm-sans' | 'poppins' | 'roboto' | 'spa
 type CardStyleOption = 'default' | 'minimal' | 'bordered' | 'shadow';
 type HeroStyleOption = 'centered' | 'split' | 'banner' | 'minimal';
 type CategoriesStyleOption = 'tabs' | 'pills' | 'cards';
-type LayoutOption = 'grid' | 'list' | 'magazine' | 'restaurant';
+type LayoutOption = 'grid' | 'list' | 'magazine';
+type ViewModeOption = 'default' | 'restaurant' | 'services' | 'products' | 'experiences';
 
 type ThemePreset = 'light' | 'dark' | 'elegant' | 'vibrant' | 'ocean' | 'custom';
 type CtaAction = 'scroll' | 'link' | 'whatsapp' | 'catalog';
@@ -76,6 +79,7 @@ interface Settings {
   aboutImageUrl: string;
   layout: LayoutOption;
   gridColumns: number;
+  viewMode: ViewModeOption;
   showPrices: boolean;
   showStock: boolean;
   seoTitle: string;
@@ -92,6 +96,7 @@ interface Settings {
   socialWhatsapp: string;
   socialEmail: string;
   socialPhone: string;
+  headerTitle: string;
   announcementEnabled: boolean;
   announcementText: string;
   announcementBgColor: string;
@@ -191,7 +196,14 @@ const LAYOUT_OPTIONS: { value: LayoutOption; label: string }[] = [
   { value: 'grid', label: 'Grilla' },
   { value: 'list', label: 'Lista' },
   { value: 'magazine', label: 'Magazine' },
-  { value: 'restaurant', label: 'Menú restaurante' },
+];
+
+const VIEW_MODE_OPTIONS: { value: ViewModeOption; label: string; description: string }[] = [
+  { value: 'default', label: 'Por defecto', description: 'Vista estándar de productos' },
+  { value: 'restaurant', label: 'Restaurante', description: 'Menú con categorías y descripciones' },
+  { value: 'services', label: 'Servicios', description: 'Tarjetas con horarios y reservas' },
+  { value: 'products', label: 'Tienda', description: 'Grid optimizado para e-commerce' },
+  { value: 'experiences', label: 'Experiencias', description: 'Vista visual para atracciones' },
 ];
 
 const GRID_COLUMNS: { value: string; label: string }[] = [
@@ -305,7 +317,8 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     aboutText: (raw?.aboutText as string) ?? '',
     aboutImageUrl: (raw?.aboutImageUrl as string) ?? '',
     layout: (raw?.layout as LayoutOption) ?? 'grid',
-    gridColumns: (raw?.gridColumns as number) ?? 4,
+    gridColumns: (raw?.gridColumns as number) ?? 3,
+    viewMode: (raw?.viewMode as ViewModeOption) ?? 'default',
     showPrices: (raw?.showPrices as boolean) ?? true,
     showStock: (raw?.showStock as boolean) ?? false,
     seoTitle: (raw?.seoTitle as string) ?? '',
@@ -322,6 +335,7 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     socialWhatsapp: (raw?.socialWhatsapp as string) ?? '',
     socialEmail: (raw?.socialEmail as string) ?? '',
     socialPhone: (raw?.socialPhone as string) ?? '',
+    headerTitle: (raw?.headerTitle as string) ?? '',
     announcementEnabled: (raw?.announcementEnabled as boolean) ?? false,
     announcementText: (raw?.announcementText as string) ?? '',
     announcementBgColor: (raw?.announcementBgColor as string) ?? '#000000',
@@ -398,6 +412,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     aboutImageUrl: settings.aboutImageUrl || null,
     layout: settings.layout,
     gridColumns: settings.gridColumns,
+    viewMode: settings.viewMode,
     showPrices: settings.showPrices,
     showStock: settings.showStock,
     seoTitle: settings.seoTitle || null,
@@ -415,6 +430,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     socialWhatsapp: settings.socialWhatsapp || null,
     socialEmail: settings.socialEmail || null,
     socialPhone: settings.socialPhone || null,
+    headerTitle: settings.headerTitle || null,
     announcementEnabled: settings.announcementEnabled,
     announcementText: settings.announcementText || null,
     announcementBgColor: settings.announcementBgColor,
@@ -429,6 +445,7 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
   const [settings, setSettings] = useState<Settings>(() => toSettings(initialSettings));
   const [activeSection, setActiveSection] = useState<Section>('theme');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [mobileView, setMobileView] = useState<'settings' | 'preview'>('settings');
   const [isPending, startTransition] = useTransition();
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
@@ -478,8 +495,8 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
         </div>
 
         <div className='flex shrink-0 items-center gap-1.5 sm:gap-2'>
-          {/* Device toggle — hidden on mobile since preview is hidden */}
-          <div className='hidden items-center gap-1 rounded-lg border border-gray-200 p-0.5 lg:flex dark:border-neutral-700'>
+          {/* Device toggle */}
+          <div className='flex items-center gap-1 rounded-lg border border-gray-200 p-0.5 dark:border-neutral-700'>
             <button
               onClick={() => setPreviewDevice('desktop')}
               className={`rounded-md p-1.5 transition-colors ${previewDevice === 'desktop' ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-50 dark:hover:bg-neutral-800'}`}
@@ -514,8 +531,12 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
 
       {/* Main content */}
       <div className='flex flex-1 overflow-hidden'>
-        {/* Sidebar — full width on mobile, fixed width on desktop */}
-        <aside className='flex w-full shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/50 lg:w-80 dark:border-neutral-800 dark:bg-neutral-900'>
+        {/* Sidebar — full width on mobile (when settings view), fixed width on desktop */}
+        <aside
+          className={`flex w-full shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50/50 lg:w-80 dark:border-neutral-800 dark:bg-neutral-900 ${
+            mobileView === 'preview' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           {/* Section tabs */}
           <div
             id='builder-section-tabs'
@@ -542,15 +563,19 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
             {activeSection === 'theme' && <ThemePanel settings={settings} update={update} />}
             {activeSection === 'hero' && <HeroPanel settings={settings} update={update} />}
             {activeSection === 'sections' && <SectionsPanel settings={settings} update={update} />}
-            {activeSection === 'announcement' && <AnnouncementPanel settings={settings} update={update} />}
+            {activeSection === 'announcement' && (
+              <AnnouncementPanel settings={settings} update={update} businessName={previewData.business.name} />
+            )}
             {activeSection === 'seo' && <SeoPanel settings={settings} update={update} />}
           </div>
         </aside>
 
-        {/* Preview — hidden on mobile */}
+        {/* Preview — toggleable on mobile */}
         <div
           id='builder-preview-area'
-          className='hidden flex-1 items-center justify-center bg-gray-100 p-6 lg:flex dark:bg-neutral-950'
+          className={`flex-1 items-center justify-center bg-gray-100 p-2 sm:p-4 lg:p-6 dark:bg-neutral-950 ${
+            mobileView === 'preview' ? 'flex' : 'hidden lg:flex'
+          }`}
         >
           <div
             className={`h-full overflow-hidden rounded-xl border border-gray-200 shadow-2xl transition-all dark:border-neutral-700 ${
@@ -566,6 +591,32 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile bottom toggle bar */}
+      <div className='flex h-12 shrink-0 items-center justify-center gap-1 border-t border-gray-200 bg-white px-4 lg:hidden dark:border-neutral-800 dark:bg-neutral-950'>
+        <button
+          onClick={() => setMobileView('settings')}
+          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+            mobileView === 'settings'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+          }`}
+        >
+          <PanelLeft className='size-3.5' />
+          Ajustes
+        </button>
+        <button
+          onClick={() => setMobileView('preview')}
+          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+            mobileView === 'preview'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+          }`}
+        >
+          <Eye className='size-3.5' />
+          Vista previa
+        </button>
       </div>
     </div>
   );
@@ -892,6 +943,24 @@ function ThemePanel({ settings, update }: PanelProps) {
         options={CARD_STYLES}
         onChange={(v) => update('cardStyle', v)}
       />
+
+      <SectionDivider title='Modo de visualización' />
+      <div className='space-y-2'>
+        {VIEW_MODE_OPTIONS.map((mode) => (
+          <button
+            key={mode.value}
+            onClick={() => update('viewMode', mode.value)}
+            className={`flex w-full flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+              settings.viewMode === mode.value
+                ? 'border-gray-900 bg-gray-100 dark:border-white dark:bg-neutral-800'
+                : 'border-gray-200 hover:border-gray-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+            }`}
+          >
+            <span className='text-sm font-medium'>{mode.label}</span>
+            <span className='text-xs opacity-60'>{mode.description}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -924,17 +993,17 @@ function HeroPanel({ settings, update }: PanelProps) {
           />
 
           <FieldGroup label='Título'>
-            <Input
+            <RichTextEditor
               value={settings.heroTitle}
-              onChange={(e) => update('heroTitle', e.target.value)}
+              onChange={(html) => update('heroTitle', html)}
               placeholder='Título del hero'
             />
           </FieldGroup>
 
           <FieldGroup label='Subtítulo'>
-            <Input
+            <RichTextEditor
               value={settings.heroSubtitle}
-              onChange={(e) => update('heroSubtitle', e.target.value)}
+              onChange={(html) => update('heroSubtitle', html)}
               placeholder='Descripción breve'
             />
           </FieldGroup>
@@ -1074,11 +1143,9 @@ function SectionsPanel({ settings, update }: PanelProps) {
       {settings.aboutEnabled && (
         <>
           <FieldGroup label='Texto'>
-            <textarea
+            <RichTextEditor
               value={settings.aboutText}
-              onChange={(e) => update('aboutText', e.target.value)}
-              rows={4}
-              className='w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
+              onChange={(html) => update('aboutText', html)}
               placeholder='Cuéntale a tus clientes sobre tu negocio...'
             />
           </FieldGroup>
@@ -1095,9 +1162,19 @@ function SectionsPanel({ settings, update }: PanelProps) {
 
 /* ── Announcement Panel ── */
 
-function AnnouncementPanel({ settings, update }: PanelProps) {
+function AnnouncementPanel({ settings, update, businessName }: PanelProps & { businessName: string }) {
   return (
     <div className='space-y-4'>
+      <FieldGroup label='Nombre en el header'>
+        <Input
+          value={settings.headerTitle}
+          onChange={(e) => update('headerTitle', e.target.value)}
+          placeholder={businessName}
+        />
+      </FieldGroup>
+
+      <div className='bg-border h-px' />
+
       <Toggle
         label='Barra de anuncio'
         description='Barra fija en la parte superior de la tienda'
@@ -1304,7 +1381,7 @@ function BuilderPreview({
       ? 'flex flex-col gap-3'
       : layout === 'magazine'
         ? 'grid grid-cols-2 gap-3'
-        : layout === 'restaurant'
+        : s.viewMode === 'restaurant'
           ? 'flex flex-col'
           : 'grid grid-cols-2 gap-3';
 
@@ -1372,7 +1449,7 @@ function BuilderPreview({
                 <Store className='size-4.5 text-white' />
               </div>
             )}
-            <span className='text-base font-bold tracking-tight'>{business.name}</span>
+            <span className='text-base font-bold tracking-tight'>{s.headerTitle || business.name}</span>
           </div>
           <div className='flex items-center gap-3'>
             <ShoppingBag className='size-5 opacity-60' />
@@ -1456,7 +1533,7 @@ function BuilderPreview({
           <section id='products'>
             <div className='mb-6 flex items-center justify-between'>
               <h2 className='text-xl font-bold tracking-tight'>
-                {layout === 'restaurant' ? 'Menú' : 'Todos los productos'}
+                {s.viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
               </h2>
               <span className='text-sm opacity-40'>
                 {products.length} producto{products.length !== 1 ? 's' : ''}
@@ -1464,7 +1541,7 @@ function BuilderPreview({
             </div>
             {products.length > 0 ? (
               <>
-                {layout === 'restaurant' ? (
+                {s.viewMode === 'restaurant' ? (
                   <PreviewRestaurantMenu
                     products={paginatedPreviewProducts}
                     categories={categories}
@@ -1551,7 +1628,7 @@ function BuilderPreview({
                 )}
                 <div className={s.aboutImageUrl ? 'flex flex-col justify-center' : ''}>
                   <h2 className='text-2xl font-bold tracking-tight'>Sobre {business.name}</h2>
-                  <p className='mt-4 leading-relaxed opacity-60'>{s.aboutText}</p>
+                  <div className='mt-4 leading-relaxed opacity-60' dangerouslySetInnerHTML={{ __html: s.aboutText }} />
                 </div>
               </div>
             </section>
@@ -1669,6 +1746,7 @@ function PreviewHero({
   const modKey = useModifierKey();
   const title = s.heroTitle || business.name;
   const subtitle = s.heroSubtitle || business.description;
+  const titlePlain = title.replace(/<[^>]*>/g, '');
   const hasImage = !!s.heroImageUrl;
 
   // Search bar element reused across hero styles
@@ -1704,8 +1782,13 @@ function PreviewHero({
         <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
           <div className='flex items-center gap-6'>
             <div className='flex-1'>
-              <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{title}</h1>
-              {subtitle && <p className='mt-2 max-w-xl text-sm opacity-60'>{subtitle}</p>}
+              <h1
+                className='text-2xl font-bold tracking-tight sm:text-3xl'
+                dangerouslySetInnerHTML={{ __html: title }}
+              />
+              {subtitle && (
+                <div className='mt-2 max-w-xl text-sm opacity-60' dangerouslySetInnerHTML={{ __html: subtitle }} />
+              )}
               <div className='mt-5 max-w-md'>{searchBar()}</div>
             </div>
             {hasImage && (
@@ -1713,7 +1796,7 @@ function PreviewHero({
                 className='relative hidden size-28 shrink-0 overflow-hidden sm:block sm:size-32 lg:size-40'
                 style={{ borderRadius: radiusLg }}
               >
-                <Image src={s.heroImageUrl} alt={title} fill className='object-cover' />
+                <Image src={s.heroImageUrl} alt={titlePlain} fill className='object-cover' />
               </div>
             )}
           </div>
@@ -1725,7 +1808,7 @@ function PreviewHero({
   if (s.heroStyle === 'banner' && hasImage) {
     return (
       <section className='relative overflow-hidden'>
-        <Image src={s.heroImageUrl} alt={title} fill className='object-cover' />
+        <Image src={s.heroImageUrl} alt={titlePlain} fill className='object-cover' />
         <div className='absolute inset-0 bg-black/50' />
         <div className='relative mx-auto max-w-7xl px-4 py-20 text-center text-white sm:px-6 sm:py-28 lg:px-8 lg:py-36'>
           {s.heroBadgeText && (
@@ -1734,8 +1817,16 @@ function PreviewHero({
               {s.heroBadgeText}
             </div>
           )}
-          <h1 className='text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl'>{title}</h1>
-          {subtitle && <p className='mx-auto mt-4 max-w-2xl text-base text-white/80 sm:text-lg'>{subtitle}</p>}
+          <h1
+            className='text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl'
+            dangerouslySetInnerHTML={{ __html: title }}
+          />
+          {subtitle && (
+            <div
+              className='mx-auto mt-4 max-w-2xl text-base text-white/80 sm:text-lg'
+              dangerouslySetInnerHTML={{ __html: subtitle }}
+            />
+          )}
           <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
             <span
               className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-black transition-transform'
@@ -1776,8 +1867,16 @@ function PreviewHero({
                 {s.heroBadgeText}
               </div>
             )}
-            <h1 className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'>{title}</h1>
-            {subtitle && <p className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'>{subtitle}</p>}
+            <h1
+              className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'
+              dangerouslySetInnerHTML={{ __html: title }}
+            />
+            {subtitle && (
+              <div
+                className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'
+                dangerouslySetInnerHTML={{ __html: subtitle }}
+              />
+            )}
             <div className='mt-8 flex flex-wrap gap-3'>
               <span
                 className='inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold'
@@ -1804,7 +1903,7 @@ function PreviewHero({
             <div className='mt-8 max-w-md'>{searchBar()}</div>
           </div>
           <div className='relative aspect-4/3 overflow-hidden lg:aspect-auto' style={{ borderRadius: radiusLg }}>
-            <Image src={s.heroImageUrl} alt={title} fill className='object-cover' />
+            <Image src={s.heroImageUrl} alt={titlePlain} fill className='object-cover' />
           </div>
         </div>
       </section>
@@ -1819,7 +1918,7 @@ function PreviewHero({
     >
       {hasImage && (
         <>
-          <Image src={s.heroImageUrl} alt={title} fill className='object-cover' />
+          <Image src={s.heroImageUrl} alt={titlePlain} fill className='object-cover' />
           <div className='absolute inset-0 bg-black/50' />
         </>
       )}
@@ -1840,13 +1939,15 @@ function PreviewHero({
             {s.heroBadgeText}
           </div>
         )}
-        <h1 className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'>{title}</h1>
+        <h1
+          className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'
+          dangerouslySetInnerHTML={{ __html: title }}
+        />
         {subtitle && (
-          <p
+          <div
             className={`mx-auto mt-4 max-w-2xl text-base leading-relaxed ${hasImage ? 'text-white/80' : 'opacity-60'}`}
-          >
-            {subtitle}
-          </p>
+            dangerouslySetInnerHTML={{ __html: subtitle }}
+          />
         )}
         <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <span

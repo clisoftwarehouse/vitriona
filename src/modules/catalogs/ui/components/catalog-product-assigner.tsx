@@ -1,8 +1,8 @@
 'use client';
 
 import { toast } from 'sonner';
-import { useMemo, useState } from 'react';
-import { Search, Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMemo, useState, useTransition } from 'react';
+import { Search, Loader2, Package, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { useCatalogProducts, useSyncCatalogProducts } from '@/modules/catalogs/ui/hooks/use-catalog-products';
+import { reorderCatalogProductsAction } from '@/modules/catalogs/server/actions/reorder-catalog-products.action';
 
 interface CatalogProductAssignerProps {
   businessId: string;
@@ -24,7 +25,7 @@ const statusLabels: Record<string, string> = {
 
 const ITEMS_PER_PAGE = 15;
 
-type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc';
+type SortOption = 'newest' | 'oldest' | 'az' | 'za' | 'price_asc' | 'price_desc' | 'storefront';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'newest', label: 'Más recientes' },
@@ -33,6 +34,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'za', label: 'Z → A' },
   { value: 'price_asc', label: 'Precio: menor a mayor' },
   { value: 'price_desc', label: 'Precio: mayor a menor' },
+  { value: 'storefront', label: 'Orden en tienda' },
 ];
 
 function sortProducts<T extends { name: string; price: string; createdAt: Date }>(items: T[], sort: SortOption): T[] {
@@ -59,11 +61,13 @@ function sortProducts<T extends { name: string; price: string; createdAt: Date }
 export function CatalogProductAssigner({ businessId, catalogId }: CatalogProductAssignerProps) {
   const { data: products, isLoading } = useCatalogProducts(businessId, catalogId);
   const sync = useSyncCatalogProducts(businessId, catalogId);
+  const [isReordering, startReorder] = useTransition();
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('newest');
   const [page, setPage] = useState(1);
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
 
   // Initialize selected from server data once loaded
   const currentSelected = useMemo(() => {
@@ -75,12 +79,31 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
   const filtered = useMemo(() => {
     if (!products) return [];
     let result = products;
+    if (sort === 'storefront') {
+      result = result.filter((p) => p.assigned);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
     }
+    if (sort === 'storefront' && localOrder) {
+      const orderMap = new Map(localOrder.map((id, i) => [id, i]));
+      return [...result].sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+    }
     return sortProducts(result, sort);
-  }, [products, search, sort]);
+  }, [products, search, sort, localOrder]);
+
+  const handleReorder = (index: number, direction: 'up' | 'down') => {
+    const ids = filtered.map((p) => p.id);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= ids.length) return;
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    setLocalOrder(ids);
+    startReorder(async () => {
+      const res = await reorderCatalogProductsAction(businessId, catalogId, ids);
+      if (res.error) toast.error(res.error);
+    });
+  };
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = useMemo(() => filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE), [filtered, page]);
@@ -198,24 +221,48 @@ export function CatalogProductAssigner({ businessId, catalogId }: CatalogProduct
       </div>
 
       <div className='max-h-96 space-y-1 overflow-y-auto'>
-        {paginated.map((product) => (
-          <label
-            key={product.id}
-            className='hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors'
-          >
-            <Checkbox checked={currentSelected.has(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
-            <div className='min-w-0 flex-1'>
-              <p className='truncate text-sm font-medium'>{product.name}</p>
-              <p className='text-muted-foreground text-xs'>
-                ${Number(product.price).toFixed(2)}
-                {product.sku && ` · SKU: ${product.sku}`}
-              </p>
+        {paginated.map((product, idx) => {
+          const globalIdx = (page - 1) * ITEMS_PER_PAGE + idx;
+          return (
+            <div
+              key={product.id}
+              className='hover:bg-muted/50 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors'
+            >
+              {sort === 'storefront' ? (
+                <div className='flex flex-col gap-0.5'>
+                  <button
+                    type='button'
+                    disabled={globalIdx === 0 || isReordering}
+                    onClick={() => handleReorder(globalIdx, 'up')}
+                    className='text-muted-foreground hover:text-foreground disabled:opacity-20'
+                  >
+                    <ArrowUp className='size-3.5' />
+                  </button>
+                  <button
+                    type='button'
+                    disabled={globalIdx === filtered.length - 1 || isReordering}
+                    onClick={() => handleReorder(globalIdx, 'down')}
+                    className='text-muted-foreground hover:text-foreground disabled:opacity-20'
+                  >
+                    <ArrowDown className='size-3.5' />
+                  </button>
+                </div>
+              ) : (
+                <Checkbox checked={currentSelected.has(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
+              )}
+              <div className='min-w-0 flex-1'>
+                <p className='truncate text-sm font-medium'>{product.name}</p>
+                <p className='text-muted-foreground text-xs'>
+                  ${Number(product.price).toFixed(2)}
+                  {product.sku && ` · SKU: ${product.sku}`}
+                </p>
+              </div>
+              <Badge variant={product.status === 'active' ? 'default' : 'secondary'} className='shrink-0 text-[10px]'>
+                {statusLabels[product.status] ?? product.status}
+              </Badge>
             </div>
-            <Badge variant={product.status === 'active' ? 'default' : 'secondary'} className='shrink-0 text-[10px]'>
-              {statusLabels[product.status] ?? product.status}
-            </Badge>
-          </label>
-        ))}
+          );
+        })}
       </div>
 
       {totalPages > 1 && (

@@ -16,8 +16,8 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
   return (
     <div className='flex flex-col gap-6'>
       <div>
-        <h1 className='text-2xl font-bold tracking-tight'>Pedidos</h1>
-        <p className='text-muted-foreground text-sm'>Gestiona los pedidos recibidos de tus clientes.</p>
+        <h1 className='text-2xl font-bold tracking-tight'>Pedidos y reservas</h1>
+        <p className='text-muted-foreground text-sm'>Gestiona los pedidos y reservas recibidos de tus clientes.</p>
       </div>
 
       <OrdersTable businessId={businessId} />

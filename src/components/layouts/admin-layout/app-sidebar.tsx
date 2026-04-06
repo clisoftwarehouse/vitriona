@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   X,
+  Gift,
   Tags,
   Stamp,
   Store,
@@ -109,6 +110,11 @@ export function AppSidebar({
               label: 'Cupones',
               href: `/dashboard/businesses/${activeBusiness.id}/coupons`,
               icon: TicketPercent,
+            },
+            {
+              label: 'Gift Cards',
+              href: `/dashboard/businesses/${activeBusiness.id}/gift-cards`,
+              icon: Gift,
             },
           ],
         },

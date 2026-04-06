@@ -86,6 +86,7 @@ interface CatalogSettings {
   gridColumns: number | null;
   primaryColor: string | null;
   layout: string | null;
+  viewMode: string | null;
   showPrices: boolean | null;
   showStock: boolean | null;
 }
@@ -178,6 +179,7 @@ export function StorefrontCatalog({
   const cols = settings?.gridColumns ?? 4;
   const showPrices = settings?.showPrices ?? true;
   const showStock = settings?.showStock ?? false;
+  const viewMode = settings?.viewMode ?? 'default';
 
   const featuredProducts = allProducts.filter((p) => p.isFeatured);
   const isSearching = !!search;
@@ -340,7 +342,7 @@ export function StorefrontCatalog({
         {/* ── All Products (paginated) ── */}
         <section id='products' className='scroll-mt-6'>
           <SectionHeader
-            title={isSearching ? 'Resultados' : layout === 'restaurant' ? 'Menú' : 'Todos los productos'}
+            title={isSearching ? 'Resultados' : viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
             count={products.length}
           />
 
@@ -348,7 +350,7 @@ export function StorefrontCatalog({
             <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
           ) : (
             <>
-              {layout === 'restaurant' ? (
+              {viewMode === 'restaurant' ? (
                 <RestaurantMenu
                   products={paginatedProducts}
                   categories={categories}
@@ -452,6 +454,7 @@ function HeroSection({
   const isSplit = style === 'split' && imageUrl;
   const isBanner = style === 'banner' && imageUrl;
   const isMinimal = style === 'minimal';
+  const titlePlain = title.replace(/<[^>]*>/g, '');
 
   if (isMinimal) {
     return (
@@ -461,8 +464,10 @@ function HeroSection({
       >
         <div className='mx-auto flex max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8'>
           <div className='flex-1'>
-            <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>{title}</h1>
-            {subtitle && <p className='mt-2 max-w-xl text-sm opacity-60'>{subtitle}</p>}
+            <h1 className='text-2xl font-bold tracking-tight sm:text-3xl' dangerouslySetInnerHTML={{ __html: title }} />
+            {subtitle && (
+              <div className='mt-2 max-w-xl text-sm opacity-60' dangerouslySetInnerHTML={{ __html: subtitle }} />
+            )}
             <div className='mt-5 max-w-md'>
               <SearchBar value={search} onChange={onSearch} />
             </div>
@@ -472,7 +477,7 @@ function HeroSection({
               className='relative hidden size-28 shrink-0 overflow-hidden sm:block sm:size-32 lg:size-40'
               style={{ borderRadius: 'var(--sf-radius-lg, 1rem)' }}
             >
-              <Image src={imageUrl} alt={title} fill unoptimized className='object-cover' priority />
+              <Image src={imageUrl} alt={titlePlain} fill unoptimized className='object-cover' priority />
             </div>
           )}
         </div>
@@ -483,7 +488,7 @@ function HeroSection({
   if (isBanner) {
     return (
       <section className='relative overflow-hidden'>
-        <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
+        <Image src={imageUrl!} alt={titlePlain} fill unoptimized className='object-cover' priority />
         <div className='absolute inset-0 bg-black/50' />
         <div className='relative mx-auto max-w-7xl px-4 py-20 text-center text-white sm:px-6 sm:py-28 lg:px-8 lg:py-36'>
           {badge && (
@@ -492,8 +497,16 @@ function HeroSection({
               {badge}
             </div>
           )}
-          <h1 className='text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl'>{title}</h1>
-          {subtitle && <p className='mx-auto mt-4 max-w-2xl text-base text-white/80 sm:text-lg'>{subtitle}</p>}
+          <h1
+            className='text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl'
+            dangerouslySetInnerHTML={{ __html: title }}
+          />
+          {subtitle && (
+            <div
+              className='mx-auto mt-4 max-w-2xl text-base text-white/80 sm:text-lg'
+              dangerouslySetInnerHTML={{ __html: subtitle }}
+            />
+          )}
           <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
             <Link
               href={primaryHref}
@@ -540,8 +553,16 @@ function HeroSection({
                 {badge}
               </div>
             )}
-            <h1 className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'>{title}</h1>
-            {subtitle && <p className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'>{subtitle}</p>}
+            <h1
+              className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'
+              dangerouslySetInnerHTML={{ __html: title }}
+            />
+            {subtitle && (
+              <div
+                className='mt-4 max-w-lg text-base leading-relaxed opacity-60 sm:text-lg'
+                dangerouslySetInnerHTML={{ __html: subtitle }}
+              />
+            )}
             <div className='mt-8 flex flex-wrap gap-3'>
               <Link
                 href={primaryHref}
@@ -572,7 +593,7 @@ function HeroSection({
             className='relative aspect-4/3 overflow-hidden lg:aspect-auto'
             style={{ borderRadius: 'var(--sf-radius-lg, 1rem)' }}
           >
-            <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
+            <Image src={imageUrl!} alt={titlePlain} fill unoptimized className='object-cover' priority />
           </div>
         </div>
       </section>
@@ -593,7 +614,7 @@ function HeroSection({
     >
       {hasCenteredImage && (
         <>
-          <Image src={imageUrl!} alt={title} fill unoptimized className='object-cover' priority />
+          <Image src={imageUrl!} alt={titlePlain} fill unoptimized className='object-cover' priority />
           <div className='absolute inset-0 bg-black/50' />
         </>
       )}
@@ -621,13 +642,15 @@ function HeroSection({
             {badge}
           </div>
         )}
-        <h1 className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'>{title}</h1>
+        <h1
+          className='text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl'
+          dangerouslySetInnerHTML={{ __html: title }}
+        />
         {subtitle && (
-          <p
+          <div
             className={`mx-auto mt-4 max-w-2xl text-base leading-relaxed sm:text-lg ${hasCenteredImage ? 'text-white/80' : 'opacity-60'}`}
-          >
-            {subtitle}
-          </p>
+            dangerouslySetInnerHTML={{ __html: subtitle }}
+          />
         )}
         <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
           <Link
@@ -1372,7 +1395,10 @@ function AboutSection({
         )}
         <div className={imageUrl ? 'flex flex-col justify-center' : ''}>
           <h2 className='text-2xl font-bold tracking-tight'>Sobre {businessName}</h2>
-          <p className='mt-4 leading-relaxed opacity-60'>{text}</p>
+          <div
+            className='prose prose-sm mt-4 max-w-none leading-relaxed opacity-60'
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
         </div>
       </div>
     </section>

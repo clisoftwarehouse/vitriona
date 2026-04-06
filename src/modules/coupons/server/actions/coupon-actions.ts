@@ -14,11 +14,18 @@ export interface CreateCouponInput {
   description?: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
+  applicableProductIds?: string[];
   minOrderAmount?: number;
   maxDiscount?: number;
   usageLimit?: number;
   startsAt?: string;
   expiresAt?: string;
+}
+
+export interface CartItemForCoupon {
+  productId: string;
+  price: number;
+  quantity: number;
 }
 
 /* ─── Helpers ─── */
@@ -81,6 +88,8 @@ export async function createCouponAction(input: CreateCouponInput) {
       description: input.description?.trim() || null,
       discountType: input.discountType,
       discountValue: String(input.discountValue),
+      applicableProductIds:
+        input.applicableProductIds && input.applicableProductIds.length > 0 ? input.applicableProductIds : null,
       minOrderAmount: input.minOrderAmount ? String(input.minOrderAmount) : null,
       maxDiscount: input.maxDiscount ? String(input.maxDiscount) : null,
       usageLimit: input.usageLimit || null,
@@ -138,7 +147,12 @@ export async function deleteCouponAction(couponId: string) {
 
 /* ─── Public: validate coupon at checkout ─── */
 
-export async function validateCouponAction(businessId: string, code: string, orderSubtotal: number) {
+export async function validateCouponAction(
+  businessId: string,
+  code: string,
+  orderSubtotal: number,
+  cartItems?: CartItemForCoupon[]
+) {
   try {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) return { error: 'Ingresa un código de cupón' };
@@ -163,15 +177,31 @@ export async function validateCouponAction(businessId: string, code: string, ord
       return { error: `El pedido mínimo para este cupón es ${minOrder.toFixed(2)}` };
     }
 
+    // Determine the base amount for discount calculation
+    const applicableIds = coupon.applicableProductIds as string[] | null;
+    let discountBase = orderSubtotal;
+
+    if (applicableIds && applicableIds.length > 0 && cartItems) {
+      // Only apply discount to matching products
+      const applicableTotal = cartItems
+        .filter((item) => applicableIds.includes(item.productId))
+        .reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+      if (applicableTotal === 0) {
+        return { error: 'Este cupón no aplica a los productos en tu carrito' };
+      }
+      discountBase = applicableTotal;
+    }
+
     let discount = 0;
     const value = parseFloat(coupon.discountValue);
 
     if (coupon.discountType === 'percentage') {
-      discount = (orderSubtotal * value) / 100;
+      discount = (discountBase * value) / 100;
       const maxDisc = coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : Infinity;
       discount = Math.min(discount, maxDisc);
     } else {
-      discount = Math.min(value, orderSubtotal);
+      discount = Math.min(value, discountBase);
     }
 
     discount = Math.round(discount * 100) / 100;
@@ -184,6 +214,7 @@ export async function validateCouponAction(businessId: string, code: string, ord
         discountValue: value,
         discount,
         description: coupon.description,
+        applicableProductIds: applicableIds,
       },
     };
   } catch {

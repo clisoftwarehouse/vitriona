@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useSyncExternalStore } from 'react';
 import {
   X,
   Copy,
+  Gift,
   Clock,
   Truck,
   Upload,
@@ -15,13 +18,53 @@ import {
   ImageOff,
   ArrowLeft,
   CreditCard,
+  CalendarIcon,
   MessageCircle,
   TicketPercent,
 } from 'lucide-react';
 
+import { Calendar } from '@/components/ui/calendar';
 import { useCartStore } from '@/modules/storefront/stores/cart-store';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { validateCouponAction } from '@/modules/coupons/server/actions/coupon-actions';
 import { createOrderAction } from '@/modules/storefront/server/actions/create-order.action';
+import { validateGiftCardAction } from '@/modules/gift-cards/server/actions/gift-card-actions';
+import {
+  type OrderType,
+  formatReservationDateTime,
+  validateReservationSelection,
+} from '@/modules/orders/lib/reservations';
+
+const TIME_SLOTS = [
+  '08:00',
+  '08:30',
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
+  '17:00',
+  '17:30',
+  '18:00',
+  '18:30',
+  '19:00',
+  '19:30',
+  '20:00',
+  '20:30',
+  '21:00',
+  '21:30',
+];
 
 interface PaymentMethodData {
   id: string;
@@ -81,6 +124,12 @@ export function CheckoutForm({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [orderType, setOrderType] = useState<OrderType>('order');
+  const [reservationDate, setReservationDate] = useState('');
+  const [reservationTime, setReservationTime] = useState('');
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [timeOpen, setTimeOpen] = useState(false);
 
   // Payment method state
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(
@@ -109,18 +158,35 @@ export function CheckoutForm({
     description: string | null;
   } | null>(null);
 
+  // Gift card state
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardError, setGiftCardError] = useState('');
+  const [validatingGiftCard, setValidatingGiftCard] = useState(false);
+  const [appliedGiftCard, setAppliedGiftCard] = useState<{
+    giftCardId: string;
+    code: string;
+    discount: number;
+    currentBalance: number;
+  } | null>(null);
+
   const subtotal = hydrated ? getTotal(slug) : 0;
-  const discount = appliedCoupon?.discount ?? 0;
+  const couponDiscount = appliedCoupon?.discount ?? 0;
+  const giftCardDiscount = appliedGiftCard?.discount ?? 0;
+  const discount = couponDiscount + giftCardDiscount;
   const total = Math.max(0, subtotal - discount + shippingCost);
+  const isReservation = orderType === 'reservation';
 
   const formatPrice = (amount: number) => new Intl.NumberFormat('es', { style: 'currency', currency }).format(amount);
 
   const buildWhatsAppMessage = () => {
-    let msg = `Hola! Acabo de hacer un pedido en ${businessName}.\n\n`;
+    let msg = `Hola! Acabo de hacer una ${isReservation ? 'reserva' : 'pedido'} en ${businessName}.\n\n`;
     msg += `Nombre: ${name}\n`;
     if (phone) msg += `Teléfono: ${phone}\n`;
     if (email) msg += `Email: ${email}\n`;
-    msg += `\nProductos:\n`;
+    if (isReservation && reservationDate && reservationTime) {
+      msg += `Reserva para: ${formatReservationDateTime(reservationDate, reservationTime)}\n`;
+    }
+    msg += `\n${isReservation ? 'Items reservados' : 'Productos'}:\n`;
     items.forEach((item) => {
       const label = item.variantName ? `${item.name} (${item.variantName})` : item.name;
       msg += `- ${label} x${item.quantity}  ${formatPrice(parseFloat(item.price) * item.quantity)}\n`;
@@ -130,7 +196,7 @@ export function CheckoutForm({
     if (shippingCost > 0) msg += `\nEnvío: ${formatPrice(shippingCost)}`;
     if (selectedMethod) msg += `\n\nMétodo de pago: ${selectedMethod.name}`;
     if (selectedDelivery) msg += `\nEntrega: ${selectedDelivery.name}`;
-    if (notes) msg += `\n\nNota: ${notes}`;
+    if (notes) msg += `\n\n${isReservation ? 'Detalles adicionales' : 'Nota'}: ${notes}`;
     return msg;
   };
 
@@ -147,6 +213,16 @@ export function CheckoutForm({
       return;
     }
 
+    const reservationValidation = validateReservationSelection({
+      orderType,
+      reservationDate,
+      reservationTime,
+    });
+    if (!reservationValidation.ok) {
+      toast.error(reservationValidation.error);
+      return;
+    }
+
     startTransition(async () => {
       const result = await createOrderAction({
         businessId,
@@ -155,6 +231,9 @@ export function CheckoutForm({
         customerPhone: phone || undefined,
         customerEmail: email || undefined,
         customerNotes: notes || undefined,
+        orderType,
+        reservationDate: isReservation ? reservationDate : undefined,
+        reservationTime: isReservation ? reservationTime : undefined,
         checkoutType: whatsappNumber ? 'whatsapp' : 'internal',
         items: items.map((item) => ({
           productId: item.productId,
@@ -186,8 +265,8 @@ export function CheckoutForm({
       }
 
       clearCart(slug);
-      toast.success('¡Pedido enviado con éxito!');
-      router.push(`/${slug}/pedido-confirmado`);
+      toast.success(isReservation ? '¡Reserva enviada con éxito!' : '¡Pedido enviado con éxito!');
+      router.push(`/${slug}/pedido-confirmado?tipo=${orderType}`);
     });
   };
 
@@ -217,11 +296,14 @@ export function CheckoutForm({
         href={`/${slug}`}
         className='mb-6 inline-flex items-center gap-1.5 text-sm opacity-50 transition-opacity hover:opacity-100'
       >
-        <ArrowLeft className='size-4' />
+        <ArrowLeft className='size-3.5' />
         Seguir comprando
       </Link>
 
-      <h1 className='mb-8 text-2xl font-bold'>Finalizar pedido</h1>
+      <h1 className='mb-1 text-2xl font-bold'>{isReservation ? 'Confirmar reserva' : 'Finalizar pedido'}</h1>
+      <p className='mb-8 text-sm opacity-45'>
+        {isReservation ? 'Completa tus datos para solicitar la reserva.' : 'Revisa tu pedido y completa tus datos.'}
+      </p>
 
       <form onSubmit={handleSubmit}>
         <div
@@ -230,6 +312,186 @@ export function CheckoutForm({
           {/* Column 1: Customer data */}
           <div className='min-w-0 space-y-4'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Tus datos</h2>
+            {/* Order type segmented toggle */}
+            <div
+              className='overflow-hidden'
+              style={{
+                borderRadius: 'var(--sf-radius, 0.75rem)',
+                border: '1px solid var(--sf-border, #e5e7eb)',
+              }}
+            >
+              <div className='grid grid-cols-2' style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}>
+                <button
+                  type='button'
+                  onClick={() => setOrderType('order')}
+                  className='relative px-3 py-2.5 text-sm font-medium transition-all'
+                  style={{
+                    backgroundColor: orderType === 'order' ? 'var(--sf-bg, #fff)' : 'transparent',
+                    color: orderType === 'order' ? 'var(--sf-text, #111827)' : undefined,
+                    opacity: orderType === 'order' ? 1 : 0.55,
+                    boxShadow: orderType === 'order' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}
+                >
+                  Pedido normal
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setOrderType('reservation')}
+                  className='relative px-3 py-2.5 text-sm font-medium transition-all'
+                  style={{
+                    backgroundColor: orderType === 'reservation' ? 'var(--sf-bg, #fff)' : 'transparent',
+                    color: orderType === 'reservation' ? 'var(--sf-text, #111827)' : undefined,
+                    opacity: orderType === 'reservation' ? 1 : 0.55,
+                    boxShadow: orderType === 'reservation' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}
+                >
+                  Reserva
+                </button>
+              </div>
+            </div>
+
+            {isReservation && (
+              <div
+                className='space-y-3 px-4 py-4'
+                style={{
+                  borderRadius: 'var(--sf-radius, 0.75rem)',
+                  border: '1px solid var(--sf-border, #e5e7eb)',
+                  backgroundColor: 'var(--sf-surface, #f9fafb)',
+                }}
+              >
+                <p className='flex items-center gap-2 text-xs font-semibold tracking-wide uppercase opacity-50'>
+                  <CalendarIcon className='size-3.5' />
+                  Fecha y hora
+                </p>
+
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  {/* Date picker with Calendar popover */}
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type='button'
+                        className='flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors'
+                        style={{
+                          borderRadius: 'var(--sf-radius, 0.75rem)',
+                          border: '1px solid var(--sf-border, #e5e7eb)',
+                          backgroundColor: 'var(--sf-bg, #fff)',
+                        }}
+                      >
+                        <CalendarIcon className='size-4 shrink-0 opacity-40' />
+                        {calendarDate ? (
+                          <span className='font-medium'>
+                            {format(calendarDate, "d 'de' MMMM, yyyy", { locale: es })}
+                          </span>
+                        ) : (
+                          <span className='opacity-40'>Seleccionar fecha</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className='w-auto'
+                      align='start'
+                      sideOffset={8}
+                      style={
+                        {
+                          '--background': 'oklch(0.994 0 0)',
+                          '--foreground': 'oklch(0 0 0)',
+                          '--popover': 'oklch(0.9911 0 0)',
+                          '--popover-foreground': 'oklch(0 0 0)',
+                          '--primary': 'oklch(0.5393 0 271.7462)',
+                          '--primary-foreground': 'oklch(1 0 0)',
+                          '--accent': 'oklch(0.9393 0.0288 266.368)',
+                          '--accent-foreground': 'oklch(0.5445 0.1903 259.4848)',
+                          '--muted': 'oklch(0.9702 0 0)',
+                          '--muted-foreground': 'oklch(0.4386 0 0)',
+                          '--border': 'oklch(0.93 0.0094 286.2156)',
+                          '--input': 'oklch(0.9401 0 0)',
+                          '--ring': 'oklch(0 0 0)',
+                          backgroundColor: 'oklch(0.9911 0 0)',
+                          color: 'oklch(0 0 0)',
+                          zIndex: 9999,
+                          padding: 0,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <Calendar
+                        mode='single'
+                        locale={es}
+                        selected={calendarDate}
+                        onSelect={(date) => {
+                          setCalendarDate(date);
+                          if (date) {
+                            const y = date.getFullYear();
+                            const m = String(date.getMonth() + 1).padStart(2, '0');
+                            const d = String(date.getDate()).padStart(2, '0');
+                            setReservationDate(`${y}-${m}-${d}`);
+                          } else {
+                            setReservationDate('');
+                          }
+                          setCalendarOpen(false);
+                        }}
+                        disabled={{ before: new Date() }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Time picker with Popover */}
+                  <Popover open={timeOpen} onOpenChange={setTimeOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type='button'
+                        className='flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors'
+                        style={{
+                          borderRadius: 'var(--sf-radius, 0.75rem)',
+                          border: '1px solid var(--sf-border, #e5e7eb)',
+                          backgroundColor: 'var(--sf-bg, #fff)',
+                        }}
+                      >
+                        <Clock className='size-4 shrink-0 opacity-40' />
+                        {reservationTime ? (
+                          <span className='font-medium'>{reservationTime}</span>
+                        ) : (
+                          <span className='opacity-40'>Seleccionar hora</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className='w-52 p-2'
+                      align='start'
+                      style={{ backgroundColor: '#fff', color: '#1f2937' }}
+                    >
+                      <div className='grid max-h-56 grid-cols-3 gap-1 overflow-y-auto'>
+                        {TIME_SLOTS.map((slot) => (
+                          <button
+                            key={slot}
+                            type='button'
+                            onClick={() => {
+                              setReservationTime(slot);
+                              setTimeOpen(false);
+                            }}
+                            className='rounded-md px-2 py-1.5 text-xs font-medium transition-colors'
+                            style={{
+                              backgroundColor: reservationTime === slot ? 'var(--sf-primary, #000)' : 'transparent',
+                              color: reservationTime === slot ? '#fff' : '#374151',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (reservationTime !== slot) e.currentTarget.style.backgroundColor = '#f3f4f6';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (reservationTime !== slot) e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <p className='text-[11px] opacity-45'>El comercio confirmará la disponibilidad por su propia vía.</p>
+              </div>
+            )}
+
             <div>
               <label htmlFor='name' className='mb-1 block text-sm font-medium opacity-70'>
                 Nombre *
@@ -241,8 +503,14 @@ export function CheckoutForm({
                 onChange={(e) => setName(e.target.value)}
                 placeholder='Tu nombre completo'
                 required
-                className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
-                style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
+                className='w-full px-3 py-2.5 text-sm transition-shadow outline-none placeholder:opacity-40 focus:ring-2'
+                style={
+                  {
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    border: '1px solid var(--sf-border, #e5e7eb)',
+                    '--tw-ring-color': 'color-mix(in srgb, var(--sf-primary, #000) 20%, transparent)',
+                  } as React.CSSProperties
+                }
               />
             </div>
             <div>
@@ -255,8 +523,14 @@ export function CheckoutForm({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder='+1 809 000 0000'
-                className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
-                style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
+                className='w-full px-3 py-2.5 text-sm transition-shadow outline-none placeholder:opacity-40 focus:ring-2'
+                style={
+                  {
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    border: '1px solid var(--sf-border, #e5e7eb)',
+                    '--tw-ring-color': 'color-mix(in srgb, var(--sf-primary, #000) 20%, transparent)',
+                  } as React.CSSProperties
+                }
               />
             </div>
             <div>
@@ -269,22 +543,38 @@ export function CheckoutForm({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder='tu@email.com'
-                className='w-full px-3 py-2.5 text-sm transition-colors outline-none'
-                style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
+                className='w-full px-3 py-2.5 text-sm transition-shadow outline-none placeholder:opacity-40 focus:ring-2'
+                style={
+                  {
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    border: '1px solid var(--sf-border, #e5e7eb)',
+                    '--tw-ring-color': 'color-mix(in srgb, var(--sf-primary, #000) 20%, transparent)',
+                  } as React.CSSProperties
+                }
               />
             </div>
             <div>
               <label htmlFor='notes' className='mb-1 block text-sm font-medium opacity-70'>
-                Notas adicionales
+                {isReservation ? 'Detalles de la reserva' : 'Notas adicionales'}
               </label>
               <textarea
                 id='notes'
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder='Instrucciones especiales, dirección de entrega, etc.'
+                placeholder={
+                  isReservation
+                    ? 'Ej: mesa para 4 personas, cumpleaños, área preferida...'
+                    : 'Instrucciones especiales, dirección de entrega, etc.'
+                }
                 rows={3}
-                className='w-full resize-none px-3 py-2.5 text-sm transition-colors outline-none'
-                style={{ borderRadius: 'var(--sf-radius, 0.75rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
+                className='w-full resize-none px-3 py-2.5 text-sm transition-shadow outline-none placeholder:opacity-40 focus:ring-2'
+                style={
+                  {
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    border: '1px solid var(--sf-border, #e5e7eb)',
+                    '--tw-ring-color': 'color-mix(in srgb, var(--sf-primary, #000) 20%, transparent)',
+                  } as React.CSSProperties
+                }
               />
             </div>
           </div>
@@ -494,6 +784,25 @@ export function CheckoutForm({
           {/* Column 3: Order summary */}
           <div className='min-w-0'>
             <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Resumen</h2>
+            {isReservation && reservationDate && reservationTime && (
+              <div
+                className='mt-4 flex items-start gap-3 px-4 py-3'
+                style={{
+                  borderRadius: 'var(--sf-radius, 0.75rem)',
+                  border: '1px solid var(--sf-border, #e5e7eb)',
+                  borderLeft: '3px solid var(--sf-primary, #000)',
+                  backgroundColor: 'var(--sf-surface, #f9fafb)',
+                }}
+              >
+                <CalendarIcon className='mt-0.5 size-4 shrink-0 opacity-40' />
+                <div className='min-w-0'>
+                  <p className='text-[11px] font-semibold tracking-wide uppercase opacity-45'>Reserva para</p>
+                  <p className='mt-0.5 text-sm leading-snug font-medium'>
+                    {formatReservationDateTime(reservationDate, reservationTime)}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className='mt-4 space-y-3'>
               {items.map((item) => (
                 <div
@@ -578,7 +887,12 @@ export function CheckoutForm({
                     onClick={async () => {
                       setValidatingCoupon(true);
                       setCouponError('');
-                      const res = await validateCouponAction(businessId, couponCode, subtotal);
+                      const cartItemsForCoupon = items.map((item) => ({
+                        productId: item.productId,
+                        price: parseFloat(item.price),
+                        quantity: item.quantity,
+                      }));
+                      const res = await validateCouponAction(businessId, couponCode, subtotal, cartItemsForCoupon);
                       setValidatingCoupon(false);
                       if (res.error) {
                         setCouponError(res.error);
@@ -595,16 +909,87 @@ export function CheckoutForm({
               {couponError && <p className='mt-1 text-xs text-red-500'>{couponError}</p>}
             </div>
 
+            {/* Gift card */}
+            <div>
+              <div className='mb-1.5 flex items-center gap-1.5 text-xs font-medium opacity-70'>
+                <Gift className='size-3.5' />
+                Gift Card
+              </div>
+              {appliedGiftCard ? (
+                <div className='flex items-center justify-between rounded-lg bg-green-50 px-3 py-2'>
+                  <div>
+                    <span className='font-mono text-xs font-semibold tracking-wider'>{appliedGiftCard.code}</span>
+                    <span className='ml-2 text-xs text-green-600'>-{formatPrice(giftCardDiscount)}</span>
+                  </div>
+                  <button type='button' onClick={() => setAppliedGiftCard(null)} className='text-green-600'>
+                    <X className='size-4' />
+                  </button>
+                </div>
+              ) : (
+                <div className='flex gap-2'>
+                  <input
+                    type='text'
+                    value={giftCardCode}
+                    onChange={(e) => {
+                      setGiftCardCode(e.target.value.toUpperCase());
+                      setGiftCardError('');
+                    }}
+                    placeholder='Código gift card'
+                    className='min-w-0 flex-1 px-3 py-2 font-mono text-sm tracking-wider uppercase outline-none'
+                    style={{
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                      border: '1px solid var(--sf-border, #e5e7eb)',
+                    }}
+                  />
+                  <button
+                    type='button'
+                    disabled={validatingGiftCard || !giftCardCode.trim()}
+                    className='shrink-0 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40'
+                    style={{
+                      backgroundColor: 'var(--sf-primary, #000)',
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                    }}
+                    onClick={async () => {
+                      setValidatingGiftCard(true);
+                      setGiftCardError('');
+                      const cartItemsForGC = items.map((item) => ({
+                        productId: item.productId,
+                        price: parseFloat(item.price),
+                        quantity: item.quantity,
+                      }));
+                      const res = await validateGiftCardAction(businessId, giftCardCode, subtotal, cartItemsForGC);
+                      setValidatingGiftCard(false);
+                      if (res.error) {
+                        setGiftCardError(res.error);
+                      } else if (res.data) {
+                        setAppliedGiftCard(res.data);
+                        setGiftCardCode('');
+                      }
+                    }}
+                  >
+                    {validatingGiftCard ? <Loader2 className='size-3 animate-spin' /> : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              {giftCardError && <p className='mt-1 text-xs text-red-500'>{giftCardError}</p>}
+            </div>
+
             {/* Totals */}
             <div className='mt-3 space-y-1'>
               <div className='flex items-center justify-between text-sm opacity-60'>
                 <span>Subtotal</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
-              {discount > 0 && (
+              {couponDiscount > 0 && (
                 <div className='flex items-center justify-between text-sm text-green-600'>
-                  <span>Descuento</span>
-                  <span>-{formatPrice(discount)}</span>
+                  <span>Cupón</span>
+                  <span>-{formatPrice(couponDiscount)}</span>
+                </div>
+              )}
+              {giftCardDiscount > 0 && (
+                <div className='flex items-center justify-between text-sm text-green-600'>
+                  <span>Gift Card</span>
+                  <span>-{formatPrice(giftCardDiscount)}</span>
                 </div>
               )}
               {shippingCost > 0 && (
@@ -626,7 +1011,7 @@ export function CheckoutForm({
             <button
               type='submit'
               disabled={isPending}
-              className='mt-6 flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50'
+              className='mt-6 flex w-full items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50'
               style={{
                 backgroundColor: 'var(--sf-primary, #000)',
                 borderRadius: 'var(--sf-radius, 0.75rem)',
@@ -640,8 +1025,10 @@ export function CheckoutForm({
               ) : whatsappNumber ? (
                 <>
                   <MessageCircle className='size-4' />
-                  Enviar pedido por WhatsApp
+                  {isReservation ? 'Enviar reserva por WhatsApp' : 'Enviar pedido por WhatsApp'}
                 </>
+              ) : isReservation ? (
+                'Confirmar reserva'
               ) : (
                 'Confirmar pedido'
               )}

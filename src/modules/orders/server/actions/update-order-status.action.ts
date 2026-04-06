@@ -188,7 +188,13 @@ export async function updateOrderStatusAction(orderId: string, status: OrderStat
       fromStatus,
       toStatus: status,
       changedBy: session.user.id,
-      note: note || null,
+      note:
+        note ||
+        (status === 'cancelled'
+          ? order.orderType === 'reservation'
+            ? 'Reserva cancelada'
+            : 'Pedido cancelado'
+          : null),
     });
 
     return { success: true };
@@ -227,7 +233,11 @@ export async function cancelOrderAction(orderId: string, reason?: string) {
       fromStatus: order.status,
       toStatus: 'cancelled',
       changedBy: session.user.id,
-      note: reason ? `Cancelado: ${reason}` : 'Pedido cancelado',
+      note: reason
+        ? `Cancelado: ${reason}`
+        : order.orderType === 'reservation'
+          ? 'Reserva cancelada'
+          : 'Pedido cancelado',
     });
 
     return { success: true };

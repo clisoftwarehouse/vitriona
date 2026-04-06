@@ -224,8 +224,11 @@ export const catalogSettings = pgTable('catalog_settings', {
   borderColor: text('border_color').default('#e5e7eb'),
 
   // ── Layout ──
-  layout: text('layout', { enum: ['grid', 'list', 'magazine', 'restaurant'] }).default('grid'),
-  gridColumns: integer('grid_columns').default(4),
+  layout: text('layout', { enum: ['grid', 'list', 'magazine'] }).default('grid'),
+  gridColumns: integer('grid_columns').default(3),
+  viewMode: text('view_mode', { enum: ['default', 'restaurant', 'services', 'products', 'experiences'] }).default(
+    'default'
+  ),
   showPrices: boolean('show_prices').notNull().default(true),
   showStock: boolean('show_stock').notNull().default(false),
 
@@ -239,6 +242,9 @@ export const catalogSettings = pgTable('catalog_settings', {
   announcementLink: text('announcement_link'),
   announcementDismissable: boolean('announcement_dismissable').notNull().default(false),
   announcementIcon: text('announcement_icon'),
+
+  // ── Header ──
+  headerTitle: text('header_title'),
 
   // ── Hero Section ──
   heroEnabled: boolean('hero_enabled').notNull().default(true),
@@ -590,6 +596,11 @@ export const orders = pgTable('orders', {
   customerPhone: text('customer_phone'),
   customerEmail: text('customer_email'),
   customerNotes: text('customer_notes'),
+  orderType: text('order_type', { enum: ['order', 'reservation'] })
+    .notNull()
+    .default('order'),
+  reservationDate: text('reservation_date'),
+  reservationTime: text('reservation_time'),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull().default('0'),
   discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0'),
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
@@ -792,6 +803,30 @@ export const businessAiQuotas = pgTable('business_ai_quotas', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+export const giftCards = pgTable('gift_cards', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  code: text('code').notNull(),
+  type: text('type', { enum: ['fixed', 'percentage', 'product'] })
+    .notNull()
+    .default('fixed'),
+  initialValue: numeric('initial_value', { precision: 10, scale: 2 }).notNull(),
+  currentBalance: numeric('current_balance', { precision: 10, scale: 2 }).notNull(),
+  applicableProductIds: jsonb('applicable_product_ids').$type<string[]>(),
+  recipientName: text('recipient_name'),
+  recipientEmail: text('recipient_email'),
+  senderName: text('sender_name'),
+  message: text('message'),
+  expiresAt: timestamp('expires_at', { mode: 'date' }),
+  isActive: boolean('is_active').notNull().default(true),
+  redeemedAt: timestamp('redeemed_at', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 export const coupons = pgTable('coupons', {
   id: text('id')
     .primaryKey()
@@ -805,6 +840,7 @@ export const coupons = pgTable('coupons', {
     .notNull()
     .default('percentage'),
   discountValue: numeric('discount_value', { precision: 10, scale: 2 }).notNull(),
+  applicableProductIds: jsonb('applicable_product_ids').$type<string[]>(),
   minOrderAmount: numeric('min_order_amount', { precision: 10, scale: 2 }),
   maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }),
   usageLimit: integer('usage_limit'),

@@ -3,7 +3,7 @@
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Eye, Clock, Truck, Loader2, Package, XCircle, BadgeCheck, CheckCircle } from 'lucide-react';
+import { Eye, Clock, Truck, Loader2, Package, XCircle, BadgeCheck, CheckCircle, CalendarClock } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from '@/components/ui/dialog';
+import { formatReservationDateTime, formatReservationDateTimeShort } from '@/modules/orders/lib/reservations';
 import {
   orderKeys,
   useOrders,
@@ -29,9 +30,13 @@ interface Order {
   customerPhone: string | null;
   customerEmail: string | null;
   customerNotes: string | null;
+  orderType: 'order' | 'reservation';
+  reservationDate: string | null;
+  reservationTime: string | null;
   total: string;
   status: string;
   checkoutType: string;
+  inventoryDeducted: boolean;
   createdAt: Date;
   paymentMethodName: string | null;
   paymentDetails: unknown;
@@ -163,13 +168,13 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
         <Card>
           <CardContent className='py-12 text-center'>
             <Package className='text-muted-foreground mx-auto size-10' />
-            <p className='text-muted-foreground mt-3'>No hay pedidos todavía.</p>
+            <p className='text-muted-foreground mt-3'>No hay pedidos o reservas todavía.</p>
           </CardContent>
         </Card>
       ) : (
         <div className='space-y-3'>
           {filteredOrders.map((order) => {
-            const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+            const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending_payment;
             const StatusIcon = statusCfg.icon;
             return (
               <Card key={order.id} className='transition-shadow hover:shadow-sm'>
@@ -178,6 +183,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                     <div>
                       <div className='flex items-center gap-2'>
                         <span className='font-mono text-sm font-semibold'>{order.orderNumber}</span>
+                        {order.orderType === 'reservation' && <Badge variant='secondary'>Reserva</Badge>}
                         <Badge variant={statusCfg.variant} className='gap-1'>
                           <StatusIcon className='size-3' />
                           {statusCfg.label}
@@ -187,6 +193,12 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                         {order.customerName}
                         {order.customerPhone && ` · ${order.customerPhone}`}
                       </p>
+                      {order.orderType === 'reservation' && order.reservationDate && order.reservationTime && (
+                        <p className='mt-1 flex items-center gap-1.5 text-xs font-medium text-amber-700'>
+                          <CalendarClock className='size-3.5' />
+                          {formatReservationDateTimeShort(order.reservationDate, order.reservationTime)}
+                        </p>
+                      )}
                     </div>
                     <div className='text-right'>
                       <span className='text-lg font-bold'>{formatPrice(order.total)}</span>
@@ -243,7 +255,9 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className='max-w-lg'>
           <DialogHeader>
-            <DialogTitle>Pedido {selectedOrder?.orderNumber}</DialogTitle>
+            <DialogTitle>
+              {selectedOrder?.orderType === 'reservation' ? 'Reserva' : 'Pedido'} {selectedOrder?.orderNumber}
+            </DialogTitle>
             <DialogDescription>{selectedOrder && formatDate(selectedOrder.createdAt)}</DialogDescription>
           </DialogHeader>
 
@@ -260,9 +274,25 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                 )}
               </div>
 
+              {selectedOrder.orderType === 'reservation' &&
+                selectedOrder.reservationDate &&
+                selectedOrder.reservationTime && (
+                  <div>
+                    <h4 className='mb-1 text-sm font-semibold'>Reserva solicitada</h4>
+                    <p className='text-sm'>
+                      {formatReservationDateTime(selectedOrder.reservationDate, selectedOrder.reservationTime)}
+                    </p>
+                    <p className='text-muted-foreground mt-1 text-xs'>
+                      El comercio confirma la disponibilidad fuera de Vitriona.
+                    </p>
+                  </div>
+                )}
+
               {selectedOrder.customerNotes && (
                 <div>
-                  <h4 className='mb-1 text-sm font-semibold'>Notas del cliente</h4>
+                  <h4 className='mb-1 text-sm font-semibold'>
+                    {selectedOrder.orderType === 'reservation' ? 'Detalles de la reserva' : 'Notas del cliente'}
+                  </h4>
                   <p className='text-muted-foreground text-sm whitespace-pre-line'>{selectedOrder.customerNotes}</p>
                 </div>
               )}
@@ -456,7 +486,7 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                     {STATUS_TRANSITIONS[selectedOrder.status].includes('cancelled') && (
                       <Button variant='destructive' size='sm' disabled={isPending} onClick={() => setCancelOpen(true)}>
                         <XCircle className='mr-1 size-3.5' />
-                        Cancelar pedido
+                        {selectedOrder.orderType === 'reservation' ? 'Cancelar reserva' : 'Cancelar pedido'}
                       </Button>
                     )}
                   </div>
@@ -471,8 +501,14 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar pedido</DialogTitle>
-            <DialogDescription>¿Estás seguro? El inventario será restaurado automáticamente.</DialogDescription>
+            <DialogTitle>
+              {selectedOrder?.orderType === 'reservation' ? 'Cancelar reserva' : 'Cancelar pedido'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedOrder?.inventoryDeducted
+                ? '¿Estás seguro? El inventario será restaurado automáticamente.'
+                : '¿Estás seguro? Esta acción marcará la solicitud como cancelada.'}
+            </DialogDescription>
           </DialogHeader>
           <div className='space-y-3'>
             <Input
@@ -495,7 +531,11 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                     { orderId: selectedOrder.id, reason: cancelReason || undefined },
                     {
                       onSuccess: () => {
-                        toast.success('Pedido cancelado. Inventario restaurado.');
+                        toast.success(
+                          selectedOrder?.inventoryDeducted
+                            ? `${selectedOrder.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado. Inventario restaurado.`
+                            : `${selectedOrder?.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado.`
+                        );
                         setCancelOpen(false);
                         setDetailOpen(false);
                         setCancelReason('');
@@ -505,7 +545,9 @@ export function OrdersTable({ businessId }: OrdersTableProps) {
                   );
                 }}
               >
-                {cancelOrder.isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+                {cancelOrder.isPending
+                  ? 'Cancelando...'
+                  : `Confirmar cancelación de ${selectedOrder?.orderType === 'reservation' ? 'reserva' : 'pedido'}`}
               </Button>
             </div>
           </div>
