@@ -1467,7 +1467,6 @@ function BuilderPreview({
           {/* Catalogs Carousel (always visible, independent of category filter) */}
           {catalogs.length > 1 && (
             <div className='mb-10'>
-              <h2 className='mb-4 text-lg font-bold tracking-tight'>Colecciones</h2>
               <div className='flex gap-4 overflow-x-auto pb-2'>
                 {catalogs.map((cat) => (
                   <div
