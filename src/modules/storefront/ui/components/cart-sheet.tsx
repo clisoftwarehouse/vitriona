@@ -228,7 +228,7 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                             if (!isNaN(val) && val >= 1)
                               updateQuantity(item.productId, val, slug, item.variantId, item.bundleKey);
                           }}
-                          className='w-10 [appearance:textfield] border-0 px-1 py-0 text-center text-xs font-semibold shadow-none focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+                          className='h-7 w-10 [appearance:textfield] border-0 bg-transparent px-1 py-0 text-center text-xs font-semibold shadow-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
                         />
                         <button
                           onClick={() =>
@@ -239,9 +239,16 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
                           <Plus className='size-3' />
                         </button>
                       </div>
-                      <span className='text-sm font-semibold'>
-                        {formatPrice(parseFloat(item.price) * item.quantity)}
-                      </span>
+                      <div className='text-right'>
+                        <span className='text-sm font-semibold'>
+                          {formatPrice(parseFloat(item.price) * item.quantity)}
+                        </span>
+                        {item.quantity > 1 && (
+                          <p className='text-[11px] opacity-50'>
+                            {item.quantity} x {formatPrice(parseFloat(item.price))}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

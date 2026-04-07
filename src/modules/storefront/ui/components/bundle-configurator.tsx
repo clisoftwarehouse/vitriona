@@ -256,7 +256,7 @@ export function BundleConfigurator({ product, config, currency, businessSlug }: 
 
         <div className='min-w-0 flex-1'>
           <p className='truncate text-sm font-medium'>{item.name}</p>
-          <p className='text-xs opacity-60'>{fmt(item.price)}</p>
+          <p className='text-xs opacity-60'>{qty > 1 ? `${qty} x ${fmt(item.price)}` : fmt(item.price)}</p>
         </div>
 
         {isAvailable && (

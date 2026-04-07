@@ -21,35 +21,38 @@ export function BusinessHoursEditor({ value, onChange, disabled }: BusinessHours
   };
 
   return (
-    <div className='space-y-3'>
+    <div className='space-y-2'>
       {DAYS_OF_WEEK.map(({ key, label }) => {
         const day = hours[key] ?? { open: '09:00', close: '18:00', closed: false };
         return (
-          <div key={key} className='flex items-center gap-3'>
-            <span className='w-24 text-sm font-medium'>{label}</span>
-            <Switch
-              checked={!day.closed}
-              onCheckedChange={(open) => updateDay(key, 'closed', !open)}
-              disabled={disabled}
-            />
-            {day.closed ? (
-              <span className='text-muted-foreground text-sm italic'>Cerrado</span>
-            ) : (
+          <div key={key} className='rounded-lg border p-3'>
+            <div className='flex items-center justify-between'>
+              <span className='text-sm font-medium'>{label}</span>
               <div className='flex items-center gap-2'>
-                <Clock className='text-muted-foreground size-3.5' />
+                {day.closed && <span className='text-muted-foreground text-xs italic'>Cerrado</span>}
+                <Switch
+                  checked={!day.closed}
+                  onCheckedChange={(open) => updateDay(key, 'closed', !open)}
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+            {!day.closed && (
+              <div className='mt-2 flex items-center gap-2'>
+                <Clock className='text-muted-foreground size-3.5 shrink-0' />
                 <Input
                   type='time'
                   value={day.open}
                   onChange={(e) => updateDay(key, 'open', e.target.value)}
-                  className='w-28'
+                  className='h-8 flex-1 text-xs'
                   disabled={disabled}
                 />
-                <span className='text-muted-foreground text-sm'>a</span>
+                <span className='text-muted-foreground text-xs'>a</span>
                 <Input
                   type='time'
                   value={day.close}
                   onChange={(e) => updateDay(key, 'close', e.target.value)}
-                  className='w-28'
+                  className='h-8 flex-1 text-xs'
                   disabled={disabled}
                 />
               </div>

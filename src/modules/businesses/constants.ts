@@ -44,13 +44,13 @@ export const LOCALE_OPTIONS = [
 ] as const;
 
 export const DAYS_OF_WEEK = [
-  { key: 'mon', label: 'Lunes' },
-  { key: 'tue', label: 'Martes' },
-  { key: 'wed', label: 'Miércoles' },
-  { key: 'thu', label: 'Jueves' },
-  { key: 'fri', label: 'Viernes' },
-  { key: 'sat', label: 'Sábado' },
-  { key: 'sun', label: 'Domingo' },
+  { key: 'mon', label: 'Lunes', short: 'Lun' },
+  { key: 'tue', label: 'Martes', short: 'Mar' },
+  { key: 'wed', label: 'Miércoles', short: 'Mié' },
+  { key: 'thu', label: 'Jueves', short: 'Jue' },
+  { key: 'fri', label: 'Viernes', short: 'Vie' },
+  { key: 'sat', label: 'Sábado', short: 'Sáb' },
+  { key: 'sun', label: 'Domingo', short: 'Dom' },
 ] as const;
 
 export const DEFAULT_BUSINESS_HOURS: Record<string, { open: string; close: string; closed: boolean }> = {
