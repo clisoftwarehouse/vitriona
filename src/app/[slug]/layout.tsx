@@ -186,7 +186,9 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                   <Store className='size-4.5' />
                 </div>
               )}
-              <span className='text-base font-bold tracking-tight'>{settings?.headerTitle || business.name}</span>
+              {settings?.headerTitle && (
+                <span className='text-base font-bold tracking-tight'>{settings.headerTitle}</span>
+              )}
             </Link>
 
             <div className='flex items-center gap-3'>

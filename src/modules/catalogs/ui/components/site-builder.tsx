@@ -1485,7 +1485,7 @@ function BuilderPreview({
                 <Store className='size-4.5 text-white' />
               </div>
             )}
-            <span className='text-base font-bold tracking-tight'>{s.headerTitle || business.name}</span>
+            {s.headerTitle && <span className='text-base font-bold tracking-tight'>{s.headerTitle}</span>}
           </div>
           <div className='flex items-center gap-3'>
             <ShoppingBag className='size-5 opacity-60' />
