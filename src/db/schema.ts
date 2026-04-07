@@ -899,3 +899,34 @@ export const coupons = pgTable('coupons', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
+
+// ── Upgrade Requests ──
+
+export const upgradeRequests = pgTable('upgrade_requests', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  plan: text('plan', { enum: ['pro', 'business'] }).notNull(),
+  billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }).notNull(),
+  paymentMethod: text('payment_method', { enum: ['bank_transfer', 'pago_movil', 'zelle', 'binance'] }).notNull(),
+  referenceId: text('reference_id').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  // Invoice info
+  fullName: text('full_name').notNull(),
+  idNumber: text('id_number').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone'),
+  notes: text('notes'),
+  token: text('token').notNull(),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+    .notNull()
+    .default('pending'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});

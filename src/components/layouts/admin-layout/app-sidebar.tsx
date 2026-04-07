@@ -12,6 +12,7 @@ import {
   Package,
   BookOpen,
   Settings,
+  Sparkles,
   Warehouse,
   Paintbrush,
   CreditCard,
@@ -270,6 +271,21 @@ export function AppSidebar({
                 </TooltipTrigger>
                 <TooltipContent side='right'>Ver tienda</TooltipContent>
               </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='outline'
+                    size='icon'
+                    className='mx-auto flex size-8 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950'
+                    asChild
+                  >
+                    <Link href='/dashboard/upgrade'>
+                      <Sparkles className='size-3.5' />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='right'>Solicitar Upgrade</TooltipContent>
+              </Tooltip>
             </TooltipProvider>
           ) : (
             <>
@@ -283,6 +299,17 @@ export function AppSidebar({
                 <Link href={`/${activeBusiness.slug}`} target='_blank' rel='noopener noreferrer'>
                   <ExternalLink className='size-3.5' />
                   Ver tienda
+                </Link>
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
+                className='w-full gap-2 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950'
+                asChild
+              >
+                <Link href='/dashboard/upgrade'>
+                  <Sparkles className='size-3.5' />
+                  Solicitar Upgrade
                 </Link>
               </Button>
             </>

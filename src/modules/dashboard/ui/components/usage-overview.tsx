@@ -57,7 +57,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   );
 }
 
-export function UsageOverview({ data }: { data: UsageStats }) {
+export function UsageOverview({ data, businessId }: { data: UsageStats; businessId: string }) {
   const planItems = data.items.filter((i) => i.category === 'plan');
   const addonItems = data.items.filter((i) => i.category === 'addon');
 
@@ -104,13 +104,17 @@ export function UsageOverview({ data }: { data: UsageStats }) {
           </>
         )}
 
-        {hasAnyNearLimit && (
+        {data.planType !== 'business' && (
           <Link
-            href='/#pricing'
-            className='bg-primary text-primary-foreground mt-1 inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-90'
+            href={`/dashboard/upgrade?businessId=${businessId}`}
+            className={`mt-1 inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-90 ${
+              hasAnyNearLimit
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950'
+            }`}
           >
             <ArrowUpCircle className='size-3.5' />
-            Mejorar plan
+            {hasAnyNearLimit ? 'Mejorar plan' : 'Solicitar upgrade'}
           </Link>
         )}
       </CardContent>

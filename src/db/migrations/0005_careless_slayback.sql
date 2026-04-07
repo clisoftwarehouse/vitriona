@@ -1,0 +1,1 @@
+ALTER TABLE "upgrade_requests" ADD COLUMN "token" text NOT NULL;
