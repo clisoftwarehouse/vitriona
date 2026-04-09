@@ -9,6 +9,7 @@ import {
   Stamp,
   Store,
   Truck,
+  Monitor,
   Package,
   Receipt,
   BookOpen,
@@ -95,6 +96,11 @@ export function AppSidebar({
         {
           title: 'Ventas',
           items: [
+            {
+              label: 'Punto de Venta',
+              href: `/dashboard/businesses/${activeBusiness.id}/pos`,
+              icon: Monitor,
+            },
             {
               label: 'Pedidos',
               href: `/dashboard/businesses/${activeBusiness.id}/orders`,

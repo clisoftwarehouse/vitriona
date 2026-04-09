@@ -663,7 +663,7 @@ export const orders = pgTable('orders', {
   })
     .notNull()
     .default('pending_payment'),
-  checkoutType: text('checkout_type', { enum: ['whatsapp', 'internal'] })
+  checkoutType: text('checkout_type', { enum: ['whatsapp', 'internal', 'pos'] })
     .notNull()
     .default('whatsapp'),
   inventoryDeducted: boolean('inventory_deducted').notNull().default(false),
