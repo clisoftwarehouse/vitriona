@@ -37,6 +37,14 @@ interface ProductImage {
   alt: string | null;
 }
 
+interface PosVariant {
+  id: string;
+  name: string;
+  price: string | null;
+  stock: number;
+  options: Record<string, string>;
+}
+
 interface PosProduct {
   id: string;
   name: string;
@@ -47,6 +55,7 @@ interface PosProduct {
   type: string;
   images: ProductImage[];
   categoryName?: string | null;
+  variants: PosVariant[];
 }
 
 interface PaymentMethod {
@@ -64,12 +73,18 @@ interface DeliveryMethod {
 
 interface CartItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   productName: string;
   unitPrice: string;
   quantity: number;
   imageUrl: string | null;
   stock: number | null;
   trackInventory: boolean;
+}
+
+function cartItemKey(item: { productId: string; variantId?: string }) {
+  return item.variantId ? `${item.productId}:${item.variantId}` : item.productId;
 }
 
 interface PosDashboardProps {
@@ -94,6 +109,7 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
   const [selectedDelivery, setSelectedDelivery] = useState<DeliveryMethod | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [variantModalProduct, setVariantModalProduct] = useState<PosProduct | null>(null);
 
   const fmt = useCallback((amount: string | number) => formatPrice(amount, currency), [currency]);
 
@@ -119,20 +135,21 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
   }, []);
 
   // Cart helpers
-  const addToCart = useCallback((product: PosProduct) => {
+  const addToCartSimple = useCallback((product: PosProduct) => {
     if (product.trackInventory && (product.stock ?? 0) <= 0) {
       toast.error(`"${product.name}" está agotado`);
       return;
     }
 
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id);
+      const key = cartItemKey({ productId: product.id });
+      const existing = prev.find((i) => cartItemKey(i) === key);
       if (existing) {
         if (product.trackInventory && existing.quantity >= (product.stock ?? 0)) {
           toast.error(`Stock máximo alcanzado para "${product.name}"`);
           return prev;
         }
-        return prev.map((i) => (i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i));
+        return prev.map((i) => (cartItemKey(i) === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
       return [
         ...prev,
@@ -149,12 +166,58 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
     });
   }, []);
 
-  const updateQuantity = useCallback((productId: string, delta: number) => {
+  const handleProductClick = useCallback(
+    (product: PosProduct) => {
+      if (product.variants.length > 0) {
+        setVariantModalProduct(product);
+        return;
+      }
+      addToCartSimple(product);
+    },
+    [addToCartSimple]
+  );
+
+  const addVariantToCart = useCallback((product: PosProduct, variant: PosVariant) => {
+    if (product.trackInventory && variant.stock <= 0) {
+      toast.error(`"${product.name} - ${variant.name}" está agotado`);
+      return;
+    }
+
+    const variantPrice = variant.price ?? product.price;
+
+    setCart((prev) => {
+      const key = cartItemKey({ productId: product.id, variantId: variant.id });
+      const existing = prev.find((i) => cartItemKey(i) === key);
+      if (existing) {
+        if (product.trackInventory && existing.quantity >= variant.stock) {
+          toast.error(`Stock máximo alcanzado para "${product.name} - ${variant.name}"`);
+          return prev;
+        }
+        return prev.map((i) => (cartItemKey(i) === key ? { ...i, quantity: i.quantity + 1 } : i));
+      }
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          variantId: variant.id,
+          variantName: variant.name,
+          productName: product.name,
+          unitPrice: variantPrice,
+          quantity: 1,
+          imageUrl: product.images[0]?.url ?? null,
+          stock: variant.stock,
+          trackInventory: product.trackInventory,
+        },
+      ];
+    });
+  }, []);
+
+  const updateQuantity = useCallback((key: string, delta: number) => {
     setCart(
       (prev) =>
         prev
           .map((item) => {
-            if (item.productId !== productId) return item;
+            if (cartItemKey(item) !== key) return item;
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
             if (item.trackInventory && newQty > (item.stock ?? 0)) {
@@ -167,8 +230,8 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
     );
   }, []);
 
-  const removeItem = useCallback((productId: string) => {
-    setCart((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = useCallback((key: string) => {
+    setCart((prev) => prev.filter((i) => cartItemKey(i) !== key));
   }, []);
 
   const clearCart = useCallback(() => {
@@ -210,7 +273,8 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
         customerNotes: customerNotes || undefined,
         items: cart.map((i) => ({
           productId: i.productId,
-          productName: i.productName,
+          variantId: i.variantId,
+          productName: i.variantName ? `${i.productName} (${i.variantName})` : i.productName,
           unitPrice: i.unitPrice,
           quantity: i.quantity,
         })),
@@ -274,12 +338,13 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
             </div>
           ) : (
             paginatedProducts.map((product) => {
-              const isOutOfStock = product.trackInventory && (product.stock ?? 0) <= 0;
-              const cartItem = cart.find((i) => i.productId === product.id);
+              const hasVariants = product.variants.length > 0;
+              const isOutOfStock = product.trackInventory && !hasVariants && (product.stock ?? 0) <= 0;
+              const cartQty = cart.filter((i) => i.productId === product.id).reduce((sum, i) => sum + i.quantity, 0);
               return (
                 <button
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => handleProductClick(product)}
                   disabled={isOutOfStock}
                   className={cn(
                     'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
@@ -301,9 +366,9 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
                         <ImageOff className='size-4 opacity-30' />
                       </div>
                     )}
-                    {cartItem && (
+                    {cartQty > 0 && (
                       <div className='bg-primary text-primary-foreground absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold'>
-                        {cartItem.quantity}
+                        {cartQty}
                       </div>
                     )}
                   </div>
@@ -312,10 +377,15 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
                     {product.categoryName && (
                       <p className='text-muted-foreground truncate text-xs'>{product.categoryName}</p>
                     )}
+                    {hasVariants && (
+                      <p className='text-muted-foreground text-xs'>
+                        {product.variants.length} variante{product.variants.length > 1 ? 's' : ''}
+                      </p>
+                    )}
                   </div>
                   <div className='shrink-0 text-right'>
                     <p className='text-primary text-sm font-semibold'>{fmt(product.price)}</p>
-                    {product.trackInventory && (
+                    {product.trackInventory && !hasVariants && (
                       <p className={cn('text-xs', isOutOfStock ? 'text-destructive' : 'text-muted-foreground')}>
                         {isOutOfStock ? 'Agotado' : `Stock: ${product.stock}`}
                       </p>
@@ -396,40 +466,48 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
 
             {/* Cart items - THIS is the only part that scrolls */}
             <div className='divide-y'>
-              {cart.map((item) => (
-                <div key={item.productId} className='px-4 py-2.5'>
-                  <div className='grid grid-cols-[1fr_auto_auto_28px] items-center gap-3'>
-                    <div className='min-w-0'>
-                      <p className='truncate text-sm font-medium'>{item.productName}</p>
-                      <p className='text-muted-foreground text-xs'>{fmt(item.unitPrice)} c/u</p>
-                    </div>
-                    <div className='flex items-center justify-center gap-1.5'>
+              {cart.map((item) => {
+                const key = cartItemKey(item);
+                return (
+                  <div key={key} className='px-4 py-2.5'>
+                    <div className='grid grid-cols-[1fr_auto_auto_28px] items-center gap-3'>
+                      <div className='min-w-0'>
+                        <p className='truncate text-sm font-medium'>
+                          {item.productName}
+                          {item.variantName && (
+                            <span className='text-muted-foreground font-normal'> — {item.variantName}</span>
+                          )}
+                        </p>
+                        <p className='text-muted-foreground text-xs'>{fmt(item.unitPrice)} c/u</p>
+                      </div>
+                      <div className='flex items-center justify-center gap-1.5'>
+                        <button
+                          onClick={() => updateQuantity(key, -1)}
+                          className='hover:bg-muted flex size-7 items-center justify-center rounded-md border transition-colors'
+                        >
+                          <Minus className='size-3' />
+                        </button>
+                        <span className='min-w-7 text-center text-sm font-semibold'>{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(key, 1)}
+                          className='hover:bg-muted flex size-7 items-center justify-center rounded-md border transition-colors'
+                        >
+                          <Plus className='size-3' />
+                        </button>
+                      </div>
+                      <p className='text-right text-sm font-semibold'>
+                        {fmt(parseFloat(item.unitPrice) * item.quantity)}
+                      </p>
                       <button
-                        onClick={() => updateQuantity(item.productId, -1)}
-                        className='hover:bg-muted flex size-7 items-center justify-center rounded-md border transition-colors'
+                        onClick={() => removeItem(key)}
+                        className='text-destructive/50 hover:text-destructive flex size-7 items-center justify-center transition-colors'
                       >
-                        <Minus className='size-3' />
-                      </button>
-                      <span className='min-w-7 text-center text-sm font-semibold'>{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.productId, 1)}
-                        className='hover:bg-muted flex size-7 items-center justify-center rounded-md border transition-colors'
-                      >
-                        <Plus className='size-3' />
+                        <Trash2 className='size-3.5' />
                       </button>
                     </div>
-                    <p className='text-right text-sm font-semibold'>
-                      {fmt(parseFloat(item.unitPrice) * item.quantity)}
-                    </p>
-                    <button
-                      onClick={() => removeItem(item.productId)}
-                      className='text-destructive/50 hover:text-destructive flex size-7 items-center justify-center transition-colors'
-                    >
-                      <Trash2 className='size-3.5' />
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Customer info toggle */}
@@ -603,6 +681,52 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
             <Button className='flex-1' onClick={handleConfirmOrder} disabled={!selectedPayment || processing}>
               {processing ? 'Procesando...' : 'Confirmar Pago'}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Variant Selection Modal ── */}
+      <Dialog open={!!variantModalProduct} onOpenChange={(open) => !open && setVariantModalProduct(null)}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>{variantModalProduct?.name}</DialogTitle>
+            <DialogDescription>Selecciona una variante</DialogDescription>
+          </DialogHeader>
+          <div className='space-y-1.5'>
+            {variantModalProduct?.variants.map((variant) => {
+              const product = variantModalProduct;
+              const isVariantOutOfStock = product.trackInventory && variant.stock <= 0;
+              const variantPrice = variant.price ?? product.price;
+              return (
+                <button
+                  key={variant.id}
+                  disabled={isVariantOutOfStock}
+                  onClick={() => {
+                    addVariantToCart(product, variant);
+                    setVariantModalProduct(null);
+                  }}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition-all',
+                    isVariantOutOfStock ? 'cursor-not-allowed opacity-40' : 'hover:bg-muted/50 active:bg-muted'
+                  )}
+                >
+                  <div className='min-w-0 flex-1'>
+                    <p className='text-sm font-medium'>{variant.name}</p>
+                    {Object.keys(variant.options).length > 0 && (
+                      <p className='text-muted-foreground text-xs'>{Object.values(variant.options).join(' · ')}</p>
+                    )}
+                  </div>
+                  <div className='shrink-0 text-right'>
+                    <p className='text-primary text-sm font-semibold'>{fmt(variantPrice)}</p>
+                    {product.trackInventory && (
+                      <p className={cn('text-xs', isVariantOutOfStock ? 'text-destructive' : 'text-muted-foreground')}>
+                        {isVariantOutOfStock ? 'Agotado' : `Stock: ${variant.stock}`}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>

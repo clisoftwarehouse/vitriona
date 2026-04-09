@@ -4,7 +4,15 @@ import { eq, and, asc } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { PosDashboard } from '@/modules/pos/ui/components/pos-dashboard';
-import { products, businesses, categories, productImages, paymentMethods, deliveryMethods } from '@/db/schema';
+import {
+  products,
+  businesses,
+  categories,
+  productImages,
+  paymentMethods,
+  deliveryMethods,
+  productVariants,
+} from '@/db/schema';
 
 interface PosPageProps {
   params: Promise<{ id: string }>;
@@ -67,10 +75,38 @@ export default async function PosPage({ params }: PosPageProps) {
     .where(eq(categories.businessId, businessId));
   const categoryMap = Object.fromEntries(allCategories.map((c) => [c.id, c.name]));
 
+  // Fetch variants for all products
+  const allVariants = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      price: productVariants.price,
+      stock: productVariants.stock,
+      options: productVariants.options,
+      isActive: productVariants.isActive,
+    })
+    .from(productVariants)
+    .orderBy(asc(productVariants.sortOrder));
+
+  const variantMap: Record<string, typeof allVariants> = {};
+  for (const v of allVariants) {
+    if (!v.isActive) continue;
+    if (!variantMap[v.productId]) variantMap[v.productId] = [];
+    variantMap[v.productId].push(v);
+  }
+
   const posProducts = allProducts.map((p) => ({
     ...p,
     images: imageMap[p.id]?.slice(0, 1) ?? [],
     categoryName: p.categoryId ? (categoryMap[p.categoryId] ?? null) : null,
+    variants: (variantMap[p.id] ?? []).map((v) => ({
+      id: v.id,
+      name: v.name,
+      price: v.price,
+      stock: v.stock,
+      options: v.options,
+    })),
   }));
 
   // Fetch payment methods
