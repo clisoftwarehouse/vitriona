@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
+import { getEurRate } from '@/lib/get-exchange-rate';
 import { RenewalCheckout } from '@/modules/upgrade/ui/components/renewal-checkout';
 import { getBillingInfo } from '@/modules/dashboard/server/queries/get-billing-info';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -20,7 +21,7 @@ export default async function RenewalPage() {
   const activeId = await getActiveBusinessId();
   const activeBusiness = businessList.find((b) => b.id === activeId) ?? businessList[0];
 
-  const billing = await getBillingInfo(activeBusiness.id);
+  const [billing, eurRate] = await Promise.all([getBillingInfo(activeBusiness.id), getEurRate()]);
 
   // Only paid plans can renew
   if (!billing || billing.plan === 'free') redirect('/dashboard/billing');
@@ -33,6 +34,7 @@ export default async function RenewalPage() {
       currentBillingCycle={billing.billingCycle}
       billingCycleEnd={billing.billingCycleEnd?.toISOString() ?? null}
       userEmail={session.user.email ?? ''}
+      eurRate={eurRate}
     />
   );
 }

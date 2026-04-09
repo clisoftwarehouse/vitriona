@@ -26,6 +26,8 @@ interface SubmitAiCreditsPurchaseInput {
   email: string;
   phone?: string;
   notes?: string;
+  amountVes?: string;
+  exchangeRate?: string;
 }
 
 export async function submitAiCreditsPurchaseAction(input: SubmitAiCreditsPurchaseInput) {
@@ -82,6 +84,8 @@ export async function submitAiCreditsPurchaseAction(input: SubmitAiCreditsPurcha
       email: input.email.trim(),
       phone: input.phone?.trim() || null,
       notes: `Compra de ${totalCredits.toLocaleString()} créditos adicionales de IA (${input.quantity}x paquete de ${CREDITS_AMOUNT.toLocaleString()})${input.notes ? `\n${input.notes.trim()}` : ''}`,
+      amountVes: input.amountVes || null,
+      exchangeRate: input.exchangeRate || null,
       token,
     });
 

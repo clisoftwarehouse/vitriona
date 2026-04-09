@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { businessAiQuotas } from '@/db/schema';
+import { getEurRate } from '@/lib/get-exchange-rate';
 import { UpgradeTabs } from '@/modules/upgrade/ui/components/upgrade-tabs';
 import { getBillingInfo } from '@/modules/dashboard/server/queries/get-billing-info';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -22,7 +23,11 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
 
   const { tab } = await searchParams;
 
-  const [businesses, activeBusinessId] = await Promise.all([getBusinessesAction(), getActiveBusinessId()]);
+  const [businesses, activeBusinessId, eurRate] = await Promise.all([
+    getBusinessesAction(),
+    getActiveBusinessId(),
+    getEurRate(),
+  ]);
 
   // Get businesses that already have AI quotas
   const aiQuotas = await db.select({ businessId: businessAiQuotas.businessId }).from(businessAiQuotas);
@@ -68,6 +73,7 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
       defaultTab={tab === 'chatbot' ? 'chatbot' : 'plan'}
       activeBusinessId={activeBusinessId}
       billingInfo={billingInfoForProration}
+      eurRate={eurRate}
     />
   );
 }

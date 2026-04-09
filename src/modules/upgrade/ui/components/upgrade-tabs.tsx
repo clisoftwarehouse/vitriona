@@ -27,6 +27,7 @@ interface UpgradeTabsProps {
     billingCycleEnd: string | null;
     currentPlanPrice: number;
   } | null;
+  eurRate?: number | null;
 }
 
 export function UpgradeTabs({
@@ -35,6 +36,7 @@ export function UpgradeTabs({
   defaultTab = 'plan',
   activeBusinessId,
   billingInfo,
+  eurRate,
 }: UpgradeTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>(defaultTab);
 
@@ -82,11 +84,17 @@ export function UpgradeTabs({
           userEmail={userEmail}
           activeBusinessId={activeBusinessId}
           billingInfo={billingInfo}
+          eurRate={eurRate}
         />
       )}
 
       {activeTab === 'chatbot' && (
-        <ChatbotActivationCheckout businesses={businesses} userEmail={userEmail} activeBusinessId={activeBusinessId} />
+        <ChatbotActivationCheckout
+          businesses={businesses}
+          userEmail={userEmail}
+          activeBusinessId={activeBusinessId}
+          eurRate={eurRate}
+        />
       )}
     </div>
   );

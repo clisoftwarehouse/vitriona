@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { PaymentMethodDetails } from '@/modules/upgrade/ui/components/payment-method-details';
 import { submitUpgradeRequestAction } from '@/modules/upgrade/server/actions/submit-upgrade-request.action';
 
 // ── Constants ──
@@ -46,8 +47,8 @@ function getPrice(monthlyPrice: number, cycle: BillingCycle) {
   return { monthly: monthlyPrice, total: monthlyPrice };
 }
 
-function formatUsd(amount: number) {
-  return `$${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
+function formatEur(amount: number) {
+  return `€${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
 }
 
 // ── Component ──
@@ -59,6 +60,7 @@ interface RenewalCheckoutProps {
   currentBillingCycle: string | null;
   billingCycleEnd: string | null; // ISO string
   userEmail: string;
+  eurRate?: number | null;
 }
 
 type Step = 'payment' | 'invoice';
@@ -70,6 +72,7 @@ export function RenewalCheckout({
   currentBillingCycle,
   billingCycleEnd,
   userEmail,
+  eurRate,
 }: RenewalCheckoutProps) {
   const [step, setStep] = useState<Step>('payment');
   const [isPending, startTransition] = useTransition();
@@ -103,6 +106,7 @@ export function RenewalCheckout({
   const handleSubmit = () => {
     if (!canSubmit || !paymentMethod) return;
     startTransition(async () => {
+      const isVesMethod = paymentMethod === 'bank_transfer' || paymentMethod === 'pago_movil';
       const result = await submitUpgradeRequestAction({
         businessId,
         plan: currentPlan as 'pro' | 'business',
@@ -115,6 +119,8 @@ export function RenewalCheckout({
         email,
         phone: phone || undefined,
         notes: notes || undefined,
+        amountVes: isVesMethod && eurRate ? (paymentAmount * eurRate).toFixed(2) : undefined,
+        exchangeRate: isVesMethod && eurRate ? eurRate.toFixed(2) : undefined,
       });
 
       if (result.error) {
@@ -260,7 +266,7 @@ export function RenewalCheckout({
                   <p className='text-muted-foreground text-xs'>{billingCycle === 'annual' ? 'Anual' : 'Mensual'}</p>
                 </div>
                 <div className='text-right'>
-                  <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                  <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
                   <p className='text-muted-foreground text-xs'>{billingCycle === 'annual' ? 'por año' : 'por mes'}</p>
                 </div>
               </div>
@@ -287,6 +293,9 @@ export function RenewalCheckout({
                 </button>
               ))}
             </div>
+            {paymentMethod && (
+              <PaymentMethodDetails method={paymentMethod} eurAmount={paymentAmount} eurRate={eurRate} />
+            )}
           </div>
 
           <div className='flex justify-between'>
@@ -319,7 +328,7 @@ export function RenewalCheckout({
                     {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label}
                   </p>
                 </div>
-                <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
               </div>
             </CardContent>
           </Card>

@@ -30,6 +30,8 @@ interface SubmitChatbotActivationRequestInput {
   email: string;
   phone?: string;
   notes?: string;
+  amountVes?: string;
+  exchangeRate?: string;
 }
 
 export async function submitChatbotActivationRequestAction(input: SubmitChatbotActivationRequestInput) {
@@ -105,6 +107,8 @@ export async function submitChatbotActivationRequestAction(input: SubmitChatbotA
       email: input.email.trim(),
       phone: input.phone?.trim() || null,
       notes: input.notes?.trim() || null,
+      amountVes: input.amountVes || null,
+      exchangeRate: input.exchangeRate || null,
       token,
     });
 

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
+import { getEurRate } from '@/lib/get-exchange-rate';
 import { getBillingInfo } from '@/modules/dashboard/server/queries/get-billing-info';
 import { AiCreditsCheckout } from '@/modules/upgrade/ui/components/ai-credits-checkout';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -20,7 +21,7 @@ export default async function AiCreditsPage() {
   const activeId = await getActiveBusinessId();
   const activeBusiness = businessList.find((b) => b.id === activeId) ?? businessList[0];
 
-  const billing = await getBillingInfo(activeBusiness.id);
+  const [billing, eurRate] = await Promise.all([getBillingInfo(activeBusiness.id), getEurRate()]);
 
   // Only businesses with active AI can buy credits
   if (!billing || !billing.aiPlanType) redirect('/dashboard/billing');
@@ -33,6 +34,7 @@ export default async function AiCreditsPage() {
       messagesUsed={billing.aiMessagesUsed ?? 0}
       messagesLimit={billing.aiMessagesLimit ?? 0}
       userEmail={session.user.email ?? ''}
+      eurRate={eurRate}
     />
   );
 }

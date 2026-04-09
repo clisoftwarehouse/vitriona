@@ -930,6 +930,8 @@ export const chatbotActivationRequests = pgTable('chatbot_activation_requests', 
   paymentMethod: text('payment_method', { enum: ['bank_transfer', 'pago_movil', 'zelle', 'binance'] }).notNull(),
   referenceId: text('reference_id').notNull(),
   amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  amountVes: numeric('amount_ves', { precision: 18, scale: 2 }),
+  exchangeRate: numeric('exchange_rate', { precision: 14, scale: 2 }),
   // Invoice info
   fullName: text('full_name').notNull(),
   idNumber: text('id_number').notNull(),
@@ -964,6 +966,8 @@ export const upgradeRequests = pgTable('upgrade_requests', {
   paymentMethod: text('payment_method', { enum: ['bank_transfer', 'pago_movil', 'zelle', 'binance'] }).notNull(),
   referenceId: text('reference_id').notNull(),
   amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  amountVes: numeric('amount_ves', { precision: 18, scale: 2 }),
+  exchangeRate: numeric('exchange_rate', { precision: 14, scale: 2 }),
   // Invoice info
   fullName: text('full_name').notNull(),
   idNumber: text('id_number').notNull(),
@@ -976,4 +980,17 @@ export const upgradeRequests = pgTable('upgrade_requests', {
     .default('pending'),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+// ── Exchange Rates (BCV) ──
+
+export const exchangeRates = pgTable('exchange_rates', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  currency: text('currency').notNull(),
+  rate: numeric('rate', { precision: 14, scale: 2 }).notNull(),
+  source: text('source').notNull().default('BCV'),
+  date: text('date').notNull(), // YYYY-MM-DD, one entry per day
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });

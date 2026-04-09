@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-subscriptions",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-exchange-rate",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { PaymentMethodDetails } from '@/modules/upgrade/ui/components/payment-method-details';
 import { submitChatbotActivationRequestAction } from '@/modules/upgrade/server/actions/submit-chatbot-activation-request.action';
 
 // ── Constants ──
@@ -77,8 +78,8 @@ function getPrice(monthlyPrice: number, cycle: BillingCycle) {
   return { monthly: monthlyPrice, total: monthlyPrice };
 }
 
-function formatUsd(amount: number) {
-  return `$${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
+function formatEur(amount: number) {
+  return `€${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
 }
 
 // ── Component ──
@@ -87,11 +88,17 @@ interface ChatbotActivationCheckoutProps {
   businesses: { id: string; name: string; plan: string; hasAiQuota: boolean; aiPlanType?: string | null }[];
   userEmail: string;
   activeBusinessId: string | null;
+  eurRate?: number | null;
 }
 
 type Step = 'plan' | 'payment' | 'invoice';
 
-export function ChatbotActivationCheckout({ businesses, userEmail, activeBusinessId }: ChatbotActivationCheckoutProps) {
+export function ChatbotActivationCheckout({
+  businesses,
+  userEmail,
+  activeBusinessId,
+  eurRate,
+}: ChatbotActivationCheckoutProps) {
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
   const [step, setStep] = useState<Step>('plan');
   const [isPending, startTransition] = useTransition();
@@ -140,6 +147,7 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
   const handleSubmit = () => {
     if (!canSubmit || !paymentMethod || !activeBusiness) return;
     startTransition(async () => {
+      const isVesMethod = paymentMethod === 'bank_transfer' || paymentMethod === 'pago_movil';
       const result = await submitChatbotActivationRequestAction({
         businessId: activeBusiness.id,
         aiPlanType: selectedPlan,
@@ -152,6 +160,8 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
         email,
         phone: phone || undefined,
         notes: notes || undefined,
+        amountVes: isVesMethod && eurRate ? (paymentAmount * eurRate).toFixed(2) : undefined,
+        exchangeRate: isVesMethod && eurRate ? eurRate.toFixed(2) : undefined,
       });
 
       if (result.error) {
@@ -354,14 +364,14 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
                     <h3 className='text-base font-semibold'>{p.name}</h3>
                   </div>
                   <div className='mt-3 flex items-baseline gap-1'>
-                    <span className='text-3xl font-bold'>{formatUsd(price.monthly)}</span>
+                    <span className='text-3xl font-bold'>{formatEur(price.monthly)}</span>
                     <span className='text-muted-foreground text-sm'>/mes</span>
                   </div>
                   {billingCycle === 'annual' && (
                     <p className='text-muted-foreground mt-1 text-xs'>
-                      <span className='line-through'>{formatUsd(p.monthlyPrice)}/mes</span>
+                      <span className='line-through'>{formatEur(p.monthlyPrice)}/mes</span>
                       <span className='ml-2 font-semibold text-amber-600 dark:text-amber-400'>
-                        Paga {formatUsd(price.total)} al año
+                        Paga {formatEur(price.total)} al año
                       </span>
                     </p>
                   )}
@@ -401,7 +411,7 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
                   </p>
                 </div>
                 <div className='text-right'>
-                  <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                  <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
                   <p className='text-muted-foreground text-xs'>{billingCycle === 'annual' ? 'por año' : 'por mes'}</p>
                 </div>
               </div>
@@ -427,6 +437,9 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
                 </button>
               ))}
             </div>
+            {paymentMethod && (
+              <PaymentMethodDetails method={paymentMethod} eurAmount={paymentAmount} eurRate={eurRate} />
+            )}
           </div>
 
           <div className='flex justify-between'>
@@ -461,7 +474,7 @@ export function ChatbotActivationCheckout({ businesses, userEmail, activeBusines
                     {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label} · {plan.responses}
                   </p>
                 </div>
-                <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
               </div>
             </CardContent>
           </Card>

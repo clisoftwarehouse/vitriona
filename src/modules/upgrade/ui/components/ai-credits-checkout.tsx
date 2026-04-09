@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { PaymentMethodDetails } from '@/modules/upgrade/ui/components/payment-method-details';
 import { submitAiCreditsPurchaseAction } from '@/modules/upgrade/server/actions/submit-ai-credits-purchase.action';
 
 // ── Constants ──
@@ -26,8 +27,8 @@ const PAYMENT_METHODS: { key: PaymentMethod; label: string; description: string 
   { key: 'binance', label: 'Binance', description: 'Pago con criptomonedas vía Binance Pay' },
 ];
 
-function formatUsd(amount: number) {
-  return `$${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
+function formatEur(amount: number) {
+  return `€${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
 }
 
 // ── Component ──
@@ -39,6 +40,7 @@ interface AiCreditsCheckoutProps {
   messagesUsed: number;
   messagesLimit: number;
   userEmail: string;
+  eurRate?: number | null;
 }
 
 type Step = 'quantity' | 'payment' | 'invoice';
@@ -50,6 +52,7 @@ export function AiCreditsCheckout({
   messagesUsed,
   messagesLimit,
   userEmail,
+  eurRate,
 }: AiCreditsCheckoutProps) {
   const [step, setStep] = useState<Step>('quantity');
   const [isPending, startTransition] = useTransition();
@@ -81,6 +84,7 @@ export function AiCreditsCheckout({
   const handleSubmit = () => {
     if (!canSubmit || !paymentMethod) return;
     startTransition(async () => {
+      const isVesMethod = paymentMethod === 'bank_transfer' || paymentMethod === 'pago_movil';
       const result = await submitAiCreditsPurchaseAction({
         businessId,
         quantity,
@@ -92,6 +96,8 @@ export function AiCreditsCheckout({
         email,
         phone: phone || undefined,
         notes: notes || undefined,
+        amountVes: isVesMethod && eurRate ? (totalPrice * eurRate).toFixed(2) : undefined,
+        exchangeRate: isVesMethod && eurRate ? eurRate.toFixed(2) : undefined,
       });
 
       if (result.error) {
@@ -193,7 +199,7 @@ export function AiCreditsCheckout({
             <CardContent className='space-y-6 pt-6'>
               <div className='text-center'>
                 <p className='text-muted-foreground text-sm'>Precio por paquete</p>
-                <p className='mt-1 text-3xl font-bold text-amber-600 dark:text-amber-400'>{formatUsd(CREDITS_PRICE)}</p>
+                <p className='mt-1 text-3xl font-bold text-amber-600 dark:text-amber-400'>{formatEur(CREDITS_PRICE)}</p>
                 <p className='text-muted-foreground text-sm'>por {CREDITS_AMOUNT.toLocaleString()} mensajes</p>
               </div>
 
@@ -222,7 +228,7 @@ export function AiCreditsCheckout({
 
               <div className='rounded-lg bg-amber-50 px-4 py-3 text-center dark:bg-amber-950/30'>
                 <p className='text-sm font-medium text-amber-800 dark:text-amber-200'>
-                  {totalCredits.toLocaleString()} mensajes adicionales por {formatUsd(totalPrice)}
+                  {totalCredits.toLocaleString()} mensajes adicionales por {formatEur(totalPrice)}
                 </p>
                 <p className='text-xs text-amber-700 dark:text-amber-300'>
                   Los créditos se agregan a tu límite actual y no expiran con el ciclo.
@@ -258,10 +264,10 @@ export function AiCreditsCheckout({
                     {totalCredits.toLocaleString()} créditos de IA
                   </p>
                   <p className='text-muted-foreground text-xs'>
-                    {quantity} {quantity === 1 ? 'paquete' : 'paquetes'} × {formatUsd(CREDITS_PRICE)}
+                    {quantity} {quantity === 1 ? 'paquete' : 'paquetes'} × {formatEur(CREDITS_PRICE)}
                   </p>
                 </div>
-                <p className='text-2xl font-bold'>{formatUsd(totalPrice)}</p>
+                <p className='text-2xl font-bold'>{formatEur(totalPrice)}</p>
               </div>
             </CardContent>
           </Card>
@@ -285,6 +291,7 @@ export function AiCreditsCheckout({
                 </button>
               ))}
             </div>
+            {paymentMethod && <PaymentMethodDetails method={paymentMethod} eurAmount={totalPrice} eurRate={eurRate} />}
           </div>
 
           <div className='flex justify-between'>
@@ -319,7 +326,7 @@ export function AiCreditsCheckout({
                     {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label}
                   </p>
                 </div>
-                <p className='text-2xl font-bold'>{formatUsd(totalPrice)}</p>
+                <p className='text-2xl font-bold'>{formatEur(totalPrice)}</p>
               </div>
             </CardContent>
           </Card>

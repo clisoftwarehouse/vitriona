@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { PaymentMethodDetails } from '@/modules/upgrade/ui/components/payment-method-details';
 import { submitUpgradeRequestAction } from '@/modules/upgrade/server/actions/submit-upgrade-request.action';
 
 // ── Constants ──
@@ -78,8 +79,8 @@ function getPrice(monthlyPrice: number, cycle: BillingCycle) {
   return { monthly: monthlyPrice, total: monthlyPrice };
 }
 
-function formatUsd(amount: number) {
-  return `$${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
+function formatEur(amount: number) {
+  return `€${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
 }
 
 // ── Component ──
@@ -93,11 +94,18 @@ interface UpgradeCheckoutProps {
     billingCycleEnd: string | null; // ISO string
     currentPlanPrice: number;
   } | null;
+  eurRate?: number | null;
 }
 
 type Step = 'plan' | 'payment' | 'invoice';
 
-export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billingInfo }: UpgradeCheckoutProps) {
+export function UpgradeCheckout({
+  businesses,
+  userEmail,
+  activeBusinessId,
+  billingInfo,
+  eurRate,
+}: UpgradeCheckoutProps) {
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
   const [step, setStep] = useState<Step>('plan');
   const [isPending, startTransition] = useTransition();
@@ -180,6 +188,7 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
   const handleSubmit = () => {
     if (!canSubmit || !paymentMethod || !activeBusiness) return;
     startTransition(async () => {
+      const isVesMethod = paymentMethod === 'bank_transfer' || paymentMethod === 'pago_movil';
       const result = await submitUpgradeRequestAction({
         businessId: activeBusiness.id,
         plan: selectedPlan,
@@ -192,6 +201,8 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
         email,
         phone: phone || undefined,
         notes: notes || undefined,
+        amountVes: isVesMethod && eurRate ? (paymentAmount * eurRate).toFixed(2) : undefined,
+        exchangeRate: isVesMethod && eurRate ? eurRate.toFixed(2) : undefined,
       });
 
       if (result.error) {
@@ -378,13 +389,13 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                   )}
                   <h3 className='text-lg font-semibold'>{p.name}</h3>
                   <div className='mt-3 flex items-baseline gap-1'>
-                    <span className='text-3xl font-bold'>{formatUsd(price.monthly)}</span>
+                    <span className='text-3xl font-bold'>{formatEur(price.monthly)}</span>
                     <span className='text-muted-foreground text-sm'>/mes</span>
                   </div>
                   {billingCycle === 'annual' && (
                     <p className='text-muted-foreground mt-1 text-xs'>
-                      <span className='line-through'>{formatUsd(p.monthlyPrice)}/mes</span>
-                      <span className='text-primary ml-2 font-semibold'>Paga {formatUsd(price.total)} al año</span>
+                      <span className='line-through'>{formatEur(p.monthlyPrice)}/mes</span>
+                      <span className='text-primary ml-2 font-semibold'>Paga {formatEur(price.total)} al año</span>
                     </p>
                   )}
                   <ul className='mt-4 space-y-2'>
@@ -425,7 +436,7 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                   </p>
                 </div>
                 <div className='text-right'>
-                  <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                  <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
                   <p className='text-muted-foreground text-xs'>
                     {proration ? 'prorrateo' : billingCycle === 'annual' ? 'por año' : 'por mes'}
                   </p>
@@ -461,6 +472,9 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                 </button>
               ))}
             </div>
+            {paymentMethod && (
+              <PaymentMethodDetails method={paymentMethod} eurAmount={paymentAmount} eurRate={eurRate} />
+            )}
           </div>
 
           <div className='flex justify-between'>
@@ -491,7 +505,7 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                     {proration && ` · ${proration.remainingDays} días restantes`}
                   </p>
                 </div>
-                <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
+                <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
               </div>
             </CardContent>
           </Card>

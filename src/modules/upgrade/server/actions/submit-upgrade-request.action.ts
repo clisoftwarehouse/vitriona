@@ -26,6 +26,8 @@ interface SubmitUpgradeRequestInput {
   email: string;
   phone?: string;
   notes?: string;
+  amountVes?: string;
+  exchangeRate?: string;
 }
 
 export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInput) {
@@ -95,6 +97,8 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
       email: input.email.trim(),
       phone: input.phone?.trim() || null,
       notes: input.notes?.trim() || null,
+      amountVes: input.amountVes || null,
+      exchangeRate: input.exchangeRate || null,
       token,
     });
 

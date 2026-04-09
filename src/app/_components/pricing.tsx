@@ -61,7 +61,7 @@ const PLANS = [
 
 function formatPrice(amount: number) {
   const hasDecimals = !Number.isInteger(amount);
-  return `$${hasDecimals ? amount.toFixed(2) : amount.toFixed(0)}`;
+  return `€${hasDecimals ? amount.toFixed(2) : amount.toFixed(0)}`;
 }
 
 function getPlanPricing(monthlyPrice: number, billingCycle: BillingCycle) {
