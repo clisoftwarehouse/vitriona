@@ -24,11 +24,29 @@ export async function syncProductStockWithVariants(productId: string) {
 
   if (Number(variantCount?.count ?? 0) === 0) return;
 
+  const [product] = await db
+    .select({ trackInventory: products.trackInventory, status: products.status })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+
+  if (!product) return;
+
+  const nextStatus = product.trackInventory
+    ? totalVariantStock === 0
+      ? 'out_of_stock'
+      : product.status === 'inactive'
+        ? 'inactive'
+        : 'active'
+    : product.status === 'inactive'
+      ? 'inactive'
+      : 'active';
+
   await db
     .update(products)
     .set({
       stock: totalVariantStock,
-      status: totalVariantStock === 0 ? 'out_of_stock' : 'active',
+      status: nextStatus,
       updatedAt: new Date(),
     })
     .where(eq(products.id, productId));
