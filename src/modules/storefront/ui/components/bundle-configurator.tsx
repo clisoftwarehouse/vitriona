@@ -215,7 +215,8 @@ export function BundleConfigurator({ product, config, currency, businessSlug }: 
   ) => {
     const sel = selections.find((s) => s.productId === item.productId && s.slotId === slotId);
     const qty = sel?.quantity ?? 0;
-    const isAvailable = item.status === 'active' && (!item.trackInventory || item.stock === null || item.stock > 0);
+    const effectiveStatus = !item.trackInventory && item.status === 'out_of_stock' ? 'active' : item.status;
+    const isAvailable = effectiveStatus === 'active' && (!item.trackInventory || item.stock === null || item.stock > 0);
 
     return (
       <div

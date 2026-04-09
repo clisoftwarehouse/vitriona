@@ -135,6 +135,8 @@ export function ProductForm({
   });
 
   const productType = useWatch({ control: form.control, name: 'type' }) ?? 'product';
+  const trackInventory = useWatch({ control: form.control, name: 'trackInventory' }) ?? true;
+  const status = useWatch({ control: form.control, name: 'status' }) ?? 'active';
   const bundlePriceMode = useWatch({ control: form.control, name: 'bundlePriceMode' }) ?? 'sum_items';
   const bundleSelectionMode = useWatch({ control: form.control, name: 'bundleSelectionMode' }) ?? 'fixed';
   const bundleMinimumAmount = useWatch({ control: form.control, name: 'bundleMinimumAmount' }) ?? '';
@@ -185,6 +187,13 @@ export function ProductForm({
       : null;
 
   const formatBundlePrice = (value: number) => formatPrice(value, currency);
+
+  useEffect(() => {
+    // "Sin stock" solo tiene sentido cuando se rastrea inventario.
+    if ((productType !== 'product' || !trackInventory) && status === 'out_of_stock') {
+      form.setValue('status', 'active', { shouldDirty: false, shouldValidate: true });
+    }
+  }, [form, productType, status, trackInventory]);
 
   const updateBundleItems = (items: NonNullable<CreateProductFormValues['bundleItems']>) => {
     form.setValue('bundleItems', items, {
@@ -878,11 +887,15 @@ export function ProductForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {productStatusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      {productStatusOptions
+                        .filter(
+                          (option) => option.value !== 'out_of_stock' || (productType === 'product' && trackInventory)
+                        )
+                        .map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

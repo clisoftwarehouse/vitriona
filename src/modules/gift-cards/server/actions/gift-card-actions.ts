@@ -5,6 +5,8 @@ import { eq, and, desc } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { giftCards, businesses } from '@/db/schema';
+import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
+import { giftCardEmailTemplate } from '@/modules/auth/server/email/templates/gift-card.template';
 
 /* ─── Types ─── */
 
@@ -44,7 +46,7 @@ function generateGiftCardCode(): string {
 
 async function verifyOwnership(businessId: string, userId: string) {
   const [biz] = await db
-    .select({ id: businesses.id })
+    .select({ id: businesses.id, name: businesses.name })
     .from(businesses)
     .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
     .limit(1);
@@ -93,6 +95,8 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
       .limit(1);
     if (existing) return { error: 'Ya existe una gift card con ese código' };
 
+    const recipientEmail = input.recipientEmail?.trim() || null;
+
     await db.insert(giftCards).values({
       businessId: input.businessId,
       code,
@@ -102,13 +106,43 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
       applicableProductIds:
         input.applicableProductIds && input.applicableProductIds.length > 0 ? input.applicableProductIds : null,
       recipientName: input.recipientName?.trim() || null,
-      recipientEmail: input.recipientEmail?.trim() || null,
+      recipientEmail,
       senderName: input.senderName?.trim() || null,
       message: input.message?.trim() || null,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
     });
 
-    return { success: true, code };
+    if (recipientEmail) {
+      try {
+        await resend.emails.send({
+          from: EMAIL_FROM,
+          to: recipientEmail,
+          subject: `Recibiste una Gift Card de ${biz.name}`,
+          html: giftCardEmailTemplate({
+            recipientName: input.recipientName,
+            senderName: input.senderName,
+            businessName: biz.name,
+            code,
+            type: input.type,
+            value: input.initialValue,
+            message: input.message,
+            expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+          }),
+        });
+
+        return { success: true, code, emailSent: true };
+      } catch (error) {
+        console.error('Error al enviar gift card por correo:', error);
+        return {
+          success: true,
+          code,
+          emailSent: false,
+          emailError: 'La gift card se creo, pero no se pudo enviar el correo.',
+        };
+      }
+    }
+
+    return { success: true, code, emailSent: false };
   } catch {
     return { error: 'Error al crear la gift card' };
   }

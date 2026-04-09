@@ -249,92 +249,99 @@ export function ProductsGrid({ businessId, catalogId, categories = [], currency 
           )}
 
           <div className='grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3'>
-            {paginatedProducts.map((product, idx) => (
-              <div key={product.id} className='group relative'>
-                <Link
-                  href={
-                    catalogId
-                      ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products/${product.id}`
-                      : `/dashboard/businesses/${businessId}/products/${product.id}`
-                  }
-                >
-                  <Card className='h-full overflow-hidden transition-shadow group-hover:shadow-md'>
-                    <CardContent className='flex h-full flex-col p-4 sm:p-5'>
-                      <div className='flex items-center gap-3'>
-                        <div className='bg-primary/10 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10'>
-                          <Package className='text-primary size-4 sm:size-5' />
-                        </div>
-                        <div className='min-w-0 flex-1'>
-                          <div className='flex items-center justify-between gap-2'>
-                            <h3 className='min-w-0 flex-1 truncate text-sm font-semibold sm:text-base'>
-                              {product.name}
-                              {product.isFeatured && (
-                                <Star className='ml-1 inline size-3 shrink-0 fill-amber-500 text-amber-500 sm:size-3.5' />
-                              )}
-                            </h3>
-                            <Badge
-                              variant={statusVariants[product.status] ?? 'secondary'}
-                              className='shrink-0 text-[10px]'
-                            >
-                              {statusLabels[product.status] ?? product.status}
-                            </Badge>
+            {paginatedProducts.map((product, idx) => {
+              const effectiveStatus =
+                !product.trackInventory && product.status === 'out_of_stock' ? 'active' : product.status;
+
+              return (
+                <div key={product.id} className='group relative'>
+                  <Link
+                    href={
+                      catalogId
+                        ? `/dashboard/businesses/${businessId}/catalogs/${catalogId}/products/${product.id}`
+                        : `/dashboard/businesses/${businessId}/products/${product.id}`
+                    }
+                  >
+                    <Card className='h-full overflow-hidden transition-shadow group-hover:shadow-md'>
+                      <CardContent className='flex h-full flex-col p-4 sm:p-5'>
+                        <div className='flex items-center gap-3'>
+                          <div className='bg-primary/10 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10'>
+                            <Package className='text-primary size-4 sm:size-5' />
                           </div>
-                          <div className='mt-0.5 flex items-center gap-2'>
-                            <span className='text-muted-foreground text-sm font-medium'>
-                              {formatPrice(product.price, currency)}
-                              {product.compareAtPrice && (
-                                <span className='ml-1.5 line-through'>
-                                  {formatPrice(product.compareAtPrice, currency)}
+                          <div className='min-w-0 flex-1'>
+                            <div className='flex items-center justify-between gap-2'>
+                              <h3 className='min-w-0 flex-1 truncate text-sm font-semibold sm:text-base'>
+                                {product.name}
+                                {product.isFeatured && (
+                                  <Star className='ml-1 inline size-3 shrink-0 fill-amber-500 text-amber-500 sm:size-3.5' />
+                                )}
+                              </h3>
+                              <Badge
+                                variant={statusVariants[effectiveStatus] ?? 'secondary'}
+                                className='shrink-0 text-[10px]'
+                              >
+                                {statusLabels[effectiveStatus] ?? effectiveStatus}
+                              </Badge>
+                            </div>
+                            <div className='mt-0.5 flex items-center gap-2'>
+                              <span className='text-muted-foreground text-sm font-medium'>
+                                {formatPrice(product.price, currency)}
+                                {product.compareAtPrice && (
+                                  <span className='ml-1.5 line-through'>
+                                    {formatPrice(product.compareAtPrice, currency)}
+                                  </span>
+                                )}
+                              </span>
+                              <Badge variant='outline' className='text-[10px]'>
+                                {typeLabels[product.type] ?? product.type}
+                              </Badge>
+                              {product.sku && (
+                                <span className='text-muted-foreground hidden text-xs sm:inline'>
+                                  SKU: {product.sku}
                                 </span>
                               )}
-                            </span>
-                            <Badge variant='outline' className='text-[10px]'>
-                              {typeLabels[product.type] ?? product.type}
-                            </Badge>
-                            {product.sku && (
-                              <span className='text-muted-foreground hidden text-xs sm:inline'>SKU: {product.sku}</span>
-                            )}
-                            {product.stock !== null && (
-                              <Badge variant='outline' className='text-[10px]'>
-                                Stock: {product.stock}
-                              </Badge>
-                            )}
+                              {product.stock !== null && (
+                                <Badge variant='outline' className='text-[10px]'>
+                                  Stock: {product.stock}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-                {isStorefrontSort && (
-                  <div className='absolute top-2 right-2 z-10 flex flex-col gap-0.5'>
-                    <button
-                      type='button'
-                      disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === 0}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleMove(idx, 'up');
-                      }}
-                      className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
-                      title='Mover arriba'
-                    >
-                      <ArrowUp className='size-3.5' />
-                    </button>
-                    <button
-                      type='button'
-                      disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === sorted.length - 1}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleMove(idx, 'down');
-                      }}
-                      className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
-                      title='Mover abajo'
-                    >
-                      <ArrowDown className='size-3.5' />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                  {isStorefrontSort && (
+                    <div className='absolute top-2 right-2 z-10 flex flex-col gap-0.5'>
+                      <button
+                        type='button'
+                        disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === 0}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleMove(idx, 'up');
+                        }}
+                        className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
+                        title='Mover arriba'
+                      >
+                        <ArrowUp className='size-3.5' />
+                      </button>
+                      <button
+                        type='button'
+                        disabled={isReordering || (page - 1) * ITEMS_PER_PAGE + idx === sorted.length - 1}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleMove(idx, 'down');
+                        }}
+                        className='bg-background hover:bg-muted rounded-md border p-1 shadow-sm transition-colors disabled:opacity-30'
+                        title='Mover abajo'
+                      >
+                        <ArrowDown className='size-3.5' />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {totalPages > 1 && (

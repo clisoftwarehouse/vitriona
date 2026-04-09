@@ -27,6 +27,11 @@ const CACHE_SHORT = 30; // 30s – for data that changes often (products, stock)
 const CACHE_MEDIUM = 120; // 2min – for semi-static data (categories, catalogs)
 const CACHE_LONG = 300; // 5min – for rarely changing data (business info, settings)
 
+const storefrontActiveProductCondition = or(
+  eq(products.status, 'active'),
+  and(eq(products.trackInventory, false), eq(products.status, 'out_of_stock'))
+);
+
 // ── Business by slug ─────────────────────────────────────────────────────────
 export const getBusinessBySlug = cache((slug: string) =>
   unstable_cache(
@@ -108,7 +113,7 @@ export const getPublicProducts = cache((businessId: string, categoryId?: string,
 );
 
 async function _getPublicProducts(businessId: string, categoryId?: string, catalogId?: string) {
-  const conditions = [eq(products.businessId, businessId), eq(products.status, 'active')];
+  const conditions = [eq(products.businessId, businessId), storefrontActiveProductCondition];
 
   // If a specific catalog is requested, get ordered IDs from catalog_products then fetch full products
   if (catalogId) {
@@ -290,7 +295,7 @@ async function _getCatalogsWithPreviewProducts(businessId: string, limit = 6) {
   const allProducts = await db
     .select()
     .from(products)
-    .where(and(inArray(products.id, allProductIds), eq(products.status, 'active')))
+    .where(and(inArray(products.id, allProductIds), storefrontActiveProductCondition))
     .orderBy(asc(products.sortOrder));
 
   const productMap = new Map(allProducts.map((p) => [p.id, p]));
@@ -381,7 +386,7 @@ async function _getProductBySlug(businessId: string, productSlug: string) {
   const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.businessId, businessId), eq(products.slug, productSlug), eq(products.status, 'active')))
+    .where(and(eq(products.businessId, businessId), eq(products.slug, productSlug), storefrontActiveProductCondition))
     .limit(1);
 
   if (!product) return null;
@@ -490,7 +495,7 @@ async function _getRelatedOrBestSellerProducts(businessId: string, productId: st
     const relatedProductList = await db
       .select()
       .from(products)
-      .where(and(inArray(products.id, relatedIds), eq(products.status, 'active')));
+      .where(and(inArray(products.id, relatedIds), storefrontActiveProductCondition));
 
     // Preserve admin sort order
     const orderMap = new Map(relatedIds.map((id, i) => [id, i]));
@@ -523,7 +528,7 @@ async function _getRelatedOrBestSellerProducts(businessId: string, productId: st
         and(
           inArray(products.id, bestSellerIds.slice(0, limit)),
           eq(products.businessId, businessId),
-          eq(products.status, 'active')
+          storefrontActiveProductCondition
         )
       );
 
@@ -538,7 +543,9 @@ async function _getRelatedOrBestSellerProducts(businessId: string, productId: st
   const fallbackProducts = await db
     .select()
     .from(products)
-    .where(and(eq(products.businessId, businessId), eq(products.status, 'active'), sql`${products.id} != ${productId}`))
+    .where(
+      and(eq(products.businessId, businessId), storefrontActiveProductCondition, sql`${products.id} != ${productId}`)
+    )
     .orderBy(sql`RANDOM()`)
     .limit(limit);
 

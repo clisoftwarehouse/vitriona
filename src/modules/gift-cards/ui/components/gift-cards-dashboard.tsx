@@ -117,7 +117,13 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success(`Gift card creada: ${result.code}`);
+        if (result.emailSent) {
+          toast.success(`Gift card creada y enviada por correo: ${result.code}`);
+        } else if (result.emailError) {
+          toast.warning(`${result.emailError} Codigo: ${result.code}`);
+        } else {
+          toast.success(`Gift card creada: ${result.code}`);
+        }
         setCreateOpen(false);
         resetForm();
         fetchData();

@@ -48,6 +48,12 @@ export async function updateProductAction(productId: string, values: UpdateProdu
     const nextType = values.type ?? 'product';
     const isBundle = nextType === 'bundle';
     const wasBundle = product.type === 'bundle';
+    const normalizedStatus =
+      nextType !== 'product' || !(values.trackInventory ?? true)
+        ? values.status === 'inactive'
+          ? 'inactive'
+          : 'active'
+        : values.status;
 
     // Check if product has variants — if so, stock is managed by variant sync
     const [variantCheck] = await db
@@ -105,7 +111,7 @@ export async function updateProductAction(productId: string, values: UpdateProdu
           : hasVariants
             ? {}
             : { stock: values.type === 'service' ? null : (values.stock ?? 0) }),
-        status: values.status,
+        status: normalizedStatus,
         isFeatured: values.isFeatured,
         type: nextType,
         bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,

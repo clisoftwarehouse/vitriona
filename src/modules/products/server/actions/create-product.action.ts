@@ -59,6 +59,12 @@ export async function createProductAction(
     }
 
     const isBundle = values.type === 'bundle';
+    const normalizedStatus =
+      values.type !== 'product' || !(values.trackInventory ?? true)
+        ? values.status === 'inactive'
+          ? 'inactive'
+          : 'active'
+        : values.status;
 
     const isCustomerChoice = isBundle && values.bundleSelectionMode === 'customer_choice';
 
@@ -98,7 +104,7 @@ export async function createProductAction(
         compareAtPrice: isBundle ? null : values.compareAtPrice || null,
         sku: values.sku || generateSku(business.slug),
         stock: values.type === 'service' ? null : isBundle ? 0 : (values.stock ?? 0),
-        status: values.status,
+        status: normalizedStatus,
         isFeatured: values.isFeatured,
         type: values.type ?? 'product',
         bundlePriceMode: isBundle ? (values.bundlePriceMode ?? 'sum_items') : null,
