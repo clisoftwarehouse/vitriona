@@ -219,36 +219,45 @@ html {
 /* ─── Driver.js tour overrides ─── */
 
 .driver-popover {
-  background-color: oklch(var(--background)) !important;
-  color: oklch(var(--foreground)) !important;
-  border: 1px solid oklch(var(--border)) !important;
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
   border-radius: calc(var(--radius) - 2px) !important;
-  box-shadow: var(--shadow-xl) !important;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.15),
+    0 1px 4px rgba(0, 0, 0, 0.1) !important;
   font-family: var(--font-sans) !important;
+  padding: 1.25rem !important;
+}
+
+:is(.dark) .driver-popover {
+  box-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--border) !important;
 }
 
 .driver-popover-title {
   font-size: 1rem !important;
   font-weight: 600 !important;
-  color: oklch(var(--foreground)) !important;
+  color: var(--popover-foreground) !important;
   letter-spacing: var(--tracking-normal) !important;
 }
 
 .driver-popover-description {
   font-size: 0.875rem !important;
-  color: oklch(var(--muted-foreground)) !important;
+  color: var(--muted-foreground) !important;
   line-height: 1.5 !important;
 }
 
 .driver-popover-progress-text {
   font-size: 0.75rem !important;
-  color: oklch(var(--muted-foreground)) !important;
+  color: var(--muted-foreground) !important;
 }
 
 .driver-popover-prev-btn {
   background-color: transparent !important;
-  color: oklch(var(--foreground)) !important;
-  border: 1px solid oklch(var(--border)) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
   border-radius: calc(var(--radius) - 4px) !important;
   font-size: 0.8125rem !important;
   font-weight: 500 !important;
@@ -257,13 +266,13 @@ html {
 }
 
 .driver-popover-prev-btn:hover {
-  background-color: oklch(var(--accent)) !important;
+  background-color: var(--accent) !important;
 }
 
 .driver-popover-next-btn,
 .driver-popover-close-btn-text {
-  background-color: oklch(var(--primary)) !important;
-  color: oklch(var(--primary-foreground)) !important;
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
   border: none !important;
   border-radius: calc(var(--radius) - 4px) !important;
   font-size: 0.8125rem !important;
@@ -277,19 +286,29 @@ html {
   opacity: 0.9 !important;
 }
 
-.driver-popover-arrow-side-left.driver-popover-arrow,
-.driver-popover-arrow-side-right.driver-popover-arrow,
-.driver-popover-arrow-side-top.driver-popover-arrow,
-.driver-popover-arrow-side-bottom.driver-popover-arrow {
-  border-color: oklch(var(--border)) !important;
+/* Arrow: only color the visible side to preserve the CSS triangle */
+.driver-popover-arrow-side-left {
+  border-left-color: var(--popover) !important;
+}
+
+.driver-popover-arrow-side-right {
+  border-right-color: var(--popover) !important;
+}
+
+.driver-popover-arrow-side-top {
+  border-top-color: var(--popover) !important;
+}
+
+.driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--popover) !important;
 }
 
 .driver-popover-close-btn {
-  color: oklch(var(--muted-foreground)) !important;
+  color: var(--muted-foreground) !important;
 }
 
 .driver-popover-close-btn:hover {
-  color: oklch(var(--foreground)) !important;
+  color: var(--popover-foreground) !important;
 }
 
 .driver-overlay {

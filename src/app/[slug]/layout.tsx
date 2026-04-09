@@ -95,6 +95,8 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     borderRadius: settings?.borderRadius ?? 12,
   };
 
+  const logoSize = settings?.logoSize ?? 36;
+  const footerLogoSize = Math.round(logoSize * 0.88);
   const currentYear = new Date().getFullYear();
 
   // Support individual social columns with fallback to legacy jsonb, then business-level fields
@@ -168,22 +170,28 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                 <Image
                   src={business.logoUrl}
                   alt={business.name}
-                  width={36}
-                  height={36}
+                  width={logoSize}
+                  height={logoSize}
                   unoptimized
-                  className='size-9 object-cover'
-                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                  className='object-contain'
+                  style={{
+                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                    width: logoSize,
+                    height: logoSize,
+                  }}
                 />
               ) : (
                 <div
-                  className='flex size-9 items-center justify-center'
+                  className='flex items-center justify-center'
                   style={{
                     borderRadius: 'var(--sf-radius, 0.75rem)',
                     backgroundColor: 'var(--sf-primary, #000)',
                     color: 'var(--sf-primary-contrast, #fff)',
+                    width: logoSize,
+                    height: logoSize,
                   }}
                 >
-                  <Store className='size-4.5' />
+                  <Store style={{ width: logoSize * 0.5, height: logoSize * 0.5 }} />
                 </div>
               )}
               {settings?.headerTitle && (
@@ -227,22 +235,28 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                     <Image
                       src={business.logoUrl}
                       alt={business.name}
-                      width={32}
-                      height={32}
+                      width={footerLogoSize}
+                      height={footerLogoSize}
                       unoptimized
-                      className='size-8 object-cover'
-                      style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                      className='object-contain'
+                      style={{
+                        borderRadius: 'var(--sf-radius, 0.75rem)',
+                        width: footerLogoSize,
+                        height: footerLogoSize,
+                      }}
                     />
                   ) : (
                     <div
-                      className='flex size-8 items-center justify-center'
+                      className='flex items-center justify-center'
                       style={{
                         borderRadius: 'var(--sf-radius, 0.75rem)',
                         backgroundColor: 'var(--sf-primary, #000)',
                         color: 'var(--sf-primary-contrast, #fff)',
+                        width: footerLogoSize,
+                        height: footerLogoSize,
                       }}
                     >
-                      <Store className='size-4' />
+                      <Store style={{ width: footerLogoSize * 0.5, height: footerLogoSize * 0.5 }} />
                     </div>
                   )}
                   {!business.logoUrl && <span className='font-bold'>{business.name}</span>}

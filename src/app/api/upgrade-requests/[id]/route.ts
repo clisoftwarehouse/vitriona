@@ -39,6 +39,25 @@ function htmlResponse(title: string, message: string, success: boolean) {
   );
 }
 
+/**
+ * Calculate the billing cycle end date.
+ * For renewals, if there's remaining time on the current cycle, extend from that date.
+ * Otherwise, start from now.
+ */
+function calculateBillingCycleEnd(billingCycle: string, currentBillingCycleEnd: Date | null): Date {
+  const now = new Date();
+  // If renewing and the current cycle hasn't ended yet, extend from the current end date
+  const startFrom = currentBillingCycleEnd && currentBillingCycleEnd > now ? currentBillingCycleEnd : now;
+
+  const end = new Date(startFrom);
+  if (billingCycle === 'annual') {
+    end.setFullYear(end.getFullYear() + 1);
+  } else {
+    end.setMonth(end.getMonth() + 1);
+  }
+  return end;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = request.nextUrl;
@@ -72,22 +91,65 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   if (action === 'approve') {
+    // Fetch current business billing info
+    const [business] = await db
+      .select({
+        id: businesses.id,
+        billingCycleEnd: businesses.billingCycleEnd,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, upgradeRequest.businessId))
+      .limit(1);
+
+    // For upgrades mid-cycle, keep the existing billing cycle end date (user only pays prorated difference)
+    // For new subscriptions and renewals, calculate a new end date
+    const isUpgradeMidCycle =
+      upgradeRequest.requestType === 'upgrade' && business?.billingCycleEnd && business.billingCycleEnd > new Date();
+
+    const newBillingCycleEnd = isUpgradeMidCycle
+      ? business.billingCycleEnd!
+      : calculateBillingCycleEnd(upgradeRequest.billingCycle, business?.billingCycleEnd ?? null);
+
     // Update request status
     await db
       .update(upgradeRequests)
       .set({ status: 'approved', updatedAt: new Date() })
       .where(eq(upgradeRequests.id, id));
 
-    // Update business plan
+    // Update business plan + billing info
     await db
       .update(businesses)
-      .set({ plan: upgradeRequest.plan, updatedAt: new Date() })
+      .set({
+        plan: upgradeRequest.plan,
+        // For mid-cycle upgrades, keep the existing billing cycle
+        billingCycle: isUpgradeMidCycle
+          ? business.billingCycleEnd
+            ? upgradeRequest.billingCycle
+            : upgradeRequest.billingCycle
+          : upgradeRequest.billingCycle,
+        billingCycleEnd: newBillingCycleEnd,
+        scheduledPlan: null, // Clear any scheduled downgrade
+        updatedAt: new Date(),
+      })
       .where(eq(businesses.id, upgradeRequest.businessId));
 
     const planLabel = PLAN_LABELS[upgradeRequest.plan] ?? upgradeRequest.plan;
+    const endFormatted = newBillingCycleEnd.toLocaleDateString('es', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const requestTypeLabel =
+      upgradeRequest.requestType === 'renewal'
+        ? 'renovado'
+        : upgradeRequest.requestType === 'upgrade'
+          ? 'actualizado'
+          : 'activado';
+
     return htmlResponse(
-      'Upgrade aprobado',
-      `El plan del negocio ha sido actualizado a <strong>${planLabel}</strong> exitosamente. El usuario será notificado.`,
+      'Plan aprobado',
+      `El plan del negocio ha sido ${requestTypeLabel} a <strong>${planLabel}</strong>. Vigente hasta <strong>${endFormatted}</strong>.`,
       true
     );
   }

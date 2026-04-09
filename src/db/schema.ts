@@ -170,6 +170,12 @@ export const businesses = pgTable('businesses', {
   plan: text('plan', { enum: ['free', 'pro', 'business'] })
     .notNull()
     .default('free'),
+
+  // ── Billing ──
+  billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }),
+  billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
+  scheduledPlan: text('scheduled_plan', { enum: ['free', 'pro', 'business'] }),
+
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
@@ -245,6 +251,7 @@ export const catalogSettings = pgTable('catalog_settings', {
 
   // ── Header ──
   headerTitle: text('header_title'),
+  logoSize: integer('logo_size').default(36),
 
   // ── Hero Section ──
   heroEnabled: boolean('hero_enabled').notNull().default(true),
@@ -847,7 +854,10 @@ export const businessAiQuotas = pgTable('business_ai_quotas', {
   aiPlanType: text('ai_plan_type', { enum: ['ia_starter', 'ia_business', 'ia_enterprise'] }).notNull(),
   aiMessagesUsed: integer('ai_messages_used').notNull().default(0),
   aiMessagesLimit: integer('ai_messages_limit').notNull(),
+  billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }),
   billingCycleStart: timestamp('billing_cycle_start', { mode: 'date' }).notNull().defaultNow(),
+  billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
+  scheduledAiPlanType: text('scheduled_ai_plan_type', { enum: ['ia_starter', 'ia_business', 'ia_enterprise'] }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });
@@ -900,6 +910,40 @@ export const coupons = pgTable('coupons', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
+// ── Chatbot Activation Requests ──
+
+export const chatbotActivationRequests = pgTable('chatbot_activation_requests', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  requestType: text('request_type', { enum: ['new', 'renewal', 'upgrade', 'addon_credits'] })
+    .notNull()
+    .default('new'),
+  aiPlanType: text('ai_plan_type', { enum: ['ia_starter', 'ia_business', 'ia_enterprise'] }).notNull(),
+  billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }).notNull(),
+  paymentMethod: text('payment_method', { enum: ['bank_transfer', 'pago_movil', 'zelle', 'binance'] }).notNull(),
+  referenceId: text('reference_id').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  // Invoice info
+  fullName: text('full_name').notNull(),
+  idNumber: text('id_number').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone'),
+  notes: text('notes'),
+  token: text('token').notNull(),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+    .notNull()
+    .default('pending'),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // ── Upgrade Requests ──
 
 export const upgradeRequests = pgTable('upgrade_requests', {
@@ -912,6 +956,9 @@ export const upgradeRequests = pgTable('upgrade_requests', {
   businessId: text('business_id')
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
+  requestType: text('request_type', { enum: ['new', 'renewal', 'upgrade'] })
+    .notNull()
+    .default('new'),
   plan: text('plan', { enum: ['pro', 'business'] }).notNull(),
   billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }).notNull(),
   paymentMethod: text('payment_method', { enum: ['bank_transfer', 'pago_movil', 'zelle', 'binance'] }).notNull(),

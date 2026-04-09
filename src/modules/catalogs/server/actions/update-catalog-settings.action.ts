@@ -34,6 +34,7 @@ export type CatalogSettingsInput = {
   showPrices?: boolean;
   showStock?: boolean;
   headerTitle?: string | null;
+  logoSize?: number;
   announcementEnabled?: boolean;
   announcementText?: string | null;
   announcementBgColor?: string;

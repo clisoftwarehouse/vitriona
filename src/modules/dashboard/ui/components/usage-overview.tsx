@@ -57,7 +57,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   );
 }
 
-export function UsageOverview({ data, businessId }: { data: UsageStats; businessId: string }) {
+export function UsageOverview({ data }: { data: UsageStats }) {
   const planItems = data.items.filter((i) => i.category === 'plan');
   const addonItems = data.items.filter((i) => i.category === 'addon');
 
@@ -106,7 +106,7 @@ export function UsageOverview({ data, businessId }: { data: UsageStats; business
 
         {data.planType !== 'business' && (
           <Link
-            href={`/dashboard/upgrade?businessId=${businessId}`}
+            href='/dashboard/billing'
             className={`mt-1 inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-90 ${
               hasAnyNearLimit
                 ? 'bg-primary text-primary-foreground'
@@ -114,7 +114,7 @@ export function UsageOverview({ data, businessId }: { data: UsageStats; business
             }`}
           >
             <ArrowUpCircle className='size-3.5' />
-            {hasAnyNearLimit ? 'Mejorar plan' : 'Solicitar upgrade'}
+            {hasAnyNearLimit ? 'Mejorar plan' : 'Ver facturación'}
           </Link>
         )}
       </CardContent>

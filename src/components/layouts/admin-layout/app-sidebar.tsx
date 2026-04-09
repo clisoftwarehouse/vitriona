@@ -10,9 +10,8 @@ import {
   Store,
   Truck,
   Package,
+  Receipt,
   BookOpen,
-  Settings,
-  Sparkles,
   Warehouse,
   Paintbrush,
   CreditCard,
@@ -64,7 +63,6 @@ export function AppSidebar({
   const generalNavItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Negocios', href: '/dashboard/businesses', icon: Store },
-    { label: 'Configuración', href: '/dashboard/settings', icon: Settings },
   ];
 
   const businessNavSections: NavSection[] = activeBusiness
@@ -279,12 +277,12 @@ export function AppSidebar({
                     className='mx-auto flex size-8 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950'
                     asChild
                   >
-                    <Link href='/dashboard/upgrade'>
-                      <Sparkles className='size-3.5' />
+                    <Link href='/dashboard/billing'>
+                      <Receipt className='size-3.5' />
                     </Link>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='right'>Solicitar Upgrade</TooltipContent>
+                <TooltipContent side='right'>Facturación</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           ) : (
@@ -307,9 +305,9 @@ export function AppSidebar({
                 className='w-full gap-2 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950'
                 asChild
               >
-                <Link href='/dashboard/upgrade'>
-                  <Sparkles className='size-3.5' />
-                  Solicitar Upgrade
+                <Link href='/dashboard/billing'>
+                  <Receipt className='size-3.5' />
+                  Facturación
                 </Link>
               </Button>
             </>

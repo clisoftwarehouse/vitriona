@@ -5,18 +5,22 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { signUpgradeToken } from '@/lib/upgrade-token';
-import { users, businesses, upgradeRequests } from '@/db/schema';
 import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
-import { upgradeRequestEmailTemplate } from '@/modules/auth/server/email/templates/upgrade-request.template';
+import { users, businesses, businessAiQuotas, chatbotActivationRequests } from '@/db/schema';
+import { chatbotActivationRequestEmailTemplate } from '@/modules/auth/server/email/templates/chatbot-activation-request.template';
 
 const ADMIN_EMAIL = 'info@clisoftwarehouse.com';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
 
-const PLAN_HIERARCHY: Record<string, number> = { free: 0, pro: 1, business: 2 };
+const AI_PLAN_HIERARCHY: Record<string, number> = {
+  ia_starter: 0,
+  ia_business: 1,
+  ia_enterprise: 2,
+};
 
-interface SubmitUpgradeRequestInput {
+interface SubmitChatbotActivationRequestInput {
   businessId: string;
-  plan: 'pro' | 'business';
+  aiPlanType: 'ia_starter' | 'ia_business' | 'ia_enterprise';
   billingCycle: 'monthly' | 'annual';
   paymentMethod: 'bank_transfer' | 'pago_movil' | 'zelle' | 'binance';
   referenceId: string;
@@ -28,43 +32,49 @@ interface SubmitUpgradeRequestInput {
   notes?: string;
 }
 
-export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInput) {
+export async function submitChatbotActivationRequestAction(input: SubmitChatbotActivationRequestInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
     // Validate business belongs to user
     const [business] = await db
-      .select({
-        id: businesses.id,
-        name: businesses.name,
-        plan: businesses.plan,
-        billingCycle: businesses.billingCycle,
-        billingCycleEnd: businesses.billingCycleEnd,
-      })
+      .select({ id: businesses.id, name: businesses.name, plan: businesses.plan })
       .from(businesses)
       .where(eq(businesses.id, input.businessId))
       .limit(1);
 
     if (!business) return { error: 'Negocio no encontrado' };
 
-    // Determine request type
-    const currentLevel = PLAN_HIERARCHY[business.plan] ?? 0;
-    const targetLevel = PLAN_HIERARCHY[input.plan] ?? 0;
+    // Check existing AI quota to determine request type
+    const [existingQuota] = await db
+      .select({
+        id: businessAiQuotas.id,
+        aiPlanType: businessAiQuotas.aiPlanType,
+        billingCycleEnd: businessAiQuotas.billingCycleEnd,
+      })
+      .from(businessAiQuotas)
+      .where(eq(businessAiQuotas.businessId, input.businessId))
+      .limit(1);
 
     let requestType: 'new' | 'renewal' | 'upgrade';
 
-    if (business.plan === 'free') {
-      // Coming from free → new subscription
+    if (!existingQuota) {
+      // No existing AI quota → new activation
       requestType = 'new';
-    } else if (input.plan === business.plan) {
+    } else if (input.aiPlanType === existingQuota.aiPlanType) {
       // Same plan → renewal
       requestType = 'renewal';
-    } else if (targetLevel > currentLevel) {
-      // Higher tier → upgrade
-      requestType = 'upgrade';
     } else {
-      return { error: 'No puedes cambiar a un plan inferior desde aquí. Usa la opción de cancelar.' };
+      const currentLevel = AI_PLAN_HIERARCHY[existingQuota.aiPlanType] ?? 0;
+      const targetLevel = AI_PLAN_HIERARCHY[input.aiPlanType] ?? 0;
+
+      if (targetLevel > currentLevel) {
+        // Higher tier → upgrade
+        requestType = 'upgrade';
+      } else {
+        return { error: 'No puedes cambiar a un plan inferior desde aquí. Usa la opción de cancelar.' };
+      }
     }
 
     // Get user info
@@ -76,16 +86,16 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
 
     if (!user) return { error: 'Usuario no encontrado' };
 
-    // Insert upgrade request (generate ID first so we can sign it)
+    // Insert chatbot activation request
     const requestId = crypto.randomUUID();
     const token = signUpgradeToken(requestId);
 
-    await db.insert(upgradeRequests).values({
+    await db.insert(chatbotActivationRequests).values({
       id: requestId,
       userId: session.user.id,
       businessId: input.businessId,
       requestType,
-      plan: input.plan,
+      aiPlanType: input.aiPlanType,
       billingCycle: input.billingCycle,
       paymentMethod: input.paymentMethod,
       referenceId: input.referenceId.trim(),
@@ -98,11 +108,17 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
       token,
     });
 
-    const approveUrl = `${APP_URL}/api/upgrade-requests/${requestId}?action=approve&token=${token}`;
-    const rejectUrl = `${APP_URL}/api/upgrade-requests/${requestId}?action=reject&token=${token}`;
+    const approveUrl = `${APP_URL}/api/chatbot-activation-requests/${requestId}?action=approve&token=${token}`;
+    const rejectUrl = `${APP_URL}/api/chatbot-activation-requests/${requestId}?action=reject&token=${token}`;
+
+    const AI_PLAN_LABELS: Record<string, string> = {
+      ia_starter: 'AI Starter',
+      ia_business: 'AI Business',
+      ia_enterprise: 'AI Enterprise',
+    };
 
     const REQUEST_TYPE_LABELS: Record<string, string> = {
-      new: 'Nueva suscripción',
+      new: 'Nueva activación',
       renewal: 'Renovación',
       upgrade: 'Upgrade',
     };
@@ -111,12 +127,12 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
     await resend.emails.send({
       from: EMAIL_FROM,
       to: ADMIN_EMAIL,
-      subject: `${REQUEST_TYPE_LABELS[requestType]} de Plan — ${business.name} → Plan ${input.plan === 'pro' ? 'Emprendedor' : 'Negocio'}`,
-      html: upgradeRequestEmailTemplate({
+      subject: `${REQUEST_TYPE_LABELS[requestType]} de Chatbot IA — ${business.name} → ${AI_PLAN_LABELS[input.aiPlanType] ?? input.aiPlanType}`,
+      html: chatbotActivationRequestEmailTemplate({
         userName: user.name ?? 'Sin nombre',
         userEmail: user.email,
         businessName: business.name,
-        plan: input.plan,
+        aiPlanType: input.aiPlanType,
         billingCycle: input.billingCycle,
         paymentMethod: input.paymentMethod,
         referenceId: input.referenceId.trim(),
@@ -133,7 +149,7 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
 
     return { success: true, requestId, requestType };
   } catch (error) {
-    console.error('Error submitting upgrade request:', error);
+    console.error('Error submitting chatbot activation request:', error);
     return { error: 'Error al procesar la solicitud. Intenta de nuevo.' };
   }
 }

@@ -2,62 +2,61 @@
 
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useMemo, useState, useTransition } from 'react';
-import { Check, Crown, Loader2, FileText, Sparkles, ArrowLeft, ArrowRight, CreditCard } from 'lucide-react';
+import { useState, useTransition } from 'react';
+import { Bot, Check, Loader2, FileText, ArrowLeft, ArrowRight, CreditCard } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { submitUpgradeRequestAction } from '@/modules/upgrade/server/actions/submit-upgrade-request.action';
+import { submitChatbotActivationRequestAction } from '@/modules/upgrade/server/actions/submit-chatbot-activation-request.action';
 
 // ── Constants ──
 
 const ANNUAL_DISCOUNT = 0.15;
 
-type PlanKey = 'pro' | 'business';
+type AiPlanKey = 'ia_starter' | 'ia_business' | 'ia_enterprise';
 type BillingCycle = 'monthly' | 'annual';
 type PaymentMethod = 'bank_transfer' | 'pago_movil' | 'zelle' | 'binance';
 
-const PLAN_LABELS: Record<string, string> = {
-  free: 'Gratis',
-  pro: 'Emprendedor',
-  business: 'Negocio',
-};
-
-interface Plan {
-  key: PlanKey;
+interface AiPlan {
+  key: AiPlanKey;
   name: string;
   monthlyPrice: number;
-  features: string[];
+  responses: string;
+  description: string;
+  highlighted?: boolean;
 }
 
-const PLANS: Plan[] = [
+const AI_PLAN_LABELS: Record<string, string> = {
+  ia_starter: 'AI Starter',
+  ia_business: 'AI Business',
+  ia_enterprise: 'AI Enterprise',
+};
+
+const AI_PLANS: AiPlan[] = [
   {
-    key: 'pro',
-    name: 'Emprendedor',
-    monthlyPrice: 15,
-    features: [
-      'Hasta 100 productos',
-      '5,000 visitas/mes',
-      'Sin marca de agua',
-      '2 Métodos de pago',
-      '2 Métodos de entrega',
-    ],
+    key: 'ia_starter',
+    name: 'AI Starter',
+    monthlyPrice: 9.99,
+    responses: '500 respuestas/mes',
+    description: 'Para negocios que empiezan a automatizar su atención.',
   },
   {
-    key: 'business',
-    name: 'Negocio',
-    monthlyPrice: 30,
-    features: [
-      'Todo lo del plan Emprendedor',
-      'Hasta 1,000 productos',
-      '20,000 visitas/mes',
-      'Soporte prioritario',
-      'Métodos de pago ilimitados',
-      'Métodos de entrega ilimitados',
-    ],
+    key: 'ia_business',
+    name: 'AI Business',
+    monthlyPrice: 24.99,
+    responses: '2,500 respuestas/mes',
+    description: 'Para negocios con volumen moderado de consultas.',
+    highlighted: true,
+  },
+  {
+    key: 'ia_enterprise',
+    name: 'AI Enterprise',
+    monthlyPrice: 49.99,
+    responses: '10,000 respuestas/mes',
+    description: 'Para operaciones de alto volumen y múltiples negocios.',
   },
 ];
 
@@ -84,20 +83,15 @@ function formatUsd(amount: number) {
 
 // ── Component ──
 
-interface UpgradeCheckoutProps {
-  businesses: { id: string; name: string; plan: string }[];
+interface ChatbotActivationCheckoutProps {
+  businesses: { id: string; name: string; plan: string; hasAiQuota: boolean; aiPlanType?: string | null }[];
   userEmail: string;
   activeBusinessId: string | null;
-  billingInfo?: {
-    billingCycle: string | null;
-    billingCycleEnd: string | null; // ISO string
-    currentPlanPrice: number;
-  } | null;
 }
 
 type Step = 'plan' | 'payment' | 'invoice';
 
-export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billingInfo }: UpgradeCheckoutProps) {
+export function ChatbotActivationCheckout({ businesses, userEmail, activeBusinessId }: ChatbotActivationCheckoutProps) {
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0] ?? null;
   const [step, setStep] = useState<Step>('plan');
   const [isPending, startTransition] = useTransition();
@@ -106,20 +100,26 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
   // Selections
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<AiPlanKey>('ia_business');
 
-  // Derive available plans for the active business
-  const availablePlans = useMemo(() => {
-    if (!activeBusiness) return PLANS;
-    if (activeBusiness.plan === 'pro') return PLANS.filter((p) => p.key === 'business');
-    if (activeBusiness.plan === 'business') return [];
-    return PLANS; // free → show both
-  }, [activeBusiness]);
+  // Check if the active business already has AI quota
+  const currentBusinessData = businesses.find((b) => b.id === activeBusiness?.id);
+  const hasAiQuota = currentBusinessData?.hasAiQuota ?? false;
+  const currentAiPlan = currentBusinessData?.aiPlanType ?? null;
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanKey>(() => {
-    return activeBusiness?.plan === 'pro' ? 'business' : 'pro';
-  });
+  // Filter plans: if already has AI, show only higher tiers
+  const AI_PLAN_HIERARCHY: Record<string, number> = {
+    ia_starter: 0,
+    ia_business: 1,
+    ia_enterprise: 2,
+  };
 
-  const isAlreadyOnHighestPlan = activeBusiness?.plan === 'business';
+  const availableAiPlans =
+    hasAiQuota && currentAiPlan
+      ? AI_PLANS.filter((p) => (AI_PLAN_HIERARCHY[p.key] ?? 0) > (AI_PLAN_HIERARCHY[currentAiPlan] ?? 0))
+      : AI_PLANS;
+
+  const isOnHighestAiPlan = hasAiQuota && currentAiPlan === 'ia_enterprise';
 
   // Invoice form
   const [referenceId, setReferenceId] = useState('');
@@ -129,60 +129,20 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
 
-  const plan = PLANS.find((p) => p.key === selectedPlan)!;
+  const plan = AI_PLANS.find((p) => p.key === selectedPlan)!;
   const pricing = getPrice(plan.monthlyPrice, billingCycle);
-  const fullPaymentAmount = billingCycle === 'annual' ? pricing.total : pricing.monthly;
+  const paymentAmount = billingCycle === 'annual' ? pricing.total : pricing.monthly;
 
-  // Proration calculation for mid-cycle upgrades
-  const proration = useMemo(() => {
-    if (!billingInfo?.billingCycleEnd || !billingInfo?.billingCycle || activeBusiness?.plan === 'free') {
-      return null; // No proration for free plans or missing billing info
-    }
-
-    const now = new Date();
-    const cycleEnd = new Date(billingInfo.billingCycleEnd);
-    if (cycleEnd <= now) return null; // Expired, no proration
-
-    // Calculate remaining days
-    const remainingMs = cycleEnd.getTime() - now.getTime();
-    const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
-    const totalDays = billingInfo.billingCycle === 'annual' ? 365 : 30;
-    const fraction = Math.min(remainingDays / totalDays, 1);
-
-    // Current plan cost for remaining period
-    const currentPlanRemaining = billingInfo.currentPlanPrice * fraction;
-
-    // New plan cost for remaining period (use same billing cycle as current)
-    const newPlanFullPrice =
-      billingInfo.billingCycle === 'annual'
-        ? getPrice(plan.monthlyPrice, 'annual').total
-        : getPrice(plan.monthlyPrice, 'monthly').monthly;
-    const newPlanRemaining = newPlanFullPrice * fraction;
-
-    const difference = Math.max(newPlanRemaining - currentPlanRemaining, 0);
-
-    return {
-      remainingDays,
-      totalDays,
-      currentPlanRemaining,
-      newPlanRemaining,
-      difference,
-      isProrated: true,
-    };
-  }, [billingInfo, activeBusiness?.plan, plan.monthlyPrice]);
-
-  const paymentAmount = proration ? proration.difference : fullPaymentAmount;
-
-  const canProceedPlan = activeBusiness && selectedPlan && !isAlreadyOnHighestPlan;
+  const canProceedPlan = activeBusiness && selectedPlan && !isOnHighestAiPlan && availableAiPlans.length > 0;
   const canProceedPayment = paymentMethod !== null;
   const canSubmit = referenceId.trim() && fullName.trim() && idNumber.trim() && email.trim();
 
   const handleSubmit = () => {
     if (!canSubmit || !paymentMethod || !activeBusiness) return;
     startTransition(async () => {
-      const result = await submitUpgradeRequestAction({
+      const result = await submitChatbotActivationRequestAction({
         businessId: activeBusiness.id,
-        plan: selectedPlan,
+        aiPlanType: selectedPlan,
         billingCycle,
         paymentMethod,
         referenceId,
@@ -213,8 +173,8 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
           </div>
           <h2 className='mt-6 text-xl font-semibold'>Solicitud enviada</h2>
           <p className='text-muted-foreground mt-2 max-w-sm text-sm'>
-            Hemos recibido tu solicitud de upgrade al plan <strong>{plan.name}</strong> para{' '}
-            <strong>{activeBusiness?.name}</strong>. Verificaremos tu pago y activaremos tu plan lo antes posible. Te
+            Hemos recibido tu solicitud de activación del chatbot IA con el plan <strong>{plan.name}</strong> para{' '}
+            <strong>{activeBusiness?.name}</strong>. Verificaremos tu pago y activaremos tu chatbot lo antes posible. Te
             notificaremos por correo electrónico.
           </p>
           <Button className='mt-8' asChild>
@@ -230,11 +190,11 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
       <Card className='mx-auto max-w-lg py-16'>
         <CardContent className='flex flex-col items-center text-center'>
           <div className='bg-muted flex size-14 items-center justify-center rounded-full'>
-            <Sparkles className='text-muted-foreground size-6' />
+            <Bot className='text-muted-foreground size-6' />
           </div>
           <h2 className='mt-4 text-lg font-semibold'>No tienes negocios</h2>
           <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
-            Crea un negocio primero para poder solicitar un upgrade de plan.
+            Crea un negocio primero para poder activar el chatbot IA.
           </p>
           <Button className='mt-6' variant='outline' asChild>
             <Link href='/dashboard/businesses'>Ir a Negocios</Link>
@@ -244,17 +204,17 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
     );
   }
 
-  if (isAlreadyOnHighestPlan) {
+  if (isOnHighestAiPlan) {
     return (
       <Card className='mx-auto max-w-lg py-16'>
         <CardContent className='flex flex-col items-center text-center'>
-          <div className='flex size-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30'>
-            <Crown className='size-6 text-emerald-600 dark:text-emerald-400' />
+          <div className='flex size-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30'>
+            <Bot className='size-6 text-amber-600 dark:text-amber-400' />
           </div>
-          <h2 className='mt-4 text-lg font-semibold'>Ya tienes el plan más alto</h2>
+          <h2 className='mt-4 text-lg font-semibold'>Ya tienes el plan de IA más alto</h2>
           <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
-            <strong>{activeBusiness.name}</strong> ya tiene el plan <strong>Negocio</strong>, que es el plan más
-            completo. Puedes seleccionar otro negocio desde la barra lateral.
+            <strong>{activeBusiness.name}</strong> ya tiene el plan <strong>AI Enterprise</strong>, que es el plan de IA
+            más completo. Puedes comprar créditos adicionales desde la sección de facturación.
           </p>
           <Button className='mt-6' variant='outline' asChild>
             <Link href='/dashboard/billing'>Volver a Facturación</Link>
@@ -269,8 +229,8 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
       {/* Steps indicator */}
       <div className='flex items-center justify-center gap-2'>
         {(['plan', 'payment', 'invoice'] as Step[]).map((s, i) => {
-          const labels = ['Plan', 'Pago', 'Facturación'];
-          const icons = [Sparkles, CreditCard, FileText];
+          const labels = ['Plan IA', 'Pago', 'Facturación'];
+          const icons = [Bot, CreditCard, FileText];
           const Icon = icons[i];
           const isActive = s === step;
           const isDone =
@@ -278,7 +238,7 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
 
           return (
             <div key={s} className='flex items-center gap-2'>
-              {i > 0 && <div className={`h-px w-8 ${isDone || isActive ? 'bg-primary' : 'bg-border'}`} />}
+              {i > 0 && <div className={`h-px w-8 ${isDone || isActive ? 'bg-amber-500' : 'bg-border'}`} />}
               <button
                 onClick={() => {
                   if (isDone) setStep(s);
@@ -286,9 +246,9 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                 disabled={!isDone}
                 className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-amber-500 text-white'
                     : isDone
-                      ? 'bg-primary/10 text-primary cursor-pointer'
+                      ? 'cursor-pointer bg-amber-500/10 text-amber-600 dark:text-amber-400'
                       : 'bg-muted text-muted-foreground'
                 }`}
               >
@@ -300,7 +260,7 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
         })}
       </div>
 
-      {/* Step 1: Plan selection */}
+      {/* Step 1: AI Plan selection */}
       {step === 'plan' && (
         <div className='space-y-6'>
           {/* Billing cycle toggle */}
@@ -327,36 +287,42 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                 }`}
               >
                 Anual
-                <span className='bg-primary/12 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold'>
+                <span className='rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400'>
                   -15%
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Current plan indicator */}
+          {/* Current business indicator */}
           <div className='bg-muted/50 flex items-center gap-3 rounded-lg border px-4 py-3'>
-            <div className='bg-primary/10 flex size-8 items-center justify-center rounded-full'>
-              <Sparkles className='text-primary size-4' />
+            <div className='flex size-8 items-center justify-center rounded-full bg-amber-500/10'>
+              <Bot className='size-4 text-amber-500' />
             </div>
             <div>
               <p className='text-sm font-medium'>
-                {activeBusiness.name} — Plan actual:{' '}
-                <span className='text-primary font-semibold'>
-                  {PLAN_LABELS[activeBusiness.plan] ?? activeBusiness.plan}
-                </span>
+                {activeBusiness.name} — Chatbot IA{' '}
+                {hasAiQuota && currentAiPlan ? (
+                  <span className='font-semibold text-amber-600 dark:text-amber-400'>
+                    {AI_PLAN_LABELS[currentAiPlan] ?? currentAiPlan}
+                  </span>
+                ) : (
+                  <span className='font-semibold text-amber-600 dark:text-amber-400'>No activado</span>
+                )}
               </p>
               <p className='text-muted-foreground text-xs'>
-                {activeBusiness.plan === 'free'
-                  ? 'Puedes upgradear a Emprendedor o Negocio'
-                  : 'Puedes upgradear a Negocio'}
+                {hasAiQuota
+                  ? 'Selecciona un plan superior para mejorar tu chatbot'
+                  : 'Selecciona un plan de IA para activar tu chatbot'}
               </p>
             </div>
           </div>
 
-          {/* Plan cards */}
-          <div className={`grid gap-4 ${availablePlans.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-            {availablePlans.map((p) => {
+          {/* AI Plan cards */}
+          <div
+            className={`grid gap-4 ${availableAiPlans.length === 1 ? '' : availableAiPlans.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}
+          >
+            {availableAiPlans.map((p) => {
               const price = getPrice(p.monthlyPrice, billingCycle);
               const isSelected = selectedPlan === p.key;
 
@@ -367,16 +333,26 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                   onClick={() => setSelectedPlan(p.key)}
                   className={`relative rounded-xl border p-6 text-left transition-all ${
                     isSelected
-                      ? 'border-primary bg-primary/5 ring-primary/20 shadow-md ring-2'
-                      : 'hover:border-primary/50 hover:shadow-sm'
+                      ? 'border-amber-500 bg-amber-500/5 shadow-md ring-2 ring-amber-500/20'
+                      : p.highlighted
+                        ? 'border-amber-500/30 hover:shadow-sm'
+                        : 'hover:border-amber-500/50 hover:shadow-sm'
                   }`}
                 >
                   {isSelected && (
-                    <div className='bg-primary text-primary-foreground absolute -top-2.5 right-4 rounded-full px-2.5 py-0.5 text-[10px] font-semibold'>
+                    <div className='absolute -top-2.5 right-4 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-semibold text-white'>
                       Seleccionado
                     </div>
                   )}
-                  <h3 className='text-lg font-semibold'>{p.name}</h3>
+                  {p.highlighted && !isSelected && (
+                    <div className='absolute -top-2.5 right-4 rounded-full bg-amber-500/80 px-2.5 py-0.5 text-[10px] font-semibold text-white'>
+                      Recomendado
+                    </div>
+                  )}
+                  <div className='flex items-center gap-2'>
+                    <Bot className='size-4 text-amber-500' />
+                    <h3 className='text-base font-semibold'>{p.name}</h3>
+                  </div>
                   <div className='mt-3 flex items-baseline gap-1'>
                     <span className='text-3xl font-bold'>{formatUsd(price.monthly)}</span>
                     <span className='text-muted-foreground text-sm'>/mes</span>
@@ -384,24 +360,24 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                   {billingCycle === 'annual' && (
                     <p className='text-muted-foreground mt-1 text-xs'>
                       <span className='line-through'>{formatUsd(p.monthlyPrice)}/mes</span>
-                      <span className='text-primary ml-2 font-semibold'>Paga {formatUsd(price.total)} al año</span>
+                      <span className='ml-2 font-semibold text-amber-600 dark:text-amber-400'>
+                        Paga {formatUsd(price.total)} al año
+                      </span>
                     </p>
                   )}
-                  <ul className='mt-4 space-y-2'>
-                    {p.features.map((f) => (
-                      <li key={f} className='flex items-start gap-2 text-sm'>
-                        <Check className='text-primary mt-0.5 size-3.5 shrink-0' />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  <p className='mt-2 text-sm font-medium text-amber-600 dark:text-amber-400'>{p.responses}</p>
+                  <p className='text-muted-foreground mt-1 text-sm'>{p.description}</p>
                 </button>
               );
             })}
           </div>
 
           <div className='flex justify-end'>
-            <Button onClick={() => setStep('payment')} disabled={!canProceedPlan}>
+            <Button
+              onClick={() => setStep('payment')}
+              disabled={!canProceedPlan}
+              className='bg-amber-500 text-white hover:bg-amber-600'
+            >
               Continuar
               <ArrowRight className='ml-2 size-4' />
             </Button>
@@ -417,28 +393,18 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
               <div className='mb-4 flex items-center justify-between'>
                 <div>
                   <p className='text-sm font-semibold'>
-                    <Sparkles className='text-primary mr-1.5 inline size-4' />
-                    Resumen — Upgrade para {activeBusiness.name}
+                    <Bot className='mr-1.5 inline size-4 text-amber-500' />
+                    Resumen — Chatbot IA para {activeBusiness.name}
                   </p>
                   <p className='text-muted-foreground text-xs'>
-                    Plan {plan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensual'}
+                    {plan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensual'} · {plan.responses}
                   </p>
                 </div>
                 <div className='text-right'>
                   <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
-                  <p className='text-muted-foreground text-xs'>
-                    {proration ? 'prorrateo' : billingCycle === 'annual' ? 'por año' : 'por mes'}
-                  </p>
+                  <p className='text-muted-foreground text-xs'>{billingCycle === 'annual' ? 'por año' : 'por mes'}</p>
                 </div>
               </div>
-              {proration && (
-                <div className='rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-950/30'>
-                  <p className='text-xs text-blue-700 dark:text-blue-300'>
-                    <strong>Pago prorrateado:</strong> Solo pagas la diferencia por los {proration.remainingDays} días
-                    restantes de tu ciclo actual. Tu fecha de vencimiento no cambia.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -452,8 +418,8 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
                   onClick={() => setPaymentMethod(m.key)}
                   className={`rounded-xl border p-4 text-left transition-all ${
                     paymentMethod === m.key
-                      ? 'border-primary bg-primary/5 ring-primary/20 ring-2'
-                      : 'hover:border-primary/50 hover:shadow-sm'
+                      ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20'
+                      : 'hover:border-amber-500/50 hover:shadow-sm'
                   }`}
                 >
                   <p className='text-sm font-semibold'>{m.label}</p>
@@ -468,7 +434,11 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
               <ArrowLeft className='mr-2 size-4' />
               Atrás
             </Button>
-            <Button onClick={() => setStep('invoice')} disabled={!canProceedPayment}>
+            <Button
+              onClick={() => setStep('invoice')}
+              disabled={!canProceedPayment}
+              className='bg-amber-500 text-white hover:bg-amber-600'
+            >
               Continuar
               <ArrowRight className='ml-2 size-4' />
             </Button>
@@ -484,11 +454,11 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
               <div className='flex items-center justify-between'>
                 <div>
                   <p className='text-sm font-semibold'>
-                    Plan {plan.name} · {proration ? 'Prorrateo' : billingCycle === 'annual' ? 'Anual' : 'Mensual'}
+                    <Bot className='mr-1.5 inline size-4 text-amber-500' />
+                    {plan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensual'}
                   </p>
                   <p className='text-muted-foreground text-xs'>
-                    {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label}
-                    {proration && ` · ${proration.remainingDays} días restantes`}
+                    {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label} · {plan.responses}
                   </p>
                 </div>
                 <p className='text-2xl font-bold'>{formatUsd(paymentAmount)}</p>
@@ -572,7 +542,11 @@ export function UpgradeCheckout({ businesses, userEmail, activeBusinessId, billi
               <ArrowLeft className='mr-2 size-4' />
               Atrás
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit || isPending}>
+            <Button
+              onClick={handleSubmit}
+              disabled={!canSubmit || isPending}
+              className='bg-amber-500 text-white hover:bg-amber-600'
+            >
               {isPending ? (
                 <>
                   <Loader2 className='mr-2 size-4 animate-spin' />

@@ -1,0 +1,5 @@
+-- Expand chatbot_activation_requests request_type to include addon_credits
+-- Note: In PostgreSQL, we need to handle text columns with check constraints or enums
+-- Since we use text columns, this is handled at the application level via Drizzle schema
+-- No SQL migration needed - the column already accepts text values
+-- This file exists as documentation that addon_credits is now a valid request_type

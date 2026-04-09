@@ -238,7 +238,7 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
                 title={timeframeMeta.revenueChartTitle}
               />
             </div>
-            {usageData && <UsageOverview data={usageData} businessId={businessId} />}
+            {usageData && <UsageOverview data={usageData} />}
           </div>
 
           <div className='grid grid-cols-1 gap-2 lg:grid-cols-3'>

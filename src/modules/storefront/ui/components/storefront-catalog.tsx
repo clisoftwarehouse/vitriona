@@ -352,23 +352,35 @@ export function StorefrontCatalog({
         {!isSearching && featuredEnabled && featuredProducts.length > 0 && (
           <section className='mb-12'>
             <SectionHeader title={featuredTitle} count={featuredProducts.length} />
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'>
-              {featuredProducts.slice(0, 6).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  slug={slug}
-                  currency={business.currency}
-                  onAddToCart={handleAddToCart}
-                  cardStyle={cardStyle}
-                  layout='grid'
-                  showPrices={showPrices}
-                  showStock={showStock}
-                  showWatermark={business.plan === 'free'}
-                  featured
-                />
-              ))}
-            </div>
+            {viewMode === 'experiences' ? (
+              <ExperiencesGrid
+                products={featuredProducts.slice(0, 6)}
+                slug={slug}
+                currency={business.currency}
+                showPrices={showPrices}
+                showWatermark={business.plan === 'free'}
+                onAddToCart={handleAddToCart}
+              />
+            ) : (
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'>
+                {featuredProducts.slice(0, 6).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    slug={slug}
+                    currency={business.currency}
+                    onAddToCart={handleAddToCart}
+                    cardStyle={cardStyle}
+                    layout='grid'
+                    showPrices={showPrices}
+                    showStock={showStock}
+                    showWatermark={business.plan === 'free'}
+                    showAddButton={viewMode === 'products'}
+                    featured
+                  />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -393,7 +405,17 @@ export function StorefrontCatalog({
           <div className='relative z-10 mb-6 flex flex-wrap items-center justify-between gap-3'>
             <div className='flex items-center gap-3'>
               <h2 className='text-xl font-bold tracking-tight'>
-                {isSearching ? 'Resultados' : viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
+                {isSearching
+                  ? 'Resultados'
+                  : viewMode === 'restaurant'
+                    ? 'Menú'
+                    : viewMode === 'services'
+                      ? 'Nuestros servicios'
+                      : viewMode === 'products'
+                        ? 'Tienda'
+                        : viewMode === 'experiences'
+                          ? 'Experiencias'
+                          : 'Todos los productos'}
               </h2>
               <span className='text-sm opacity-40'>
                 {products.length} producto{products.length !== 1 ? 's' : ''}
@@ -448,8 +470,8 @@ export function StorefrontCatalog({
                 )}
               </div>
 
-              {/* View toggle (grid / list) — only when not in restaurant mode */}
-              {viewMode !== 'restaurant' && (
+              {/* View toggle (grid / list) — only in default/products mode */}
+              {(viewMode === 'default' || viewMode === 'products') && (
                 <div
                   className='inline-flex overflow-hidden border'
                   style={{
@@ -488,10 +510,29 @@ export function StorefrontCatalog({
             <EmptyState query={searchQuery} onClear={() => handleSearch('')} />
           ) : (
             <>
-              {viewMode === 'restaurant' && effectiveLayout !== 'list' && effectiveLayout !== 'grid' ? (
+              {viewMode === 'restaurant' && userViewMode === null ? (
                 <RestaurantMenu
                   products={paginatedProducts}
                   categories={categories}
+                  slug={slug}
+                  currency={business.currency}
+                  showPrices={showPrices}
+                  showWatermark={business.plan === 'free'}
+                  onAddToCart={handleAddToCart}
+                />
+              ) : viewMode === 'services' && userViewMode === null ? (
+                <ServicesList
+                  products={paginatedProducts}
+                  categories={categories}
+                  slug={slug}
+                  currency={business.currency}
+                  showPrices={showPrices}
+                  showWatermark={business.plan === 'free'}
+                  onAddToCart={handleAddToCart}
+                />
+              ) : viewMode === 'experiences' && userViewMode === null ? (
+                <ExperiencesGrid
+                  products={paginatedProducts}
                   slug={slug}
                   currency={business.currency}
                   showPrices={showPrices}
@@ -513,6 +554,7 @@ export function StorefrontCatalog({
                       showStock={showStock}
                       showWatermark={business.plan === 'free'}
                       magazineHero={effectiveLayout === 'magazine' && idx === 0}
+                      showAddButton={viewMode === 'products'}
                     />
                   ))}
                 </div>
@@ -1225,15 +1267,25 @@ function RestaurantMenu({
               const disc = hasDiscount(p);
               return (
                 <Link key={p.id} href={`/${slug}/producto/${p.slug}`} className='group flex gap-4'>
-                  {p.images[0]?.url && (
-                    <div
-                      className='relative shrink-0 overflow-hidden'
-                      style={{ width: 96, height: 96, minWidth: 96, borderRadius: 'var(--sf-radius, 0.75rem)' }}
-                    >
-                      <Image src={p.images[0].url} alt={p.name} fill className='object-cover' />
-                      {showWatermark && <WatermarkOverlay />}
-                    </div>
-                  )}
+                  <div
+                    className='relative shrink-0 overflow-hidden'
+                    style={{
+                      width: 96,
+                      height: 96,
+                      minWidth: 96,
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                      backgroundColor: 'var(--sf-surface, #f9fafb)',
+                    }}
+                  >
+                    {p.images[0]?.url ? (
+                      <Image src={p.images[0].url} alt={p.name} fill unoptimized className='object-cover' />
+                    ) : (
+                      <div className='flex size-full items-center justify-center'>
+                        <ImageOff className='size-5 opacity-20' />
+                      </div>
+                    )}
+                    {showWatermark && p.images[0]?.url && <WatermarkOverlay />}
+                  </div>
                   <div className='min-w-0 flex-1'>
                     <div className='flex items-baseline gap-3'>
                       <span className='text-sm font-semibold transition-colors group-hover:opacity-70 sm:text-base'>
@@ -1300,6 +1352,190 @@ function RestaurantMenu({
   );
 }
 
+/* ─── Services List Layout ─── */
+
+function ServicesList({
+  products,
+  categories,
+  slug,
+  currency,
+  showPrices,
+  showWatermark = false,
+  onAddToCart,
+}: {
+  products: Product[];
+  categories: Category[];
+  slug: string;
+  currency: string;
+  showPrices: boolean;
+  showWatermark?: boolean;
+  onAddToCart: (e: React.MouseEvent, product: Product) => void;
+}) {
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  const grouped = new Map<string, Product[]>();
+
+  for (const p of products) {
+    const key = p.categoryId ?? '__uncategorized';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(p);
+  }
+
+  const sections = Array.from(grouped.entries()).map(([key, items]) => ({
+    name: key === '__uncategorized' ? 'Otros' : (catMap.get(key) ?? 'Otros'),
+    items,
+  }));
+
+  const fmt = (price: string) => formatPrice(price, currency);
+
+  return (
+    <div className='space-y-10'>
+      {sections.map((section) => (
+        <div key={section.name}>
+          <h3 className='mb-4 text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
+            {section.name}
+          </h3>
+          <div className='grid gap-4'>
+            {section.items.map((p) => (
+              <Link
+                key={p.id}
+                href={`/${slug}/producto/${p.slug}`}
+                className='group flex gap-4 overflow-hidden transition-shadow hover:shadow-md'
+                style={{
+                  borderRadius: 'var(--sf-radius-lg, 1rem)',
+                  border: '1px solid var(--sf-border, #e5e7eb)',
+                }}
+              >
+                <div
+                  className='relative aspect-square w-32 shrink-0 overflow-hidden sm:w-40'
+                  style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                >
+                  {p.images[0]?.url ? (
+                    <Image
+                      src={p.images[0].url}
+                      alt={p.images[0].alt || p.name}
+                      fill
+                      unoptimized
+                      className='object-cover transition-transform duration-300 group-hover:scale-105'
+                    />
+                  ) : (
+                    <div className='flex size-full items-center justify-center'>
+                      <ImageOff className='size-6 opacity-20' />
+                    </div>
+                  )}
+                  {showWatermark && p.images[0]?.url && <WatermarkOverlay />}
+                </div>
+                <div className='flex flex-1 flex-col justify-center py-3 pr-4'>
+                  <h4 className='text-sm font-semibold sm:text-base'>{p.name}</h4>
+                  {p.description && (
+                    <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50 sm:text-sm'>{p.description}</p>
+                  )}
+                  <div className='mt-2 flex flex-wrap items-center gap-3'>
+                    {showPrices && (
+                      <span className='text-sm font-bold' style={{ color: 'var(--sf-primary, #000)' }}>
+                        {fmt(p.price)}
+                      </span>
+                    )}
+                    {!p.hasVariants && (
+                      <button
+                        onClick={(e) => onAddToCart(e, p)}
+                        className='flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-80'
+                        style={{
+                          backgroundColor: 'var(--sf-primary, #000)',
+                          borderRadius: 'var(--sf-radius, 0.75rem)',
+                        }}
+                      >
+                        <Plus className='size-3' />
+                        Reservar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Experiences Grid Layout ─── */
+
+function ExperiencesGrid({
+  products,
+  slug,
+  currency,
+  showPrices,
+  showWatermark = false,
+  onAddToCart,
+}: {
+  products: Product[];
+  slug: string;
+  currency: string;
+  showPrices: boolean;
+  showWatermark?: boolean;
+  onAddToCart: (e: React.MouseEvent, product: Product) => void;
+}) {
+  const fmt = (price: string) => formatPrice(price, currency);
+
+  return (
+    <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+      {products.map((p) => (
+        <Link
+          key={p.id}
+          href={`/${slug}/producto/${p.slug}`}
+          className='group relative overflow-hidden transition-shadow hover:shadow-lg'
+          style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
+        >
+          <div
+            className='relative aspect-video overflow-hidden'
+            style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+          >
+            {p.images[0]?.url ? (
+              <Image
+                src={p.images[0].url}
+                alt={p.images[0].alt || p.name}
+                fill
+                unoptimized
+                sizes='(max-width: 640px) 100vw, 50vw'
+                className='object-cover transition-transform duration-500 group-hover:scale-105'
+              />
+            ) : (
+              <div className='flex size-full items-center justify-center'>
+                <ImageOff className='size-10 opacity-20' />
+              </div>
+            )}
+            {showWatermark && p.images[0]?.url && <WatermarkOverlay />}
+            {/* Gradient overlay */}
+            <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
+            {/* Text overlay */}
+            <div className='absolute inset-x-0 bottom-0 p-4 text-white'>
+              <h4 className='text-base font-bold sm:text-lg'>{p.name}</h4>
+              {p.description && <p className='mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm'>{p.description}</p>}
+              <div className='mt-2 flex items-center gap-3'>
+                {showPrices && <span className='text-sm font-bold'>{fmt(p.price)}</span>}
+                {!p.hasVariants && (
+                  <button
+                    onClick={(e) => onAddToCart(e, p)}
+                    className='flex items-center gap-1 px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80'
+                    style={{
+                      backgroundColor: 'var(--sf-primary, #000)',
+                      color: 'var(--sf-primary-contrast, #fff)',
+                      borderRadius: 'var(--sf-radius, 0.75rem)',
+                    }}
+                  >
+                    Descubrir
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Product Card ─── */
 
 interface ProductCardProps {
@@ -1313,6 +1549,7 @@ interface ProductCardProps {
   showStock?: boolean;
   showWatermark?: boolean;
   magazineHero?: boolean;
+  showAddButton?: boolean;
   onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }
 
@@ -1327,6 +1564,7 @@ function ProductCard({
   showStock = false,
   showWatermark = false,
   magazineHero = false,
+  showAddButton = false,
   onAddToCart,
 }: ProductCardProps) {
   const isBordered = cardStyle === 'bordered';
@@ -1423,7 +1661,7 @@ function ProductCard({
         </div>
 
         {/* Quick add */}
-        {!isList && (
+        {!isList && !showAddButton && (
           <button
             onClick={(e) => onAddToCart(e, product)}
             className='absolute right-2.5 bottom-2.5 flex size-9 items-center justify-center opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-110'
@@ -1493,7 +1731,7 @@ function ProductCard({
             <span className='text-[10px] opacity-40'>({product.reviewCount})</span>
           </div>
         )}
-        {isList && (
+        {(isList || showAddButton) && (
           <button
             onClick={(e) => onAddToCart(e, product)}
             className='mt-2 self-start px-4 py-1.5 text-xs font-semibold transition-colors hover:opacity-90'

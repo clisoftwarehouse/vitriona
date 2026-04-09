@@ -113,6 +113,7 @@ interface Settings {
   socialPhone: string;
   showFloatingSocials: boolean;
   headerTitle: string;
+  logoSize: number;
   announcementEnabled: boolean;
   announcementText: string;
   announcementBgColor: string;
@@ -359,6 +360,7 @@ function toSettings(raw: Record<string, unknown> | null): Settings {
     socialPhone: (raw?.socialPhone as string) ?? '',
     showFloatingSocials: (raw?.showFloatingSocials as boolean) ?? false,
     headerTitle: (raw?.headerTitle as string) ?? '',
+    logoSize: (raw?.logoSize as number) ?? 36,
     announcementEnabled: (raw?.announcementEnabled as boolean) ?? false,
     announcementText: (raw?.announcementText as string) ?? '',
     announcementBgColor: (raw?.announcementBgColor as string) ?? '#000000',
@@ -455,6 +457,7 @@ function buildPayload(settings: Settings): CatalogSettingsInput {
     socialPhone: settings.socialPhone || null,
     showFloatingSocials: settings.showFloatingSocials,
     headerTitle: settings.headerTitle || null,
+    logoSize: settings.logoSize,
     announcementEnabled: settings.announcementEnabled,
     announcementText: settings.announcementText || null,
     announcementBgColor: settings.announcementBgColor,
@@ -1193,6 +1196,22 @@ function AnnouncementPanel({ settings, update, businessName }: PanelProps & { bu
         />
       </FieldGroup>
 
+      <FieldGroup label={`Tamaño del logo — ${settings.logoSize}px`}>
+        <input
+          type='range'
+          min={24}
+          max={80}
+          step={2}
+          value={settings.logoSize}
+          onChange={(e) => update('logoSize', Number(e.target.value))}
+          className='w-full'
+        />
+        <div className='text-muted-foreground flex justify-between text-[10px]'>
+          <span>24px</span>
+          <span>80px</span>
+        </div>
+      </FieldGroup>
+
       <div className='bg-border h-px' />
 
       <Toggle
@@ -1472,17 +1491,32 @@ function BuilderPreview({
               <Image
                 src={business.logoUrl}
                 alt={business.name}
-                width={36}
-                height={36}
-                className='size-9 object-cover'
-                style={{ borderRadius: radius }}
+                width={s.logoSize}
+                height={s.logoSize}
+                className='object-contain'
+                style={{
+                  borderRadius: radius,
+                  width: s.logoSize,
+                  height: s.logoSize,
+                }}
               />
             ) : (
               <div
-                className='flex size-9 items-center justify-center'
-                style={{ borderRadius: radius, backgroundColor: s.primaryColor }}
+                className='flex items-center justify-center'
+                style={{
+                  borderRadius: radius,
+                  backgroundColor: s.primaryColor,
+                  width: s.logoSize,
+                  height: s.logoSize,
+                }}
               >
-                <Store className='size-4.5 text-white' />
+                <Store
+                  className='text-white'
+                  style={{
+                    width: s.logoSize * 0.5,
+                    height: s.logoSize * 0.5,
+                  }}
+                />
               </div>
             )}
             {s.headerTitle && <span className='text-base font-bold tracking-tight'>{s.headerTitle}</span>}
@@ -1568,7 +1602,15 @@ function BuilderPreview({
           <section id='products'>
             <div className='mb-6 flex items-center justify-between'>
               <h2 className='text-xl font-bold tracking-tight'>
-                {s.viewMode === 'restaurant' ? 'Menú' : 'Todos los productos'}
+                {s.viewMode === 'restaurant'
+                  ? 'Menú'
+                  : s.viewMode === 'services'
+                    ? 'Nuestros servicios'
+                    : s.viewMode === 'products'
+                      ? 'Tienda'
+                      : s.viewMode === 'experiences'
+                        ? 'Experiencias'
+                        : 'Todos los productos'}
               </h2>
               <span className='text-sm opacity-40'>
                 {products.length} producto{products.length !== 1 ? 's' : ''}
@@ -1584,6 +1626,37 @@ function BuilderPreview({
                     fmt={fmt}
                     radius={radius}
                   />
+                ) : s.viewMode === 'services' ? (
+                  <PreviewServicesList
+                    products={paginatedPreviewProducts}
+                    categories={categories}
+                    s={s}
+                    fmt={fmt}
+                    radius={radius}
+                    radiusLg={radiusLg}
+                  />
+                ) : s.viewMode === 'experiences' ? (
+                  <PreviewExperiencesGrid
+                    products={paginatedPreviewProducts}
+                    s={s}
+                    fmt={fmt}
+                    radius={radius}
+                    radiusLg={radiusLg}
+                  />
+                ) : s.viewMode === 'products' ? (
+                  <div className='grid grid-cols-2 gap-3'>
+                    {paginatedPreviewProducts.map((p) => (
+                      <PreviewCard
+                        key={p.id}
+                        product={p}
+                        s={s}
+                        radiusLg={radiusLg}
+                        fmt={fmt}
+                        layout='grid'
+                        showAddButton
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className={gridClass}>
                     {paginatedPreviewProducts.map((p, idx) => (
@@ -1682,17 +1755,32 @@ function BuilderPreview({
                   <Image
                     src={business.logoUrl}
                     alt={business.name}
-                    width={32}
-                    height={32}
-                    className='size-8 object-cover'
-                    style={{ borderRadius: radius }}
+                    width={Math.round(s.logoSize * 0.88)}
+                    height={Math.round(s.logoSize * 0.88)}
+                    className='object-contain'
+                    style={{
+                      borderRadius: radius,
+                      width: Math.round(s.logoSize * 0.88),
+                      height: Math.round(s.logoSize * 0.88),
+                    }}
                   />
                 ) : (
                   <div
-                    className='flex size-8 items-center justify-center'
-                    style={{ borderRadius: radius, backgroundColor: s.primaryColor }}
+                    className='flex items-center justify-center'
+                    style={{
+                      borderRadius: radius,
+                      backgroundColor: s.primaryColor,
+                      width: Math.round(s.logoSize * 0.88),
+                      height: Math.round(s.logoSize * 0.88),
+                    }}
                   >
-                    <Store className='size-4 text-white' />
+                    <Store
+                      className='text-white'
+                      style={{
+                        width: Math.round(s.logoSize * 0.44),
+                        height: Math.round(s.logoSize * 0.44),
+                      }}
+                    />
                   </div>
                 )}
                 {!business.logoUrl && <span className='font-bold'>{business.name}</span>}
@@ -2204,14 +2292,24 @@ function PreviewRestaurantMenu({
               const hasDiscountFlag = p.compareAtPrice && parseFloat(p.compareAtPrice) > parseFloat(p.price);
               return (
                 <div key={p.id} className='flex gap-3'>
-                  {p.imageUrl && (
-                    <div
-                      className='relative shrink-0 overflow-hidden'
-                      style={{ width: 96, height: 96, minWidth: 96, borderRadius: radius }}
-                    >
+                  <div
+                    className='relative shrink-0 overflow-hidden'
+                    style={{
+                      width: 96,
+                      height: 96,
+                      minWidth: 96,
+                      borderRadius: radius,
+                      backgroundColor: s.surfaceColor,
+                    }}
+                  >
+                    {p.imageUrl ? (
                       <Image src={p.imageUrl} alt={p.name} fill className='object-cover' />
-                    </div>
-                  )}
+                    ) : (
+                      <div className='flex size-full items-center justify-center'>
+                        <ImageIcon className='size-5 opacity-20' />
+                      </div>
+                    )}
+                  </div>
                   <div className='min-w-0 flex-1'>
                     <div className='flex items-baseline gap-2'>
                       <span className='text-sm font-semibold'>{p.name}</span>
@@ -2250,6 +2348,145 @@ function PreviewRestaurantMenu({
   );
 }
 
+function PreviewServicesList({
+  products,
+  categories,
+  s,
+  fmt,
+  radius,
+  radiusLg,
+}: {
+  products: PreviewProduct[];
+  categories: PreviewCategory[];
+  s: Settings;
+  fmt: (v: string) => string;
+  radius: string;
+  radiusLg: string;
+}) {
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  const grouped = new Map<string, PreviewProduct[]>();
+
+  for (const p of products) {
+    const key = p.categoryId ?? '__uncategorized';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(p);
+  }
+
+  const sections = Array.from(grouped.entries()).map(([key, items]) => ({
+    name: key === '__uncategorized' ? 'Otros' : (catMap.get(key) ?? 'Otros'),
+    items,
+  }));
+
+  return (
+    <div className='space-y-10'>
+      {sections.map((section) => (
+        <div key={section.name}>
+          <h3 className='mb-4 text-lg font-bold tracking-tight' style={{ color: s.primaryColor }}>
+            {section.name}
+          </h3>
+          <div className='grid gap-4'>
+            {section.items.map((p) => (
+              <div
+                key={p.id}
+                className='flex gap-4 overflow-hidden'
+                style={{
+                  borderRadius: radiusLg,
+                  border: `1px solid ${s.borderColor}`,
+                  backgroundColor: s.backgroundColor,
+                }}
+              >
+                <div
+                  className='relative aspect-square w-32 shrink-0 overflow-hidden'
+                  style={{ backgroundColor: s.surfaceColor }}
+                >
+                  {p.imageUrl ? (
+                    <Image src={p.imageUrl} alt={p.name} fill className='object-cover' />
+                  ) : (
+                    <div className='flex size-full items-center justify-center'>
+                      <ImageIcon className='size-6 opacity-20' />
+                    </div>
+                  )}
+                </div>
+                <div className='flex flex-1 flex-col justify-center py-3 pr-4'>
+                  <h4 className='text-sm font-semibold'>{p.name}</h4>
+                  {p.description && (
+                    <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50'>{p.description}</p>
+                  )}
+                  <div className='mt-2 flex items-center gap-3'>
+                    {s.showPrices && (
+                      <span className='text-sm font-bold' style={{ color: s.primaryColor }}>
+                        {fmt(p.price)}
+                      </span>
+                    )}
+                    <span
+                      className='px-3 py-1 text-[11px] font-semibold text-white'
+                      style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
+                    >
+                      Reservar
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewExperiencesGrid({
+  products,
+  s,
+  fmt,
+  radius,
+  radiusLg,
+}: {
+  products: PreviewProduct[];
+  s: Settings;
+  fmt: (v: string) => string;
+  radius: string;
+  radiusLg: string;
+}) {
+  return (
+    <div className='grid grid-cols-1 gap-4'>
+      {products.map((p) => (
+        <div
+          key={p.id}
+          className='group relative overflow-hidden'
+          style={{ borderRadius: radiusLg, border: `1px solid ${s.borderColor}` }}
+        >
+          <div className='relative aspect-video overflow-hidden' style={{ backgroundColor: s.surfaceColor }}>
+            {p.imageUrl ? (
+              <Image src={p.imageUrl} alt={p.name} fill className='object-cover' />
+            ) : (
+              <div className='flex size-full items-center justify-center'>
+                <ImageIcon className='size-10 opacity-20' />
+              </div>
+            )}
+            {/* Gradient overlay */}
+            <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
+            {/* Text overlay */}
+            <div className='absolute inset-x-0 bottom-0 p-4 text-white'>
+              <h4 className='text-base font-bold'>{p.name}</h4>
+              {p.description && <p className='mt-1 line-clamp-2 text-xs text-white/80'>{p.description}</p>}
+              <div className='mt-2 flex items-center gap-3'>
+                {s.showPrices && <span className='text-sm font-bold'>{fmt(p.price)}</span>}
+                <span
+                  className='px-3 py-1 text-[11px] font-semibold'
+                  style={{ backgroundColor: s.primaryColor, color: '#fff', borderRadius: radius }}
+                >
+                  Descubrir
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PreviewCard({
   product: p,
   s,
@@ -2258,6 +2495,7 @@ function PreviewCard({
   featured,
   layout = 'grid',
   magazineHero = false,
+  showAddButton = false,
 }: {
   product: PreviewProduct;
   s: Settings;
@@ -2266,6 +2504,7 @@ function PreviewCard({
   featured?: boolean;
   layout?: string;
   magazineHero?: boolean;
+  showAddButton?: boolean;
 }) {
   const isMinimal = s.cardStyle === 'minimal';
   const isBordered = s.cardStyle === 'bordered';
@@ -2351,7 +2590,7 @@ function PreviewCard({
             </span>
           )}
         </div>
-        {isList && (
+        {(isList || showAddButton) && (
           <span
             className='mt-2 self-start px-4 py-1.5 text-xs font-semibold text-white'
             style={{ backgroundColor: s.primaryColor, borderRadius: radius }}
