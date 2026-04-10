@@ -95,20 +95,36 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [business] = await db
       .select({
         id: businesses.id,
+        billingCycle: businesses.billingCycle,
         billingCycleEnd: businesses.billingCycleEnd,
       })
       .from(businesses)
       .where(eq(businesses.id, upgradeRequest.businessId))
       .limit(1);
 
-    // For upgrades mid-cycle, keep the existing billing cycle end date (user only pays prorated difference)
-    // For new subscriptions and renewals, calculate a new end date
+    // Determine billing cycle end date based on upgrade type
     const isUpgradeMidCycle =
       upgradeRequest.requestType === 'upgrade' && business?.billingCycleEnd && business.billingCycleEnd > new Date();
+    const isCycleChange = isUpgradeMidCycle && business.billingCycle !== upgradeRequest.billingCycle;
 
-    const newBillingCycleEnd = isUpgradeMidCycle
-      ? business.billingCycleEnd!
-      : calculateBillingCycleEnd(upgradeRequest.billingCycle, business?.billingCycleEnd ?? null);
+    let newBillingCycleEnd: Date;
+    if (isUpgradeMidCycle && !isCycleChange) {
+      // Same cycle upgrade: keep existing end date (user pays prorated difference)
+      newBillingCycleEnd = business.billingCycleEnd!;
+    } else if (isCycleChange) {
+      // Cycle change during upgrade: start a fresh cycle from now
+      const now = new Date();
+      const end = new Date(now);
+      if (upgradeRequest.billingCycle === 'annual') {
+        end.setFullYear(end.getFullYear() + 1);
+      } else {
+        end.setMonth(end.getMonth() + 1);
+      }
+      newBillingCycleEnd = end;
+    } else {
+      // New subscription or renewal
+      newBillingCycleEnd = calculateBillingCycleEnd(upgradeRequest.billingCycle, business?.billingCycleEnd ?? null);
+    }
 
     // Update request status
     await db
@@ -121,12 +137,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .update(businesses)
       .set({
         plan: upgradeRequest.plan,
-        // For mid-cycle upgrades, keep the existing billing cycle
-        billingCycle: isUpgradeMidCycle
-          ? business.billingCycleEnd
-            ? upgradeRequest.billingCycle
-            : upgradeRequest.billingCycle
-          : upgradeRequest.billingCycle,
+        billingCycle: upgradeRequest.billingCycle,
         billingCycleEnd: newBillingCycleEnd,
         scheduledPlan: null, // Clear any scheduled downgrade
         updatedAt: new Date(),

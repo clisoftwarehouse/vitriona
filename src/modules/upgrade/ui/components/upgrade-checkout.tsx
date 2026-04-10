@@ -151,33 +151,52 @@ export function UpgradeCheckout({
     const cycleEnd = new Date(billingInfo.billingCycleEnd);
     if (cycleEnd <= now) return null; // Expired, no proration
 
-    // Calculate remaining days
+    // Calculate remaining days in current cycle
     const remainingMs = cycleEnd.getTime() - now.getTime();
     const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
-    const totalDays = billingInfo.billingCycle === 'annual' ? 365 : 30;
-    const fraction = Math.min(remainingDays / totalDays, 1);
+    const currentTotalDays = billingInfo.billingCycle === 'annual' ? 365 : 30;
+    const fraction = Math.min(remainingDays / currentTotalDays, 1);
 
-    // Current plan cost for remaining period
-    const currentPlanRemaining = billingInfo.currentPlanPrice * fraction;
+    // Credit from current plan's remaining period
+    const currentPlanCredit = billingInfo.currentPlanPrice * fraction;
 
-    // New plan cost for remaining period (use same billing cycle as current)
+    const isCycleChange = billingCycle !== billingInfo.billingCycle;
+
+    if (isCycleChange) {
+      // Billing cycle is changing: charge full new cycle price minus credit from current plan
+      const newPlanFullPrice =
+        billingCycle === 'annual'
+          ? getPrice(plan.monthlyPrice, 'annual').total
+          : getPrice(plan.monthlyPrice, 'monthly').monthly;
+      const difference = Math.max(newPlanFullPrice - currentPlanCredit, 0);
+
+      return {
+        remainingDays,
+        totalDays: currentTotalDays,
+        currentPlanCredit,
+        difference,
+        isCycleChange: true,
+        isProrated: true,
+      };
+    }
+
+    // Same billing cycle: prorate both sides by remaining fraction
     const newPlanFullPrice =
       billingInfo.billingCycle === 'annual'
         ? getPrice(plan.monthlyPrice, 'annual').total
         : getPrice(plan.monthlyPrice, 'monthly').monthly;
     const newPlanRemaining = newPlanFullPrice * fraction;
-
-    const difference = Math.max(newPlanRemaining - currentPlanRemaining, 0);
+    const difference = Math.max(newPlanRemaining - currentPlanCredit, 0);
 
     return {
       remainingDays,
-      totalDays,
-      currentPlanRemaining,
-      newPlanRemaining,
+      totalDays: currentTotalDays,
+      currentPlanCredit,
       difference,
+      isCycleChange: false,
       isProrated: true,
     };
-  }, [billingInfo, activeBusiness?.plan, plan.monthlyPrice]);
+  }, [billingInfo, activeBusiness?.plan, plan.monthlyPrice, billingCycle]);
 
   const paymentAmount = proration ? proration.difference : fullPaymentAmount;
 
@@ -445,8 +464,10 @@ export function UpgradeCheckout({
               {proration && (
                 <div className='rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-950/30'>
                   <p className='text-xs text-blue-700 dark:text-blue-300'>
-                    <strong>Pago prorrateado:</strong> Solo pagas la diferencia por los {proration.remainingDays} días
-                    restantes de tu ciclo actual. Tu fecha de vencimiento no cambia.
+                    <strong>Pago prorrateado:</strong>{' '}
+                    {proration.isCycleChange
+                      ? `Se descuentan ${formatEur(proration.currentPlanCredit)} de crédito por los ${proration.remainingDays} días restantes de tu ciclo actual. Tu nuevo ciclo ${billingCycle === 'annual' ? 'anual' : 'mensual'} comienza hoy.`
+                      : `Solo pagas la diferencia por los ${proration.remainingDays} días restantes de tu ciclo actual. Tu fecha de vencimiento no cambia.`}
                   </p>
                 </div>
               )}

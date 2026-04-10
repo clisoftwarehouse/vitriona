@@ -13,6 +13,7 @@ import {
   Package,
   Receipt,
   BookOpen,
+  BarChart3,
   Warehouse,
   Paintbrush,
   CreditCard,
@@ -130,6 +131,11 @@ export function AppSidebar({
               label: 'Inventario',
               href: `/dashboard/businesses/${activeBusiness.id}/inventory`,
               icon: Warehouse,
+            },
+            {
+              label: 'Reportes',
+              href: `/dashboard/businesses/${activeBusiness.id}/reports`,
+              icon: BarChart3,
             },
             {
               label: 'Métodos de pago',
