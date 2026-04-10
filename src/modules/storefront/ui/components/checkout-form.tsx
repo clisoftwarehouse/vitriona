@@ -581,205 +581,210 @@ export function CheckoutForm({
             </div>
           </div>
 
-          {/* Column 2: Payment methods */}
-          {paymentMethods.length > 0 && (
-            <div className='min-w-0 space-y-4'>
-              <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Método de pago</h2>
-              <div className='space-y-2'>
-                {paymentMethods.map((method) => (
-                  <div key={method.id}>
-                    <button
-                      type='button'
-                      onClick={() => {
-                        setSelectedMethodId(method.id);
-                        setPaymentProof({});
-                      }}
-                      className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
-                      style={{
-                        borderRadius: 'var(--sf-radius, 0.75rem)',
-                        border:
-                          selectedMethodId === method.id
-                            ? '2px solid var(--sf-primary, #000)'
-                            : '1px solid var(--sf-border, #e5e7eb)',
-                      }}
-                    >
-                      <CreditCard className='size-4 shrink-0 opacity-50' />
-                      <span className='font-medium'>{method.name}</span>
-                    </button>
+          {/* Column 2: Payment + Delivery (stacked) */}
+          {(paymentMethods.length > 0 || deliveryMethods.length > 0) && (
+            <div className='min-w-0 space-y-8'>
+              {paymentMethods.length > 0 && (
+                <div className='space-y-4'>
+                  <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Métodos de pago</h2>
+                  <div className='space-y-2'>
+                    {paymentMethods.map((method) => (
+                      <div key={method.id}>
+                        <button
+                          type='button'
+                          onClick={() => {
+                            setSelectedMethodId(method.id);
+                            setPaymentProof({});
+                          }}
+                          className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
+                          style={{
+                            borderRadius: 'var(--sf-radius, 0.75rem)',
+                            border:
+                              selectedMethodId === method.id
+                                ? '2px solid var(--sf-primary, #000)'
+                                : '1px solid var(--sf-border, #e5e7eb)',
+                          }}
+                        >
+                          <CreditCard className='size-4 shrink-0 opacity-50' />
+                          <span className='font-medium'>{method.name}</span>
+                        </button>
 
-                    {selectedMethodId === method.id && (
-                      <div className='mt-2 space-y-3 px-1' style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                        {method.instructions && <p className='text-xs opacity-60'>{method.instructions}</p>}
-                        {method.fields.length > 0 && (
-                          <div className='space-y-1.5'>
-                            <p className='text-xs font-semibold opacity-50'>Datos para el pago:</p>
-                            {method.fields.map((field, i) => (
-                              <div
-                                key={i}
-                                className='flex items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm'
-                                style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
-                              >
-                                <span className='shrink-0 opacity-60'>{field.label}</span>
-                                <div className='flex min-w-0 items-center gap-1.5'>
-                                  <span className='truncate font-mono text-xs font-medium'>{field.value}</span>
+                        {selectedMethodId === method.id && (
+                          <div className='mt-2 space-y-3 px-1' style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                            {method.instructions && <p className='text-xs opacity-60'>{method.instructions}</p>}
+                            {method.fields.length > 0 && (
+                              <div className='space-y-1.5'>
+                                <p className='text-xs font-semibold opacity-50'>Datos para el pago:</p>
+                                {method.fields.map((field, i) => (
+                                  <div
+                                    key={i}
+                                    className='flex items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm'
+                                    style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                                  >
+                                    <span className='shrink-0 opacity-60'>{field.label}</span>
+                                    <div className='flex min-w-0 items-center gap-1.5'>
+                                      <span className='truncate font-mono text-xs font-medium'>{field.value}</span>
+                                      <button
+                                        type='button'
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(field.value);
+                                          toast.success(`${field.label} copiado`);
+                                        }}
+                                        className='opacity-40 hover:opacity-100'
+                                      >
+                                        <Copy className='size-3' />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div>
+                              <label className='mb-1 block text-xs font-medium opacity-60'>Nro. de referencia</label>
+                              <input
+                                type='text'
+                                value={paymentProof.reference ?? ''}
+                                onChange={(e) => setPaymentProof({ ...paymentProof, reference: e.target.value })}
+                                placeholder='Ej: 00012345678'
+                                className='w-full px-3 py-2 text-sm outline-none'
+                                style={{
+                                  borderRadius: 'var(--sf-radius, 0.75rem)',
+                                  border: '1px solid var(--sf-border, #e5e7eb)',
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className='mb-1 block text-xs font-medium opacity-60'>
+                                Comprobante de pago (imagen)
+                              </label>
+                              {paymentProof.proofImageUrl ? (
+                                <div
+                                  className='relative overflow-hidden'
+                                  style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={paymentProof.proofImageUrl}
+                                    alt='Comprobante'
+                                    className='max-h-48 w-full object-contain'
+                                    style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
+                                  />
                                   <button
                                     type='button'
                                     onClick={() => {
-                                      navigator.clipboard.writeText(field.value);
-                                      toast.success(`${field.label} copiado`);
+                                      const { proofImageUrl: _removed, ...rest } = paymentProof;
+                                      void _removed;
+                                      setPaymentProof(rest);
                                     }}
-                                    className='opacity-40 hover:opacity-100'
+                                    className='absolute top-2 right-2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-red-600'
                                   >
-                                    <Copy className='size-3' />
+                                    <X className='size-3.5' />
                                   </button>
                                 </div>
-                              </div>
-                            ))}
+                              ) : (
+                                <label
+                                  className={`flex cursor-pointer items-center justify-center gap-2 px-3 py-3 text-sm transition-colors ${
+                                    uploadingProof ? 'pointer-events-none opacity-50' : ''
+                                  }`}
+                                  style={{
+                                    borderRadius: 'var(--sf-radius, 0.75rem)',
+                                    border: '1px dashed var(--sf-border, #e5e7eb)',
+                                  }}
+                                >
+                                  {uploadingProof ? (
+                                    <Loader2 className='size-4 animate-spin opacity-50' />
+                                  ) : (
+                                    <Upload className='size-4 opacity-50' />
+                                  )}
+                                  <span className='opacity-60'>
+                                    {uploadingProof ? 'Subiendo...' : 'Subir comprobante'}
+                                  </span>
+                                  <input
+                                    type='file'
+                                    accept='image/jpeg,image/png,image/webp'
+                                    className='hidden'
+                                    disabled={uploadingProof}
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      if (file.size > 3 * 1024 * 1024) {
+                                        toast.error('La imagen no debe exceder 3MB');
+                                        return;
+                                      }
+                                      setUploadingProof(true);
+                                      try {
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+                                        const res = await fetch('/api/upload-payment-proof', {
+                                          method: 'POST',
+                                          body: formData,
+                                        });
+                                        if (!res.ok) {
+                                          const err = await res.json();
+                                          toast.error(err.error || 'Error al subir imagen');
+                                          return;
+                                        }
+                                        const blob = await res.json();
+                                        setPaymentProof((prev) => ({ ...prev, proofImageUrl: blob.url }));
+                                      } catch {
+                                        toast.error('Error al subir la imagen');
+                                      } finally {
+                                        setUploadingProof(false);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                              <p className='mt-1 text-[10px] opacity-40'>JPG, PNG o WebP. Máx 3MB.</p>
+                            </div>
                           </div>
                         )}
-                        <div>
-                          <label className='mb-1 block text-xs font-medium opacity-60'>Nro. de referencia</label>
-                          <input
-                            type='text'
-                            value={paymentProof.reference ?? ''}
-                            onChange={(e) => setPaymentProof({ ...paymentProof, reference: e.target.value })}
-                            placeholder='Ej: 00012345678'
-                            className='w-full px-3 py-2 text-sm outline-none'
-                            style={{
-                              borderRadius: 'var(--sf-radius, 0.75rem)',
-                              border: '1px solid var(--sf-border, #e5e7eb)',
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label className='mb-1 block text-xs font-medium opacity-60'>
-                            Comprobante de pago (imagen)
-                          </label>
-                          {paymentProof.proofImageUrl ? (
-                            <div
-                              className='relative overflow-hidden'
-                              style={{ borderRadius: 'var(--sf-radius, 0.75rem)' }}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={paymentProof.proofImageUrl}
-                                alt='Comprobante'
-                                className='max-h-48 w-full object-contain'
-                                style={{ backgroundColor: 'var(--sf-surface, #f9fafb)' }}
-                              />
-                              <button
-                                type='button'
-                                onClick={() => {
-                                  const { proofImageUrl: _removed, ...rest } = paymentProof;
-                                  void _removed;
-                                  setPaymentProof(rest);
-                                }}
-                                className='absolute top-2 right-2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-red-600'
-                              >
-                                <X className='size-3.5' />
-                              </button>
-                            </div>
-                          ) : (
-                            <label
-                              className={`flex cursor-pointer items-center justify-center gap-2 px-3 py-3 text-sm transition-colors ${
-                                uploadingProof ? 'pointer-events-none opacity-50' : ''
-                              }`}
-                              style={{
-                                borderRadius: 'var(--sf-radius, 0.75rem)',
-                                border: '1px dashed var(--sf-border, #e5e7eb)',
-                              }}
-                            >
-                              {uploadingProof ? (
-                                <Loader2 className='size-4 animate-spin opacity-50' />
-                              ) : (
-                                <Upload className='size-4 opacity-50' />
-                              )}
-                              <span className='opacity-60'>{uploadingProof ? 'Subiendo...' : 'Subir comprobante'}</span>
-                              <input
-                                type='file'
-                                accept='image/jpeg,image/png,image/webp'
-                                className='hidden'
-                                disabled={uploadingProof}
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  if (file.size > 3 * 1024 * 1024) {
-                                    toast.error('La imagen no debe exceder 3MB');
-                                    return;
-                                  }
-                                  setUploadingProof(true);
-                                  try {
-                                    const formData = new FormData();
-                                    formData.append('file', file);
-                                    const res = await fetch('/api/upload-payment-proof', {
-                                      method: 'POST',
-                                      body: formData,
-                                    });
-                                    if (!res.ok) {
-                                      const err = await res.json();
-                                      toast.error(err.error || 'Error al subir imagen');
-                                      return;
-                                    }
-                                    const blob = await res.json();
-                                    setPaymentProof((prev) => ({ ...prev, proofImageUrl: blob.url }));
-                                  } catch {
-                                    toast.error('Error al subir la imagen');
-                                  } finally {
-                                    setUploadingProof(false);
-                                    e.target.value = '';
-                                  }
-                                }}
-                              />
-                            </label>
-                          )}
-                          <p className='mt-1 text-[10px] opacity-40'>JPG, PNG o WebP. Máx 3MB.</p>
-                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Delivery methods */}
-          {deliveryMethods.length > 0 && (
-            <div className='min-w-0 space-y-4'>
-              <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Método de entrega</h2>
-              <div className='space-y-2'>
-                {deliveryMethods.map((dm) => (
-                  <button
-                    key={dm.id}
-                    type='button'
-                    onClick={() => setSelectedDeliveryId(dm.id)}
-                    className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
-                    style={{
-                      borderRadius: 'var(--sf-radius, 0.75rem)',
-                      border:
-                        selectedDeliveryId === dm.id
-                          ? '2px solid var(--sf-primary, #000)'
-                          : '1px solid var(--sf-border, #e5e7eb)',
-                    }}
-                  >
-                    <Truck className='size-4 shrink-0 opacity-50' />
-                    <div className='min-w-0 flex-1'>
-                      <div className='flex items-center justify-between'>
-                        <span className='font-medium'>{dm.name}</span>
-                        <span className='shrink-0 font-semibold'>
-                          {parseFloat(dm.price) === 0 ? 'Gratis' : formatPrice(parseFloat(dm.price))}
-                        </span>
-                      </div>
-                      {dm.description && <p className='mt-0.5 text-xs opacity-50'>{dm.description}</p>}
-                      {dm.estimatedTime && (
-                        <p className='mt-0.5 flex items-center gap-1 text-xs opacity-40'>
-                          <Clock className='size-3' />
-                          {dm.estimatedTime}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {deliveryMethods.length > 0 && (
+                <div className='space-y-4'>
+                  <h2 className='text-sm font-semibold tracking-wide uppercase opacity-50'>Métodos de entrega</h2>
+                  <div className='space-y-2'>
+                    {deliveryMethods.map((dm) => (
+                      <button
+                        key={dm.id}
+                        type='button'
+                        onClick={() => setSelectedDeliveryId(dm.id)}
+                        className='flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-all'
+                        style={{
+                          borderRadius: 'var(--sf-radius, 0.75rem)',
+                          border:
+                            selectedDeliveryId === dm.id
+                              ? '2px solid var(--sf-primary, #000)'
+                              : '1px solid var(--sf-border, #e5e7eb)',
+                        }}
+                      >
+                        <Truck className='size-4 shrink-0 opacity-50' />
+                        <div className='min-w-0 flex-1'>
+                          <div className='flex items-center justify-between'>
+                            <span className='font-medium'>{dm.name}</span>
+                            <span className='shrink-0 font-semibold'>
+                              {parseFloat(dm.price) === 0 ? 'Gratis' : formatPrice(parseFloat(dm.price))}
+                            </span>
+                          </div>
+                          {dm.description && <p className='mt-0.5 text-xs opacity-50'>{dm.description}</p>}
+                          {dm.estimatedTime && (
+                            <p className='mt-0.5 flex items-center gap-1 text-xs opacity-40'>
+                              <Clock className='size-3' />
+                              {dm.estimatedTime}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1008,8 +1013,6 @@ export function CheckoutForm({
                 <span className='text-lg font-bold'>{formatPrice(total)}</span>
               </div>
             </div>
-
-            {/* Submit button inside summary column */}
             <button
               type='submit'
               disabled={isPending}
