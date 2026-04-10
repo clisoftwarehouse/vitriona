@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { users, userPreferences } from '@/db/schema';
+import { getExchangeRates } from '@/lib/get-exchange-rate';
 import { QueryProvider } from '@/components/query-provider';
 import { AdminLayout } from '@/components/layouts/admin-layout';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
@@ -15,10 +16,11 @@ export const metadata: Metadata = {
 };
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
-  const [session, businesses, activeBusinessId] = await Promise.all([
+  const [session, businesses, activeBusinessId, exchangeRatesData] = await Promise.all([
     auth(),
     getBusinessesAction(),
     getActiveBusinessId(),
+    getExchangeRates(),
   ]);
 
   const sidebarBusinesses = businesses.map((b) => ({ id: b.id, name: b.name, slug: b.slug }));
@@ -54,6 +56,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
         businesses={sidebarBusinesses}
         activeBusinessId={activeBusinessId}
         initialSidebarCollapsed={prefs?.sidebarCollapsed ?? false}
+        exchangeRates={exchangeRatesData}
       >
         {children}
       </AdminLayout>

@@ -6,6 +6,7 @@ import { UserMenu } from './user-menu';
 import { Button } from '@/components/ui/button';
 import { SearchCommand } from './search-command';
 import { NotificationsMenu } from './notifications-menu';
+import { CurrencyConverter } from './currency-converter';
 
 interface TopbarUser {
   name?: string | null;
@@ -18,9 +19,16 @@ interface DashboardTopbarProps {
   activeBusinessId?: string | null;
   activeBusinessSlug?: string | null;
   onMenuClick?: () => void;
+  exchangeRates?: { eur: number | null; usd: number | null };
 }
 
-export function DashboardTopbar({ user, activeBusinessId, activeBusinessSlug, onMenuClick }: DashboardTopbarProps) {
+export function DashboardTopbar({
+  user,
+  activeBusinessId,
+  activeBusinessSlug,
+  onMenuClick,
+  exchangeRates,
+}: DashboardTopbarProps) {
   return (
     <header className='bg-background flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 py-8 md:px-6'>
       <div className='flex items-center gap-2'>
@@ -37,6 +45,7 @@ export function DashboardTopbar({ user, activeBusinessId, activeBusinessSlug, on
       </div>
 
       <div className='flex items-center gap-1.5'>
+        <CurrencyConverter eurRate={exchangeRates?.eur ?? null} usdRate={exchangeRates?.usd ?? null} />
         <SearchCommand activeBusinessId={activeBusinessId} activeBusinessSlug={activeBusinessSlug} />
         <NotificationsMenu />
         <div className='border-border ml-1 flex items-center border-l pl-3'>
