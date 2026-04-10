@@ -181,6 +181,26 @@ export function LoginForm({ successMessage }: LoginFormProps) {
         Continuar con Google
       </Button>
 
+      <p className='text-muted-foreground text-center text-[11px] leading-relaxed'>
+        Al iniciar sesión o continuar con Google aceptas los{' '}
+        <Link href='/legal#terminos' target='_blank' className='text-foreground hover:underline'>
+          Términos
+        </Link>
+        , la{' '}
+        <Link href='/legal#privacidad' target='_blank' className='text-foreground hover:underline'>
+          Política de Privacidad
+        </Link>
+        , la{' '}
+        <Link href='/legal#antifraude' target='_blank' className='text-foreground hover:underline'>
+          Política Antifraude
+        </Link>{' '}
+        y el{' '}
+        <Link href='/legal#sla' target='_blank' className='text-foreground hover:underline'>
+          SLA
+        </Link>{' '}
+        de Vitriona.app.
+      </p>
+
       <p className='text-muted-foreground text-center text-sm'>
         ¿No tienes cuenta?{' '}
         <Link href='/auth/register' className='text-primary hover:underline'>

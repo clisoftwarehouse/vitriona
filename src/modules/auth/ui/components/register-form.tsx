@@ -10,10 +10,35 @@ import { Eye, Lock, Mail, User, EyeOff } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { registerAction } from '@/modules/auth/server/actions/register.action';
+import { googleSignInAction } from '@/modules/auth/server/actions/login.action';
 import { registerSchema, type RegisterFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+
+function GoogleIcon() {
+  return (
+    <svg className='size-4' viewBox='0 0 24 24' aria-hidden='true'>
+      <path
+        fill='#EA4335'
+        d='M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z'
+      />
+      <path
+        fill='#34A853'
+        d='M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078-3.134 0-5.78-2.014-6.723-4.823l-4.04 3.067C3.193 21.294 7.265 24 12 24c2.933 0 5.735-1.043 7.834-3.001l-3.793-2.986Z'
+      />
+      <path
+        fill='#4A90E2'
+        d='M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z'
+      />
+      <path
+        fill='#FBBC05'
+        d='M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z'
+      />
+    </svg>
+  );
+}
 
 export function RegisterForm() {
   const router = useRouter();
@@ -166,6 +191,50 @@ export function RegisterForm() {
           </Button>
         </form>
       </Form>
+
+      <div className='relative'>
+        <div className='absolute inset-0 flex items-center'>
+          <Separator />
+        </div>
+        <div className='relative flex justify-center text-xs uppercase'>
+          <span className='bg-background text-muted-foreground px-2'>o regístrate con</span>
+        </div>
+      </div>
+
+      <Button
+        type='button'
+        variant='outline'
+        className='h-11 w-full gap-2'
+        onClick={() =>
+          startTransition(async () => {
+            await googleSignInAction();
+          })
+        }
+        disabled={isPending}
+      >
+        <GoogleIcon />
+        Continuar con Google
+      </Button>
+
+      <p className='text-muted-foreground text-center text-[11px] leading-relaxed'>
+        Al crear cuenta o continuar con Google aceptas los{' '}
+        <Link href='/legal#terminos' target='_blank' className='text-foreground hover:underline'>
+          Términos
+        </Link>
+        , la{' '}
+        <Link href='/legal#privacidad' target='_blank' className='text-foreground hover:underline'>
+          Política de Privacidad
+        </Link>
+        , la{' '}
+        <Link href='/legal#antifraude' target='_blank' className='text-foreground hover:underline'>
+          Política Antifraude
+        </Link>{' '}
+        y el{' '}
+        <Link href='/legal#sla' target='_blank' className='text-foreground hover:underline'>
+          SLA
+        </Link>{' '}
+        de Vitriona.app.
+      </p>
 
       <p className='text-muted-foreground text-center text-sm'>
         ¿Ya tienes cuenta?{' '}

@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className='border-border/50 border-t py-12'>
       <div className='mx-auto max-w-7xl px-6 sm:px-0'>
-        <div className='grid gap-8 md:grid-cols-4'>
+        <div className='grid gap-8 md:grid-cols-5'>
           <div className='md:col-span-2'>
             <Link href='/' className='flex items-center gap-2'>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -41,6 +41,36 @@ export function Footer() {
               <li>
                 <Link href='/auth/register' className='text-muted-foreground hover:text-foreground text-sm'>
                   Crear cuenta
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className='text-sm font-semibold'>Legal</h4>
+            <ul className='mt-3 space-y-2'>
+              <li>
+                <Link href='/legal#terminos' className='text-muted-foreground hover:text-foreground text-sm'>
+                  Términos y condiciones
+                </Link>
+              </li>
+              <li>
+                <Link href='/legal#privacidad' className='text-muted-foreground hover:text-foreground text-sm'>
+                  Privacidad
+                </Link>
+              </li>
+              <li>
+                <Link href='/legal#antifraude' className='text-muted-foreground hover:text-foreground text-sm'>
+                  Antifraude
+                </Link>
+              </li>
+              <li>
+                <Link href='/legal#sla' className='text-muted-foreground hover:text-foreground text-sm'>
+                  SLA
+                </Link>
+              </li>
+              <li>
+                <Link href='/legal#arbitraje' className='text-muted-foreground hover:text-foreground text-sm'>
+                  Arbitraje
                 </Link>
               </li>
             </ul>

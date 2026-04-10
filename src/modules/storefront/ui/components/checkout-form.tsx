@@ -1038,6 +1038,25 @@ export function CheckoutForm({
                 'Confirmar pedido'
               )}
             </button>
+
+            <p className='mt-4 text-[11px] leading-relaxed text-ellipsis opacity-70'>
+              Al {isReservation ? 'confirmar la reserva' : 'confirmar el pedido'}, declaro que la información
+              suministrada es veraz y acepto los{' '}
+              <Link href='/legal#terminos' target='_blank' className='underline hover:opacity-100'>
+                Términos
+              </Link>
+              , la{' '}
+              <Link href='/legal#privacidad' target='_blank' className='underline hover:opacity-100'>
+                Política de Privacidad
+              </Link>{' '}
+              y la{' '}
+              <Link href='/legal#antifraude' target='_blank' className='underline hover:opacity-100'>
+                Política Antifraude
+              </Link>{' '}
+              de Vitriona.app. Vitriona.app es una infraestructura tecnológica operada por{' '}
+              <strong>CLI SOFTWARE HOUSE, C.A.</strong> y no actúa como vendedor directo, intermediario financiero ni
+              garante de la transacción, la cual se celebra directamente con <strong>{businessName}</strong>.
+            </p>
           </div>
         </div>
       </form>
