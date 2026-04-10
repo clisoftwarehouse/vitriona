@@ -14,6 +14,8 @@ interface ChatbotActivationRequestTemplateParams {
   contactEmail: string;
   phone: string | null;
   notes: string | null;
+  amountVes: string | null;
+  exchangeRate: string | null;
   approveUrl: string;
   rejectUrl: string;
 }
@@ -59,6 +61,8 @@ export function chatbotActivationRequestEmailTemplate(params: ChatbotActivationR
         <tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Capacidad</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">${responsesLabel}</td></tr>
         <tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Ciclo</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">${cycleLabel}</td></tr>
         <tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Monto</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">$${params.amount}</td></tr>
+        ${params.amountVes ? `<tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Monto en Bs</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">Bs. ${params.amountVes}</td></tr>` : ''}
+        ${params.exchangeRate ? `<tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Tasa BCV</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">${params.exchangeRate} Bs/EUR</td></tr>` : ''}
         <tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Metodo de pago</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:600;">${paymentLabel}</td></tr>
         <tr><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};color:${emailBrandStyles.textSubtle};font-size:13px;">Referencia</td><td style="padding:9px 0;border-bottom:1px solid ${emailBrandStyles.border};text-align:right;color:${emailBrandStyles.textPrimary};font-size:14px;font-weight:700;font-family:'Courier New',monospace;">${params.referenceId}</td></tr>
       </table>

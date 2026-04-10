@@ -111,6 +111,8 @@ export async function submitAiCreditsPurchaseAction(input: SubmitAiCreditsPurcha
         contactEmail: input.email.trim(),
         phone: input.phone?.trim() || null,
         notes: `Compra de ${totalCredits.toLocaleString()} créditos adicionales de IA (${input.quantity}x paquete de ${CREDITS_AMOUNT.toLocaleString()})${input.notes ? `\n${input.notes.trim()}` : ''}`,
+        amountVes: input.amountVes || null,
+        exchangeRate: input.exchangeRate || null,
         approveUrl,
         rejectUrl,
       }),

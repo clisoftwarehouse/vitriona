@@ -130,6 +130,8 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
         contactEmail: input.email.trim(),
         phone: input.phone?.trim() || null,
         notes: input.notes?.trim() || null,
+        amountVes: input.amountVes || null,
+        exchangeRate: input.exchangeRate || null,
         approveUrl,
         rejectUrl,
       }),
