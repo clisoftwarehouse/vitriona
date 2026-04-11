@@ -268,7 +268,7 @@ export function StorefrontCatalog({
     // Products with variants must go through the product detail page
     // to select a specific variant before adding to cart
     if (product.hasVariants) {
-      window.location.href = `/${slug}/producto/${product.slug}`;
+      window.location.href = `/${slug}/producto/${product.slug}?id=${product.id}`;
       return;
     }
 
@@ -1266,7 +1266,7 @@ function RestaurantMenu({
             {section.items.map((p) => {
               const disc = hasDiscount(p);
               return (
-                <Link key={p.id} href={`/${slug}/producto/${p.slug}`} className='group flex gap-4'>
+                <Link key={p.id} href={`/${slug}/producto/${p.slug}?id=${p.id}`} className='group flex gap-4'>
                   <div
                     className='relative shrink-0 overflow-hidden'
                     style={{
@@ -1398,7 +1398,7 @@ function ServicesList({
             {section.items.map((p) => (
               <Link
                 key={p.id}
-                href={`/${slug}/producto/${p.slug}`}
+                href={`/${slug}/producto/${p.slug}?id=${p.id}`}
                 className='group flex gap-4 overflow-hidden transition-shadow hover:shadow-md'
                 style={{
                   borderRadius: 'var(--sf-radius-lg, 1rem)',
@@ -1483,7 +1483,7 @@ function ExperiencesGrid({
       {products.map((p) => (
         <Link
           key={p.id}
-          href={`/${slug}/producto/${p.slug}`}
+          href={`/${slug}/producto/${p.slug}?id=${p.id}`}
           className='group relative overflow-hidden transition-shadow hover:shadow-lg'
           style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
         >
@@ -1594,7 +1594,7 @@ function ProductCard({
 
   return (
     <Link
-      href={`/${slug}/producto/${product.slug}`}
+      href={`/${slug}/producto/${product.slug}?id=${product.id}`}
       className={cardClasses}
       style={{
         borderRadius: isMinimal ? '0' : 'var(--sf-radius-lg, 1rem)',

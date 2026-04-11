@@ -250,9 +250,9 @@ export function ProductDetail({
 
       <div className='grid gap-8 md:grid-cols-2 lg:gap-12'>
         {/* ── Image Gallery ── */}
-        <div className='space-y-3'>
+        <div className='w-full min-w-0 space-y-3'>
           <div
-            className='relative aspect-square overflow-hidden'
+            className='relative aspect-square w-full overflow-hidden'
             style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
           >
             {displayImages[selectedImage] ? (
@@ -279,7 +279,7 @@ export function ProductDetail({
           </div>
 
           {displayImages.length > 1 && (
-            <div className='flex gap-2 overflow-x-auto pb-1'>
+            <div className='scrollbar-none flex w-full gap-2 overflow-x-auto pb-1'>
               {displayImages.map((img, idx) => (
                 <button
                   key={img.id}
@@ -783,7 +783,7 @@ export function RelatedProductsSection({
           return (
             <Link
               key={product.id}
-              href={`/${slug}/producto/${product.slug}`}
+              href={`/${slug}/producto/${product.slug}?id=${product.id}`}
               className='group flex w-44 shrink-0 flex-col overflow-hidden border transition-shadow hover:shadow-lg sm:w-52'
               style={{
                 borderRadius: 'var(--sf-radius-lg, 1rem)',

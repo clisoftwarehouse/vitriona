@@ -108,7 +108,7 @@ export function CatalogSections({ slug, currency, catalogs, showWatermark = fals
               {catalog.products.map((product) => (
                 <Link
                   key={product.id}
-                  href={`/${slug}/producto/${product.slug}`}
+                  href={`/${slug}/producto/${product.slug}?id=${product.id}`}
                   className='group overflow-hidden transition-shadow hover:shadow-md'
                   style={{ borderRadius: 'var(--sf-radius-lg, 1rem)', border: '1px solid var(--sf-border, #e5e7eb)' }}
                 >

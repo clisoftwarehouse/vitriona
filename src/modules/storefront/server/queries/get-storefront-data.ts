@@ -372,25 +372,44 @@ async function _getCatalogsWithPreviewProducts(businessId: string, limit = 6) {
   });
 }
 
-// ── Product by slug ──────────────────────────────────────────────────────────
-export const getProductBySlug = cache((businessId: string, productSlug: string) =>
+// ── Product by slug (or ID) ──────────────────────────────────────────────────
+export const getProductBySlug = cache((businessId: string, productSlug: string, productId?: string) =>
   unstable_cache(
-    async () => _getProductBySlug(businessId, productSlug),
-    [`product-by-slug-${businessId}-${productSlug}`],
+    async () => _getProductBySlug(businessId, productSlug, productId),
+    [`product-by-slug-${businessId}-${productSlug}-${productId ?? ''}`],
     { revalidate: CACHE_SHORT, tags: [`products-${businessId}`, `product-${productSlug}`] }
   )()
 );
 
-async function _getProductBySlug(businessId: string, productSlug: string) {
+async function _getProductBySlug(businessId: string, productSlug: string, productId?: string) {
+  // If productId is provided, use it directly (handles duplicate slugs)
+  if (productId) {
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.businessId, businessId), eq(products.id, productId), storefrontActiveProductCondition))
+      .limit(1);
+
+    if (product) {
+      return _enrichSingleProduct(product);
+    }
+  }
+
   // Find the product by slug within this business
+  // Note: If multiple products have the same slug (data issue), we return the most recently created one
   const [product] = await db
     .select()
     .from(products)
     .where(and(eq(products.businessId, businessId), eq(products.slug, productSlug), storefrontActiveProductCondition))
+    .orderBy(desc(products.createdAt))
     .limit(1);
 
   if (!product) return null;
 
+  return _enrichSingleProduct(product);
+}
+
+async function _enrichSingleProduct(product: typeof products.$inferSelect) {
   const allImages = await db
     .select()
     .from(productImages)

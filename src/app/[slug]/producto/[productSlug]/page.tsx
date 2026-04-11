@@ -15,6 +15,7 @@ import {
 
 interface ProductPageProps {
   params: Promise<{ slug: string; productSlug: string }>;
+  searchParams: Promise<{ id?: string }>;
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
@@ -38,13 +39,14 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   const { slug, productSlug } = await params;
+  const { id: productId } = await searchParams;
 
   const business = await getBusinessBySlug(slug);
   if (!business) notFound();
 
-  const product = await getProductBySlug(business.id, productSlug);
+  const product = await getProductBySlug(business.id, productSlug, productId);
   if (!product) notFound();
 
   const [reviews, stats, relatedProducts, bundleConfig] = await Promise.all([
