@@ -21,8 +21,9 @@ const BCV_URL = 'https://www.bcv.org.ve/';
  * Uses curl instead of fetch because BCV has SSL certificate issues that Node.js rejects.
  */
 export async function GET(request: NextRequest) {
+  // Auth check - Vercel Cron sends the secret in 'authorization' header as Bearer token
   const authHeader = request.headers.get('authorization');
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
