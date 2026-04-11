@@ -243,7 +243,7 @@ export function StorefrontCatalog({
     if (activeCat) params.set('categoria', activeCat);
     const qs = params.toString();
     const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(window.history.state, '', newUrl);
   }, [activeCat]);
 
   const handleSearch = useCallback((value: string) => {
