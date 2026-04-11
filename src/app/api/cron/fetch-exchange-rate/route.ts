@@ -1,15 +1,36 @@
-import { promisify } from 'util';
-import { exec } from 'child_process';
+import https from 'https';
 import { eq, and } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { db } from '@/db/drizzle';
 import { exchangeRates } from '@/db/schema';
 
-const execAsync = promisify(exec);
-
 const CRON_SECRET = process.env.CRON_SECRET;
 const BCV_URL = 'https://www.bcv.org.ve/';
+
+// Custom fetch that ignores SSL certificate errors (BCV has invalid/expired certs)
+async function fetchIgnoreSSL(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(
+      url,
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        rejectUnauthorized: false, // Ignore SSL errors
+        timeout: 15000,
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => resolve(data));
+      }
+    );
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+  });
+}
 
 /**
  * Cron endpoint to fetch the EUR/VES and USD/VES exchange rates from BCV (Banco Central de Venezuela).
@@ -18,22 +39,16 @@ const BCV_URL = 'https://www.bcv.org.ve/';
  * Protected by CRON_SECRET header.
  *
  * Scrapes the BCV homepage for the EUR and USD rates, rounds to 2 decimals, and stores one entry per day per currency.
- * Uses curl instead of fetch because BCV has SSL certificate issues that Node.js rejects.
  */
 export async function GET(request: NextRequest) {
   console.log('[CRON] fetch-exchange-rate started');
-  console.log('[CRON] CRON_SECRET exists:', !!CRON_SECRET);
 
-  // Auth check - Vercel Cron sends the secret in 'authorization' header as Bearer token
+  // Auth check
   const authHeader = request.headers.get('authorization');
-  console.log('[CRON] Auth header exists:', !!authHeader);
-
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     console.log('[CRON] Auth failed');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  console.log('[CRON] Auth passed');
 
   try {
     // Today in Venezuela timezone (UTC-4)
@@ -48,35 +63,25 @@ export async function GET(request: NextRequest) {
       .from(exchangeRates)
       .where(and(eq(exchangeRates.date, today)));
 
-    console.log('[CRON] Existing rows:', existingRows);
-
     const existingCurrencies = new Set(existingRows.map((r) => r.currency));
     const needEur = !existingCurrencies.has('EUR');
     const needUsd = !existingCurrencies.has('USD');
 
     if (!needEur && !needUsd) {
-      console.log('[CRON] Rates already fetched for today');
       return NextResponse.json({ message: 'Rates already fetched for today', date: today });
     }
 
-    console.log('[CRON] Fetching BCV page via curl...');
-
-    // Fetch BCV page via curl (Node.js fetch fails due to BCV's SSL certificate issues)
-    const { stdout: html } = await execAsync(`curl -s --max-time 15 -A "Mozilla/5.0" "${BCV_URL}"`, {
-      maxBuffer: 1024 * 1024,
-    });
-
+    console.log('[CRON] Fetching BCV page...');
+    const html = await fetchIgnoreSSL(BCV_URL);
     console.log('[CRON] HTML length:', html?.length || 0);
 
     if (!html || html.length < 100) {
-      console.log('[CRON] Empty or invalid response from BCV');
       return NextResponse.json({ error: 'Empty or invalid response from BCV' }, { status: 502 });
     }
 
     const results: { currency: string; rate: number }[] = [];
 
     // Parse the EUR rate from the #euro div
-    // Pattern: <div id="euro" ...> ... <strong> 556,66095493 </strong> ...
     if (needEur) {
       const euroMatch = html.match(/id="euro"[\s\S]*?<strong>\s*([\d.,]+)\s*<\/strong>/i);
       console.log('[CRON] EUR match:', euroMatch?.[1]);
@@ -91,7 +96,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse the USD rate from the #dolar div
-    // Pattern: <div id="dolar" ...> ... <strong> 51,28437500 </strong> ...
     if (needUsd) {
       const dolarMatch = html.match(/id="dolar"[\s\S]*?<strong>\s*([\d.,]+)\s*<\/strong>/i);
       console.log('[CRON] USD match:', dolarMatch?.[1]);
@@ -114,9 +118,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, date: today, rates: results });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const stack = error instanceof Error ? error.stack : '';
     console.error('[CRON] Error:', message);
-    console.error('[CRON] Stack:', stack);
     return NextResponse.json({ error: `Failed to fetch exchange rate: ${message}` }, { status: 500 });
   }
 }
