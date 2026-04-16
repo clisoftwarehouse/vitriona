@@ -11,13 +11,8 @@ export const authConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     Apple({
-      clientId: process.env.AUTH_APPLE_ID!,
-      clientSecret: {
-        teamId: process.env.AUTH_APPLE_TEAM_ID,
-        privateKey: process.env.AUTH_APPLE_PRIVATE_KEY,
-        keyId: process.env.AUTH_APPLE_KEY_ID,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+      clientId: process.env.APPLE_CLIENT_ID!,
+      clientSecret: process.env.APPLE_SECRET!,
     }),
   ],
   pages: {
