@@ -56,3 +56,12 @@ export async function googleSignInAction() {
     return { error: 'Ocurrió un error al iniciar sesión con Google' };
   }
 }
+
+export async function appleSignInAction() {
+  try {
+    await signIn('apple', { redirectTo: '/dashboard' });
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: 'Ocurrió un error al iniciar sesión con Apple' };
+  }
+}

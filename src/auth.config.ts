@@ -1,3 +1,4 @@
+import Apple from 'next-auth/providers/apple';
 import type { NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 
@@ -8,6 +9,15 @@ export const authConfig = {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    Apple({
+      clientId: process.env.AUTH_APPLE_ID!,
+      clientSecret: {
+        teamId: process.env.AUTH_APPLE_TEAM_ID,
+        privateKey: process.env.AUTH_APPLE_PRIVATE_KEY,
+        keyId: process.env.AUTH_APPLE_KEY_ID,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
     }),
   ],
   pages: {

@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { loginSchema, type LoginFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
-import { loginAction, googleSignInAction } from '@/modules/auth/server/actions/login.action';
 import { Form, FormItem, FormField, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { loginAction, appleSignInAction, googleSignInAction } from '@/modules/auth/server/actions/login.action';
 
 function GoogleIcon() {
   return (
@@ -35,6 +35,14 @@ function GoogleIcon() {
         fill='#FBBC05'
         d='M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z'
       />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg className='size-4' viewBox='0 0 24 24' aria-hidden='true' fill='currentColor'>
+      <path d='M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z' />
     </svg>
   );
 }
@@ -166,23 +174,40 @@ export function LoginForm({ successMessage }: LoginFormProps) {
         </div>
       </div>
 
-      <Button
-        type='button'
-        variant='outline'
-        className='h-11 w-full gap-2'
-        onClick={() =>
-          startTransition(async () => {
-            await googleSignInAction();
-          })
-        }
-        disabled={isPending}
-      >
-        <GoogleIcon />
-        Continuar con Google
-      </Button>
+      <div className='flex flex-col gap-3'>
+        <Button
+          type='button'
+          variant='outline'
+          className='h-11 w-full gap-2'
+          onClick={() =>
+            startTransition(async () => {
+              await googleSignInAction();
+            })
+          }
+          disabled={isPending}
+        >
+          <GoogleIcon />
+          Continuar con Google
+        </Button>
+
+        <Button
+          type='button'
+          variant='outline'
+          className='h-11 w-full gap-2'
+          onClick={() =>
+            startTransition(async () => {
+              await appleSignInAction();
+            })
+          }
+          disabled={isPending}
+        >
+          <AppleIcon />
+          Continuar con Apple
+        </Button>
+      </div>
 
       <p className='text-muted-foreground text-center text-[11px] leading-relaxed'>
-        Al iniciar sesión o continuar con Google aceptas los{' '}
+        Al iniciar sesión o continuar con Google o Apple aceptas los{' '}
         <Link href='/legal#terminos' target='_blank' className='text-foreground hover:underline'>
           Términos
         </Link>
