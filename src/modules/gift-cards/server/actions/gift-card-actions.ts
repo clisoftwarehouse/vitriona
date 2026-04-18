@@ -1,11 +1,11 @@
 'use server';
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, gte, sql, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
-import { giftCards, businesses } from '@/db/schema';
 import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
+import { giftCards, businesses, giftCardRedemptions } from '@/db/schema';
 import { giftCardEmailTemplate } from '@/modules/auth/server/email/templates/gift-card.template';
 
 /* ─── Types ─── */
@@ -15,6 +15,7 @@ export interface CreateGiftCardInput {
   code: string;
   type: 'fixed' | 'percentage' | 'product';
   initialValue: number;
+  maxDiscount?: number;
   applicableProductIds?: string[];
   recipientName?: string;
   recipientEmail?: string;
@@ -86,6 +87,11 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
     if (input.type === 'percentage' && input.initialValue > 100) {
       return { error: 'El porcentaje no puede ser mayor a 100' };
     }
+    if (input.maxDiscount != null && input.maxDiscount <= 0) {
+      return { error: 'El tope de descuento debe ser mayor a 0' };
+    }
+    // maxDiscount only makes sense for percentage cards (caps the discount amount).
+    const maxDiscount = input.type === 'percentage' ? (input.maxDiscount ?? null) : null;
 
     // Check for duplicate code within this business
     const [existing] = await db
@@ -103,6 +109,7 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
       type: input.type,
       initialValue: String(input.initialValue),
       currentBalance: String(input.initialValue),
+      maxDiscount: maxDiscount != null ? String(maxDiscount) : null,
       applicableProductIds:
         input.applicableProductIds && input.applicableProductIds.length > 0 ? input.applicableProductIds : null,
       recipientName: input.recipientName?.trim() || null,
@@ -114,20 +121,22 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
 
     if (recipientEmail) {
       try {
+        const html = giftCardEmailTemplate({
+          recipientName: input.recipientName,
+          senderName: input.senderName,
+          businessId: input.businessId,
+          businessName: biz.name,
+          code,
+          type: input.type,
+          value: input.initialValue,
+          message: input.message,
+          expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+        });
         await resend.emails.send({
           from: EMAIL_FROM,
           to: recipientEmail,
           subject: `Recibiste una Gift Card de ${biz.name}`,
-          html: giftCardEmailTemplate({
-            recipientName: input.recipientName,
-            senderName: input.senderName,
-            businessName: biz.name,
-            code,
-            type: input.type,
-            value: input.initialValue,
-            message: input.message,
-            expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-          }),
+          html,
         });
 
         return { success: true, code, emailSent: true };
@@ -235,6 +244,7 @@ export async function validateGiftCardAction(
 
     let discount = 0;
     const value = parseFloat(card.initialValue);
+    const maxDiscount = card.maxDiscount != null ? parseFloat(card.maxDiscount) : null;
 
     switch (card.type) {
       case 'fixed':
@@ -242,6 +252,7 @@ export async function validateGiftCardAction(
         break;
       case 'percentage':
         discount = (discountBase * value) / 100;
+        if (maxDiscount != null) discount = Math.min(discount, maxDiscount);
         break;
       case 'product':
         discount = Math.min(balance, discountBase);
@@ -257,6 +268,7 @@ export async function validateGiftCardAction(
         type: card.type,
         discount,
         currentBalance: balance,
+        maxDiscount,
         applicableProductIds: applicableIds,
       },
     };
@@ -267,18 +279,185 @@ export async function validateGiftCardAction(
 
 /* ─── Internal: deduct gift card balance (called after successful order) ─── */
 
-export async function deductGiftCardBalance(giftCardId: string, amount: number) {
+export interface DeductGiftCardResult {
+  success: boolean;
+  error?: string;
+  balanceBefore?: number;
+  balanceAfter?: number;
+}
+
+export async function deductGiftCardBalance(giftCardId: string, amount: number): Promise<DeductGiftCardResult> {
   const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
-  if (!card) return;
+  if (!card) return { success: false, error: 'Gift card no encontrada' };
+  if (!card.isActive) return { success: false, error: 'Gift card inactiva' };
 
-  const currentBalance = parseFloat(card.currentBalance);
-  const newBalance = Math.max(0, currentBalance - amount);
+  const balanceBefore = parseFloat(card.currentBalance);
 
-  await db
+  // Percentage cards have no balance semantics: treat redemption as single-use.
+  if (card.type === 'percentage') {
+    const [updated] = await db
+      .update(giftCards)
+      .set({ isActive: false, redeemedAt: new Date() })
+      .where(and(eq(giftCards.id, giftCardId), eq(giftCards.isActive, true)))
+      .returning({ id: giftCards.id });
+    return updated
+      ? { success: true, balanceBefore, balanceAfter: balanceBefore }
+      : { success: false, error: 'Gift card ya fue redimida' };
+  }
+
+  const amountStr = amount.toFixed(2);
+  const [updated] = await db
     .update(giftCards)
     .set({
-      currentBalance: String(newBalance),
-      redeemedAt: newBalance === 0 ? new Date() : card.redeemedAt,
+      currentBalance: sql`${giftCards.currentBalance} - ${amountStr}`,
+      redeemedAt: sql`CASE WHEN ${giftCards.currentBalance} - ${amountStr} <= 0 THEN NOW() ELSE ${giftCards.redeemedAt} END`,
     })
-    .where(eq(giftCards.id, giftCardId));
+    .where(and(eq(giftCards.id, giftCardId), gte(giftCards.currentBalance, amountStr)))
+    .returning({ id: giftCards.id, currentBalance: giftCards.currentBalance });
+
+  if (!updated) return { success: false, error: 'Saldo insuficiente en gift card' };
+
+  return {
+    success: true,
+    balanceBefore,
+    balanceAfter: parseFloat(updated.currentBalance),
+  };
+}
+
+/* ─── Internal: audit redemption record (called after order insert) ─── */
+
+export async function recordGiftCardRedemption(params: {
+  giftCardId: string;
+  businessId: string;
+  amount: number;
+  orderId?: string | null;
+  redemptionType?: 'order' | 'manual';
+  redeemedBy?: string | null;
+  notes?: string | null;
+  balanceBefore?: number;
+  balanceAfter?: number;
+}) {
+  try {
+    await db.insert(giftCardRedemptions).values({
+      giftCardId: params.giftCardId,
+      orderId: params.orderId ?? null,
+      businessId: params.businessId,
+      redemptionType: params.redemptionType ?? 'order',
+      redeemedBy: params.redeemedBy ?? null,
+      notes: params.notes?.trim() || null,
+      amount: params.amount.toFixed(2),
+      balanceBefore: params.balanceBefore != null ? params.balanceBefore.toFixed(2) : null,
+      balanceAfter: params.balanceAfter != null ? params.balanceAfter.toFixed(2) : null,
+    });
+  } catch (err) {
+    // Best-effort audit; redemption deduction already succeeded atomically.
+    console.error('[gift-card] failed to record redemption', err);
+  }
+}
+
+/* ─── Dashboard: manual redemption (in-person, no order) ─── */
+
+export interface ManualRedeemInput {
+  giftCardId: string;
+  amount?: number;
+  notes?: string;
+}
+
+export async function redeemGiftCardManuallyAction(input: ManualRedeemInput) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    const [card] = await db.select().from(giftCards).where(eq(giftCards.id, input.giftCardId)).limit(1);
+    if (!card) return { error: 'Gift card no encontrada' };
+
+    const biz = await verifyOwnership(card.businessId, session.user.id);
+    if (!biz) return { error: 'No autorizado' };
+
+    if (!card.isActive) return { error: 'Gift card inactiva' };
+    if (card.expiresAt && new Date() > card.expiresAt) return { error: 'Esta gift card ha expirado' };
+
+    // Determine deduction amount
+    let amountToDeduct: number;
+    if (card.type === 'percentage') {
+      // Single-use: deduct 0 (the deduct fn marks inactive), audit records the value on record
+      amountToDeduct = 0;
+    } else {
+      const balance = parseFloat(card.currentBalance);
+      if (balance <= 0) return { error: 'Esta gift card no tiene saldo disponible' };
+      if (input.amount == null || input.amount <= 0) return { error: 'Ingresa el monto a canjear' };
+      if (input.amount > balance) return { error: `El monto supera el saldo disponible ($${balance.toFixed(2)})` };
+      amountToDeduct = Math.round(input.amount * 100) / 100;
+    }
+
+    const redemption = await deductGiftCardBalance(input.giftCardId, amountToDeduct);
+    if (!redemption.success) return { error: redemption.error ?? 'No se pudo canjear' };
+
+    // Audit amount: for percentage cards, record initialValue (informational); for others, record deducted amount.
+    const auditAmount = card.type === 'percentage' ? parseFloat(card.initialValue) : amountToDeduct;
+
+    await recordGiftCardRedemption({
+      giftCardId: card.id,
+      businessId: card.businessId,
+      amount: auditAmount,
+      orderId: null,
+      redemptionType: 'manual',
+      redeemedBy: session.user.id,
+      notes: input.notes,
+      balanceBefore: redemption.balanceBefore,
+      balanceAfter: redemption.balanceAfter,
+    });
+
+    return {
+      success: true,
+      balanceAfter: redemption.balanceAfter,
+      deactivated: card.type === 'percentage',
+    };
+  } catch (err) {
+    console.error('[gift-card] manual redemption failed', err);
+    return { error: 'Error al canjear la gift card' };
+  }
+}
+
+/* ─── Public: lookup a gift card by code for redemption preview (auth required) ─── */
+
+export async function getGiftCardForRedemptionAction(code: string) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    const normalizedCode = code.trim().toUpperCase();
+    if (!normalizedCode) return { error: 'Código inválido' };
+
+    const [card] = await db.select().from(giftCards).where(eq(giftCards.code, normalizedCode)).limit(1);
+    if (!card) return { error: 'Gift card no encontrada' };
+
+    const biz = await verifyOwnership(card.businessId, session.user.id);
+    if (!biz) return { error: 'No autorizado' };
+
+    return { data: card };
+  } catch {
+    return { error: 'Error al buscar la gift card' };
+  }
+}
+
+/* ─── Dashboard: list redemptions for a gift card ─── */
+
+export async function getGiftCardRedemptionsAction(giftCardId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: 'No autorizado', data: [] };
+
+  const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
+  if (!card) return { error: 'Gift card no encontrada', data: [] };
+
+  const biz = await verifyOwnership(card.businessId, session.user.id);
+  if (!biz) return { error: 'No autorizado', data: [] };
+
+  const rows = await db
+    .select()
+    .from(giftCardRedemptions)
+    .where(eq(giftCardRedemptions.giftCardId, giftCardId))
+    .orderBy(desc(giftCardRedemptions.redeemedAt));
+
+  return { data: rows };
 }

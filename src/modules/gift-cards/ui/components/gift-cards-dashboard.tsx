@@ -2,13 +2,27 @@
 
 import { toast } from 'sonner';
 import { useState, useEffect, useTransition } from 'react';
-import { X, Copy, Plus, Check, Trash2, Loader2, Package, GiftIcon, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  X,
+  Copy,
+  Plus,
+  Check,
+  Trash2,
+  QrCode,
+  History,
+  Loader2,
+  Package,
+  GiftIcon,
+  ToggleLeft,
+  ToggleRight,
+} from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getProductsAction } from '@/modules/products/server/actions/get-products.action';
+import { GiftCardRedeemDialog } from '@/modules/gift-cards/ui/components/gift-card-redeem-dialog';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import {
   Dialog,
@@ -24,6 +38,7 @@ import {
   createGiftCardAction,
   deleteGiftCardAction,
   toggleGiftCardAction,
+  getGiftCardRedemptionsAction,
 } from '@/modules/gift-cards/server/actions/gift-card-actions';
 
 interface GiftCard {
@@ -32,6 +47,7 @@ interface GiftCard {
   type: string;
   initialValue: string;
   currentBalance: string;
+  maxDiscount: string | null;
   applicableProductIds: string[] | null;
   recipientName: string | null;
   recipientEmail: string | null;
@@ -43,16 +59,33 @@ interface GiftCard {
   createdAt: Date;
 }
 
+interface GiftCardRedemption {
+  id: string;
+  orderId: string | null;
+  redemptionType: 'order' | 'manual';
+  notes: string | null;
+  amount: string;
+  balanceBefore: string | null;
+  balanceAfter: string | null;
+  redeemedAt: Date;
+}
+
 interface SimpleProduct {
   id: string;
   name: string;
 }
 
-export function GiftCardsDashboard({ businessId }: { businessId: string }) {
+interface GiftCardsDashboardProps {
+  businessId: string;
+  initialRedeemCode?: string;
+}
+
+export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsDashboardProps) {
   const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [redeemOpen, setRedeemOpen] = useState(!!initialRedeemCode);
   const [deleteTarget, setDeleteTarget] = useState<GiftCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -60,6 +93,7 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
   const [code, setCode] = useState('');
   const [type, setType] = useState<'fixed' | 'percentage' | 'product'>('fixed');
   const [initialValue, setInitialValue] = useState('');
+  const [maxDiscount, setMaxDiscount] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -67,6 +101,11 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
   const [senderName, setSenderName] = useState('');
   const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
+
+  // History state
+  const [historyTarget, setHistoryTarget] = useState<GiftCard | null>(null);
+  const [historyRows, setHistoryRows] = useState<GiftCardRedemption[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -88,6 +127,7 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
     setCode('');
     setType('fixed');
     setInitialValue('');
+    setMaxDiscount('');
     setSelectedProductIds([]);
     setProductSearchQuery('');
     setRecipientName('');
@@ -99,6 +139,10 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
 
   const handleCreate = () => {
     if (!initialValue || parseFloat(initialValue) <= 0) return toast.error('El valor es requerido');
+    const maxDiscountNum = type === 'percentage' && maxDiscount ? parseFloat(maxDiscount) : undefined;
+    if (maxDiscountNum !== undefined && (isNaN(maxDiscountNum) || maxDiscountNum <= 0)) {
+      return toast.error('Tope de descuento inválido');
+    }
 
     startTransition(async () => {
       const result = await createGiftCardAction({
@@ -106,6 +150,7 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
         code: code.trim(),
         type,
         initialValue: parseFloat(initialValue),
+        maxDiscount: maxDiscountNum,
         applicableProductIds: type === 'product' && selectedProductIds.length > 0 ? selectedProductIds : undefined,
         recipientName: recipientName.trim() || undefined,
         recipientEmail: recipientEmail.trim() || undefined,
@@ -159,6 +204,14 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
     toast.success('Código copiado');
   };
 
+  const openHistory = async (card: GiftCard) => {
+    setHistoryTarget(card);
+    setHistoryLoading(true);
+    const result = await getGiftCardRedemptionsAction(card.id);
+    setHistoryRows((result.data as GiftCardRedemption[]) ?? []);
+    setHistoryLoading(false);
+  };
+
   const formatDate = (d: Date | null) => {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -180,7 +233,11 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
 
   return (
     <div className='space-y-4'>
-      <div className='flex justify-end'>
+      <div className='flex justify-end gap-2'>
+        <Button variant='outline' onClick={() => setRedeemOpen(true)}>
+          <QrCode className='size-4' />
+          Canjear
+        </Button>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className='size-4' />
           Nueva gift card
@@ -238,6 +295,9 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
                         {typeLabels[card.type] ?? card.type}
                         {card.type === 'percentage' ? ` · ${initial}%` : ` · $${initial.toFixed(2)}`}
                         {card.type === 'fixed' && ` · Saldo: $${balance.toFixed(2)}`}
+                        {card.type === 'percentage' &&
+                          card.maxDiscount &&
+                          ` · Tope: $${parseFloat(card.maxDiscount).toFixed(2)}`}
                         {card.applicableProductIds && card.applicableProductIds.length > 0 && (
                           <span className='ml-1 inline-flex items-center gap-0.5'>
                             · <Package className='inline size-3' />
@@ -253,6 +313,14 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
                     </div>
                   </div>
                   <div className='flex items-center gap-1'>
+                    <button
+                      onClick={() => openHistory(card)}
+                      disabled={isPending}
+                      className='hover:bg-muted text-muted-foreground rounded-md p-2 transition-colors'
+                      title='Ver historial de canjes'
+                    >
+                      <History className='size-4' />
+                    </button>
                     <button
                       onClick={() => handleToggle(card.id, card.isActive)}
                       disabled={isPending}
@@ -325,6 +393,24 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
                 />
               </div>
             </div>
+
+            {type === 'percentage' && (
+              <div>
+                <Label>Tope de descuento (opcional)</Label>
+                <Input
+                  type='number'
+                  value={maxDiscount}
+                  onChange={(e) => setMaxDiscount(e.target.value)}
+                  placeholder='Ej: 100.00'
+                  className='mt-1'
+                  min='0'
+                  step='0.01'
+                />
+                <p className='text-muted-foreground mt-1 text-xs'>
+                  Límite máximo al descuento aplicado sobre cualquier pedido.
+                </p>
+              </div>
+            )}
 
             {/* Product selector for product type */}
             {type === 'product' && products.length > 0 && (
@@ -468,6 +554,78 @@ export function GiftCardsDashboard({ businessId }: { businessId: string }) {
             <Button variant='destructive' onClick={handleDelete} disabled={isPending}>
               {isPending ? 'Eliminando...' : 'Sí, eliminar'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Redeem dialog */}
+      <GiftCardRedeemDialog
+        open={redeemOpen}
+        onOpenChange={setRedeemOpen}
+        initialCode={initialRedeemCode}
+        restrictToBusinessId={businessId}
+        onRedeemed={fetchData}
+      />
+
+      {/* History dialog */}
+      <Dialog open={!!historyTarget} onOpenChange={(open) => !open && setHistoryTarget(null)}>
+        <DialogContent className='max-w-lg'>
+          <DialogHeader>
+            <DialogTitle>Historial de canjes</DialogTitle>
+            <DialogDescription>
+              Gift card <strong className='font-mono'>{historyTarget?.code}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className='max-h-[60vh] overflow-y-auto'>
+            {historyLoading ? (
+              <div className='flex items-center justify-center py-8'>
+                <Loader2 className='text-muted-foreground size-5 animate-spin' />
+              </div>
+            ) : historyRows.length === 0 ? (
+              <p className='text-muted-foreground py-8 text-center text-sm'>Aún no se ha canjeado esta gift card.</p>
+            ) : (
+              <div className='space-y-2'>
+                {historyRows.map((row) => (
+                  <div key={row.id} className='flex items-center justify-between rounded-md border p-3 text-sm'>
+                    <div>
+                      <div className='flex items-center gap-2'>
+                        <p className='font-medium'>${parseFloat(row.amount).toFixed(2)} canjeados</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            row.redemptionType === 'manual'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          {row.redemptionType === 'manual' ? 'Manual' : 'Pedido'}
+                        </span>
+                      </div>
+                      <p className='text-muted-foreground mt-0.5 text-xs'>
+                        {formatDate(row.redeemedAt)}
+                        {row.orderId && (
+                          <>
+                            {' · Pedido '}
+                            <span className='font-mono'>{row.orderId.slice(0, 8)}</span>
+                          </>
+                        )}
+                      </p>
+                      {row.notes && <p className='text-muted-foreground mt-1 text-xs italic'>“{row.notes}”</p>}
+                    </div>
+                    {row.balanceAfter != null && (
+                      <div className='text-muted-foreground text-right text-xs'>
+                        <p>Antes: ${parseFloat(row.balanceBefore ?? '0').toFixed(2)}</p>
+                        <p>Después: ${parseFloat(row.balanceAfter).toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant='outline'>Cerrar</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>

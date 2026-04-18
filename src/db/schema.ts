@@ -1,3 +1,4 @@
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
 import { text, jsonb, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
 
@@ -652,6 +653,9 @@ export const orders = pgTable('orders', {
   total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
   couponId: text('coupon_id').references(() => coupons.id, { onDelete: 'set null' }),
   couponCode: text('coupon_code'),
+  giftCardId: text('gift_card_id').references((): AnyPgColumn => giftCards.id, { onDelete: 'set null' }),
+  giftCardCode: text('gift_card_code'),
+  giftCardDiscount: numeric('gift_card_discount', { precision: 10, scale: 2 }).notNull().default('0'),
   paymentMethodId: text('payment_method_id').references(() => paymentMethods.id, { onDelete: 'set null' }),
   paymentMethodName: text('payment_method_name'),
   paymentDetails: jsonb('payment_details'),
@@ -875,6 +879,7 @@ export const giftCards = pgTable('gift_cards', {
     .default('fixed'),
   initialValue: numeric('initial_value', { precision: 10, scale: 2 }).notNull(),
   currentBalance: numeric('current_balance', { precision: 10, scale: 2 }).notNull(),
+  maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }),
   applicableProductIds: jsonb('applicable_product_ids').$type<string[]>(),
   recipientName: text('recipient_name'),
   recipientEmail: text('recipient_email'),
@@ -884,6 +889,28 @@ export const giftCards = pgTable('gift_cards', {
   isActive: boolean('is_active').notNull().default(true),
   redeemedAt: timestamp('redeemed_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const giftCardRedemptions = pgTable('gift_card_redemptions', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  giftCardId: text('gift_card_id')
+    .notNull()
+    .references(() => giftCards.id, { onDelete: 'cascade' }),
+  orderId: text('order_id').references(() => orders.id, { onDelete: 'cascade' }),
+  businessId: text('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  redemptionType: text('redemption_type', { enum: ['order', 'manual'] })
+    .notNull()
+    .default('order'),
+  redeemedBy: text('redeemed_by').references(() => users.id, { onDelete: 'set null' }),
+  notes: text('notes'),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  balanceBefore: numeric('balance_before', { precision: 10, scale: 2 }),
+  balanceAfter: numeric('balance_after', { precision: 10, scale: 2 }),
+  redeemedAt: timestamp('redeemed_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export const coupons = pgTable('coupons', {

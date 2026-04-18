@@ -10,6 +10,11 @@ import { validateReservationSelection } from '@/modules/orders/lib/reservations'
 import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
 import { getBundleComponents, syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
+  deductGiftCardBalance,
+  validateGiftCardAction,
+  recordGiftCardRedemption,
+} from '@/modules/gift-cards/server/actions/gift-card-actions';
+import {
   orders,
   catalogs,
   products,
@@ -54,6 +59,9 @@ interface CreateOrderInput {
   items: OrderItemInput[];
   couponId?: string;
   couponCode?: string;
+  couponDiscount?: number;
+  giftCardId?: string;
+  giftCardCode?: string;
   discount?: number;
   paymentMethodId?: string;
   paymentMethodName?: string;
@@ -331,7 +339,43 @@ export async function createOrderAction(input: CreateOrderInput) {
   }
 
   const subtotal = validatedItems.reduce((sum, item) => sum + parseFloat(item.unitPrice) * item.quantity, 0);
-  const discount = input.discount ?? 0;
+  const couponDiscount = Math.max(0, input.couponDiscount ?? (input.giftCardId ? 0 : (input.discount ?? 0)));
+
+  // Server-side revalidation of the gift card. Never trust the client-provided discount:
+  // state may have changed between apply-time and order-time (expired, deactivated,
+  // balance consumed by another order, tenant mismatch, etc.).
+  let giftCardDiscount = 0;
+  let resolvedGiftCardId: string | null = null;
+  let resolvedGiftCardCode: string | null = null;
+
+  if (input.giftCardId || input.giftCardCode) {
+    const code = input.giftCardCode?.trim();
+    if (!code) return { error: 'Código de gift card inválido' };
+
+    const gcValidation = await validateGiftCardAction(
+      businessId,
+      code,
+      subtotal,
+      validatedItems.map((item) => ({
+        productId: item.productId,
+        price: parseFloat(item.unitPrice),
+        quantity: item.quantity,
+      }))
+    );
+
+    if (gcValidation.error || !gcValidation.data) {
+      return { error: gcValidation.error ?? 'Gift card no válida' };
+    }
+    if (input.giftCardId && gcValidation.data.giftCardId !== input.giftCardId) {
+      return { error: 'Gift card no válida' };
+    }
+
+    giftCardDiscount = gcValidation.data.discount;
+    resolvedGiftCardId = gcValidation.data.giftCardId;
+    resolvedGiftCardCode = gcValidation.data.code;
+  }
+
+  const discount = Math.min(subtotal, couponDiscount + giftCardDiscount);
   const shippingCost = input.shippingCost ?? 0;
   const total = Math.max(0, subtotal - discount + shippingCost);
   const orderNumber = generateOrderNumber();
@@ -486,6 +530,20 @@ export async function createOrderAction(input: CreateOrderInput) {
     }
   }
 
+  // Atomic gift card redemption. Done before the order insert so that any race
+  // (concurrent redemption, balance consumed meanwhile) rolls back stock cleanly.
+  let giftCardBalanceBefore: number | undefined;
+  let giftCardBalanceAfter: number | undefined;
+  if (resolvedGiftCardId && giftCardDiscount > 0) {
+    const redemption = await deductGiftCardBalance(resolvedGiftCardId, giftCardDiscount);
+    if (!redemption.success) {
+      await rollbackDeductions(deducted);
+      return { error: redemption.error ?? 'No se pudo aplicar la gift card' };
+    }
+    giftCardBalanceBefore = redemption.balanceBefore;
+    giftCardBalanceAfter = redemption.balanceAfter;
+  }
+
   const [order] = await db
     .insert(orders)
     .values({
@@ -504,6 +562,9 @@ export async function createOrderAction(input: CreateOrderInput) {
       total: total.toFixed(2),
       couponId: input.couponId || null,
       couponCode: input.couponCode || null,
+      giftCardId: resolvedGiftCardId,
+      giftCardCode: resolvedGiftCardCode,
+      giftCardDiscount: giftCardDiscount.toFixed(2),
       paymentMethodId: input.paymentMethodId || null,
       paymentMethodName: input.paymentMethodName || null,
       paymentDetails: input.paymentDetails || null,
@@ -577,6 +638,19 @@ export async function createOrderAction(input: CreateOrderInput) {
   // Increment coupon usage
   if (input.couponId) {
     await incrementCouponUsage(input.couponId);
+  }
+
+  // Record gift card redemption audit entry
+  if (resolvedGiftCardId && giftCardDiscount > 0) {
+    await recordGiftCardRedemption({
+      giftCardId: resolvedGiftCardId,
+      orderId: order.id,
+      businessId,
+      redemptionType: 'order',
+      amount: giftCardDiscount,
+      balanceBefore: giftCardBalanceBefore,
+      balanceAfter: giftCardBalanceAfter,
+    });
   }
 
   // Create notification for business owner
