@@ -5,8 +5,9 @@ interface GiftCardEmailTemplateParams {
   senderName?: string | null;
   businessName: string;
   code: string;
-  type: 'fixed' | 'percentage' | 'product';
+  type: 'fixed' | 'percentage' | 'product' | 'free_product';
   value: number;
+  quantity?: number | null;
   message?: string | null;
   expiresAt?: Date | null;
 }
@@ -14,8 +15,12 @@ interface GiftCardEmailTemplateParams {
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
 const LOGO_URL = `${APP_URL}/images/vitriona-logo-dark.png`;
 
-function formatGiftCardValue(type: GiftCardEmailTemplateParams['type'], value: number) {
+function formatGiftCardValue(type: GiftCardEmailTemplateParams['type'], value: number, quantity?: number | null) {
   if (type === 'percentage') return `${value}% OFF`;
+  if (type === 'free_product') {
+    const n = quantity ?? 1;
+    return `${n} ${n === 1 ? 'PRODUCTO' : 'PRODUCTOS'} GRATIS`;
+  }
   return `$${value.toFixed(2)}`;
 }
 
@@ -31,6 +36,7 @@ export function giftCardEmailTemplate({
   code,
   type,
   value,
+  quantity,
   message,
   expiresAt,
 }: GiftCardEmailTemplateParams): string {
@@ -38,7 +44,8 @@ export function giftCardEmailTemplate({
   const senderLine = senderName?.trim()
     ? `${senderName.trim()} te envió una gift card de ${businessName}.`
     : `${businessName} te envió una gift card.`;
-  const valueLabel = formatGiftCardValue(type, value);
+  const valueLabel = formatGiftCardValue(type, value, quantity);
+  const valueFontSize = type === 'free_product' ? 24 : 36;
   const expirationLabel = formatExpiration(expiresAt);
   const qrImageUrl = `${APP_URL}/api/gift-cards/qr?code=${encodeURIComponent(code)}`;
 
@@ -64,7 +71,7 @@ export function giftCardEmailTemplate({
             <tr>
               <td style="padding:10px 24px 6px;">
                 <p style="margin:0;color:${emailBrandStyles.textSubtle};font-size:12px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;">${businessName}</p>
-                <p style="margin:6px 0 0;color:${emailBrandStyles.textPrimary};font-size:36px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;">${valueLabel}</p>
+                <p style="margin:6px 0 0;color:${emailBrandStyles.textPrimary};font-size:${valueFontSize}px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;">${valueLabel}</p>
               </td>
             </tr>
             <tr>

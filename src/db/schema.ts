@@ -874,12 +874,13 @@ export const giftCards = pgTable('gift_cards', {
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
   code: text('code').notNull(),
-  type: text('type', { enum: ['fixed', 'percentage', 'product'] })
+  type: text('type', { enum: ['fixed', 'percentage', 'product', 'free_product'] })
     .notNull()
     .default('fixed'),
   initialValue: numeric('initial_value', { precision: 10, scale: 2 }).notNull(),
   currentBalance: numeric('current_balance', { precision: 10, scale: 2 }).notNull(),
   maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }),
+  quantity: integer('quantity'),
   applicableProductIds: jsonb('applicable_product_ids').$type<string[]>(),
   recipientName: text('recipient_name'),
   recipientEmail: text('recipient_email'),

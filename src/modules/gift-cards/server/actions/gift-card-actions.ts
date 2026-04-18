@@ -1,21 +1,24 @@
 'use server';
 
-import { eq, and, gte, sql, desc } from 'drizzle-orm';
+import { eq, and, gte, sql, desc, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
-import { giftCards, businesses, giftCardRedemptions } from '@/db/schema';
+import { products, giftCards, businesses, giftCardRedemptions } from '@/db/schema';
 import { giftCardEmailTemplate } from '@/modules/auth/server/email/templates/gift-card.template';
 
 /* ─── Types ─── */
 
+export type GiftCardType = 'fixed' | 'percentage' | 'product' | 'free_product';
+
 export interface CreateGiftCardInput {
   businessId: string;
   code: string;
-  type: 'fixed' | 'percentage' | 'product';
+  type: GiftCardType;
   initialValue: number;
   maxDiscount?: number;
+  quantity?: number;
   applicableProductIds?: string[];
   recipientName?: string;
   recipientEmail?: string;
@@ -83,15 +86,28 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
     if (!biz) return { error: 'No autorizado' };
 
     const code = input.code?.trim().toUpperCase() || generateGiftCardCode();
-    if (input.initialValue <= 0) return { error: 'El valor debe ser mayor a 0' };
-    if (input.type === 'percentage' && input.initialValue > 100) {
-      return { error: 'El porcentaje no puede ser mayor a 100' };
+
+    if (input.type === 'free_product') {
+      if (!input.applicableProductIds || input.applicableProductIds.length === 0) {
+        return { error: 'Selecciona al menos un producto' };
+      }
+      if (input.quantity == null || input.quantity <= 0 || !Number.isInteger(input.quantity)) {
+        return { error: 'La cantidad debe ser un entero mayor a 0' };
+      }
+    } else {
+      if (input.initialValue <= 0) return { error: 'El valor debe ser mayor a 0' };
+      if (input.type === 'percentage' && input.initialValue > 100) {
+        return { error: 'El porcentaje no puede ser mayor a 100' };
+      }
     }
     if (input.maxDiscount != null && input.maxDiscount <= 0) {
       return { error: 'El tope de descuento debe ser mayor a 0' };
     }
     // maxDiscount only makes sense for percentage cards (caps the discount amount).
     const maxDiscount = input.type === 'percentage' ? (input.maxDiscount ?? null) : null;
+    const quantity = input.type === 'free_product' ? input.quantity! : null;
+    // For free_product, initialValue is informational (stored as 0); quantity is the source of truth.
+    const initialValue = input.type === 'free_product' ? 0 : input.initialValue;
 
     // Check for duplicate code within this business
     const [existing] = await db
@@ -107,9 +123,10 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
       businessId: input.businessId,
       code,
       type: input.type,
-      initialValue: String(input.initialValue),
-      currentBalance: String(input.initialValue),
+      initialValue: String(initialValue),
+      currentBalance: String(initialValue),
       maxDiscount: maxDiscount != null ? String(maxDiscount) : null,
+      quantity,
       applicableProductIds:
         input.applicableProductIds && input.applicableProductIds.length > 0 ? input.applicableProductIds : null,
       recipientName: input.recipientName?.trim() || null,
@@ -127,7 +144,8 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
           businessName: biz.name,
           code,
           type: input.type,
-          value: input.initialValue,
+          value: initialValue,
+          quantity,
           message: input.message,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
         });
@@ -256,6 +274,26 @@ export async function validateGiftCardAction(
       case 'product':
         discount = Math.min(balance, discountBase);
         break;
+      case 'free_product': {
+        // Cover up to N full units of applicable products, picking cheapest-first to be fair to the customer.
+        if (!applicableIds || applicableIds.length === 0 || !cartItems) {
+          return { error: 'Esta gift card no aplica a los productos en tu carrito' };
+        }
+        const qty = card.quantity ?? 0;
+        if (qty <= 0) return { error: 'Gift card inválida' };
+
+        const unitPrices: number[] = [];
+        for (const item of cartItems) {
+          if (!applicableIds.includes(item.productId)) continue;
+          for (let i = 0; i < item.quantity; i++) unitPrices.push(item.price);
+        }
+        if (unitPrices.length === 0) {
+          return { error: 'Esta gift card no aplica a los productos en tu carrito' };
+        }
+        unitPrices.sort((a, b) => b - a); // most expensive first benefits customer
+        discount = unitPrices.slice(0, qty).reduce((sum, p) => sum + p, 0);
+        break;
+      }
     }
 
     discount = Math.round(discount * 100) / 100;
@@ -268,6 +306,7 @@ export async function validateGiftCardAction(
         discount,
         currentBalance: balance,
         maxDiscount,
+        quantity: card.quantity,
         applicableProductIds: applicableIds,
       },
     };
@@ -292,8 +331,8 @@ export async function deductGiftCardBalance(giftCardId: string, amount: number):
 
   const balanceBefore = parseFloat(card.currentBalance);
 
-  // Percentage cards have no balance semantics: treat redemption as single-use.
-  if (card.type === 'percentage') {
+  // Percentage and free_product cards have no balance semantics: treat redemption as single-use.
+  if (card.type === 'percentage' || card.type === 'free_product') {
     const [updated] = await db
       .update(giftCards)
       .set({ isActive: false, redeemedAt: new Date() })
@@ -376,9 +415,11 @@ export async function redeemGiftCardManuallyAction(input: ManualRedeemInput) {
     if (!card.isActive) return { error: 'Gift card inactiva' };
     if (card.expiresAt && new Date() > card.expiresAt) return { error: 'Esta gift card ha expirado' };
 
+    const isSingleUse = card.type === 'percentage' || card.type === 'free_product';
+
     // Determine deduction amount
     let amountToDeduct: number;
-    if (card.type === 'percentage') {
+    if (isSingleUse) {
       // Single-use: deduct 0 (the deduct fn marks inactive), audit records the value on record
       amountToDeduct = 0;
     } else {
@@ -392,8 +433,11 @@ export async function redeemGiftCardManuallyAction(input: ManualRedeemInput) {
     const redemption = await deductGiftCardBalance(input.giftCardId, amountToDeduct);
     if (!redemption.success) return { error: redemption.error ?? 'No se pudo canjear' };
 
-    // Audit amount: for percentage cards, record initialValue (informational); for others, record deducted amount.
-    const auditAmount = card.type === 'percentage' ? parseFloat(card.initialValue) : amountToDeduct;
+    // Audit: percentage records initialValue, free_product records 0 (quantity lives on the card), others record deducted.
+    let auditAmount: number;
+    if (card.type === 'percentage') auditAmount = parseFloat(card.initialValue);
+    else if (card.type === 'free_product') auditAmount = 0;
+    else auditAmount = amountToDeduct;
 
     await recordGiftCardRedemption({
       giftCardId: card.id,
@@ -410,7 +454,7 @@ export async function redeemGiftCardManuallyAction(input: ManualRedeemInput) {
     return {
       success: true,
       balanceAfter: redemption.balanceAfter,
-      deactivated: card.type === 'percentage',
+      deactivated: isSingleUse,
     };
   } catch (err) {
     console.error('[gift-card] manual redemption failed', err);
@@ -434,7 +478,16 @@ export async function getGiftCardForRedemptionAction(code: string) {
     const biz = await verifyOwnership(card.businessId, session.user.id);
     if (!biz) return { error: 'No autorizado' };
 
-    return { data: card };
+    const applicableIds = card.applicableProductIds as string[] | null;
+    let applicableProducts: { id: string; name: string; price: string }[] = [];
+    if (applicableIds && applicableIds.length > 0) {
+      applicableProducts = await db
+        .select({ id: products.id, name: products.name, price: products.price })
+        .from(products)
+        .where(inArray(products.id, applicableIds));
+    }
+
+    return { data: { ...card, applicableProducts } };
   } catch {
     return { error: 'Error al buscar la gift card' };
   }

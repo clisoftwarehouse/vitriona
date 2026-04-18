@@ -48,6 +48,7 @@ interface GiftCard {
   initialValue: string;
   currentBalance: string;
   maxDiscount: string | null;
+  quantity: number | null;
   applicableProductIds: string[] | null;
   recipientName: string | null;
   recipientEmail: string | null;
@@ -91,9 +92,10 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
 
   // Form state
   const [code, setCode] = useState('');
-  const [type, setType] = useState<'fixed' | 'percentage' | 'product'>('fixed');
+  const [type, setType] = useState<'fixed' | 'percentage' | 'product' | 'free_product'>('fixed');
   const [initialValue, setInitialValue] = useState('');
   const [maxDiscount, setMaxDiscount] = useState('');
+  const [quantity, setQuantity] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -128,6 +130,7 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
     setType('fixed');
     setInitialValue('');
     setMaxDiscount('');
+    setQuantity('');
     setSelectedProductIds([]);
     setProductSearchQuery('');
     setRecipientName('');
@@ -138,20 +141,28 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
   };
 
   const handleCreate = () => {
-    if (!initialValue || parseFloat(initialValue) <= 0) return toast.error('El valor es requerido');
+    if (type === 'free_product') {
+      if (selectedProductIds.length === 0) return toast.error('Selecciona al menos un producto');
+      if (!quantity || parseInt(quantity, 10) <= 0) return toast.error('La cantidad debe ser mayor a 0');
+    } else if (!initialValue || parseFloat(initialValue) <= 0) {
+      return toast.error('El valor es requerido');
+    }
     const maxDiscountNum = type === 'percentage' && maxDiscount ? parseFloat(maxDiscount) : undefined;
     if (maxDiscountNum !== undefined && (isNaN(maxDiscountNum) || maxDiscountNum <= 0)) {
       return toast.error('Tope de descuento inválido');
     }
+    const quantityNum = type === 'free_product' ? parseInt(quantity, 10) : undefined;
+    const includeProducts = type === 'product' || type === 'free_product';
 
     startTransition(async () => {
       const result = await createGiftCardAction({
         businessId,
         code: code.trim(),
         type,
-        initialValue: parseFloat(initialValue),
+        initialValue: type === 'free_product' ? 0 : parseFloat(initialValue),
         maxDiscount: maxDiscountNum,
-        applicableProductIds: type === 'product' && selectedProductIds.length > 0 ? selectedProductIds : undefined,
+        quantity: quantityNum,
+        applicableProductIds: includeProducts && selectedProductIds.length > 0 ? selectedProductIds : undefined,
         recipientName: recipientName.trim() || undefined,
         recipientEmail: recipientEmail.trim() || undefined,
         senderName: senderName.trim() || undefined,
@@ -221,6 +232,7 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
     fixed: 'Monto fijo',
     percentage: 'Porcentaje',
     product: 'Producto específico',
+    free_product: 'Producto gratis',
   };
 
   if (loading) {
@@ -293,7 +305,11 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
                       </div>
                       <p className='text-muted-foreground mt-0.5 text-xs'>
                         {typeLabels[card.type] ?? card.type}
-                        {card.type === 'percentage' ? ` · ${initial}%` : ` · $${initial.toFixed(2)}`}
+                        {card.type === 'percentage' && ` · ${initial}%`}
+                        {card.type === 'free_product' &&
+                          card.quantity != null &&
+                          ` · ${card.quantity} unidad${card.quantity === 1 ? '' : 'es'}`}
+                        {(card.type === 'fixed' || card.type === 'product') && ` · $${initial.toFixed(2)}`}
                         {card.type === 'fixed' && ` · Saldo: $${balance.toFixed(2)}`}
                         {card.type === 'percentage' &&
                           card.maxDiscount &&
@@ -369,29 +385,49 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
             <div className='grid grid-cols-2 gap-3'>
               <div>
                 <Label>Tipo</Label>
-                <Select value={type} onValueChange={(v) => setType(v as 'fixed' | 'percentage' | 'product')}>
+                <Select
+                  value={type}
+                  onValueChange={(v) => setType(v as 'fixed' | 'percentage' | 'product' | 'free_product')}
+                >
                   <SelectTrigger className='mt-1'>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value='fixed'>Monto fijo ($)</SelectItem>
                     <SelectItem value='percentage'>Porcentaje (%)</SelectItem>
-                    <SelectItem value='product'>Producto específico</SelectItem>
+                    <SelectItem value='product'>Descuento en producto</SelectItem>
+                    <SelectItem value='free_product'>Producto gratis</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Valor *</Label>
-                <Input
-                  type='number'
-                  value={initialValue}
-                  onChange={(e) => setInitialValue(e.target.value)}
-                  placeholder={type === 'percentage' ? '15' : '50.00'}
-                  className='mt-1'
-                  min='0'
-                  step={type === 'percentage' ? '1' : '0.01'}
-                />
-              </div>
+              {type === 'free_product' ? (
+                <div>
+                  <Label>Cantidad *</Label>
+                  <Input
+                    type='number'
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder='1'
+                    className='mt-1'
+                    min='1'
+                    step='1'
+                  />
+                  <p className='text-muted-foreground mt-1 text-xs'>Unidades gratis a entregar.</p>
+                </div>
+              ) : (
+                <div>
+                  <Label>Valor *</Label>
+                  <Input
+                    type='number'
+                    value={initialValue}
+                    onChange={(e) => setInitialValue(e.target.value)}
+                    placeholder={type === 'percentage' ? '15' : '50.00'}
+                    className='mt-1'
+                    min='0'
+                    step={type === 'percentage' ? '1' : '0.01'}
+                  />
+                </div>
+              )}
             </div>
 
             {type === 'percentage' && (
@@ -412,8 +448,8 @@ export function GiftCardsDashboard({ businessId, initialRedeemCode }: GiftCardsD
               </div>
             )}
 
-            {/* Product selector for product type */}
-            {type === 'product' && products.length > 0 && (
+            {/* Product selector for product and free_product types */}
+            {(type === 'product' || type === 'free_product') && products.length > 0 && (
               <div>
                 <Label>Productos aplicables</Label>
                 {selectedProductIds.length > 0 && (
