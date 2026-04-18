@@ -3,7 +3,6 @@ import { emailBrandStyles, renderEmailShell } from './brand-email';
 interface GiftCardEmailTemplateParams {
   recipientName?: string | null;
   senderName?: string | null;
-  businessId: string;
   businessName: string;
   code: string;
   type: 'fixed' | 'percentage' | 'product';
@@ -28,7 +27,6 @@ function formatExpiration(expiresAt?: Date | null) {
 export function giftCardEmailTemplate({
   recipientName,
   senderName,
-  businessId,
   businessName,
   code,
   type,
@@ -42,7 +40,7 @@ export function giftCardEmailTemplate({
     : `${businessName} te envió una gift card.`;
   const valueLabel = formatGiftCardValue(type, value);
   const expirationLabel = formatExpiration(expiresAt);
-  const qrImageUrl = `${APP_URL}/api/gift-cards/qr?code=${encodeURIComponent(code)}&businessId=${encodeURIComponent(businessId)}`;
+  const qrImageUrl = `${APP_URL}/api/gift-cards/qr?code=${encodeURIComponent(code)}`;
 
   const cardHtml = `
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 20px;">

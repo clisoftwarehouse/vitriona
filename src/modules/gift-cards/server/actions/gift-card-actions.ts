@@ -124,7 +124,6 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
         const html = giftCardEmailTemplate({
           recipientName: input.recipientName,
           senderName: input.senderName,
-          businessId: input.businessId,
           businessName: biz.name,
           code,
           type: input.type,

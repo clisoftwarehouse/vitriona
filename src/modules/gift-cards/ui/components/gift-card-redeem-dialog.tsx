@@ -1,8 +1,9 @@
 'use client';
 
 import { toast } from 'sonner';
-import { Search, Loader2, GiftIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useTransition } from 'react';
+import { X, Search, Camera, Loader2, GiftIcon } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +22,15 @@ import {
   DialogContent,
   DialogDescription,
 } from '@/components/ui/dialog';
+
+const QrScanner = dynamic(() => import('@yudiel/react-qr-scanner').then((m) => m.Scanner), {
+  ssr: false,
+  loading: () => (
+    <div className='bg-muted/40 flex aspect-square w-full items-center justify-center rounded-lg'>
+      <Loader2 className='text-muted-foreground size-6 animate-spin' />
+    </div>
+  ),
+});
 
 interface GiftCardLookup {
   id: string;
@@ -58,6 +68,7 @@ export function GiftCardRedeemDialog({
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [lookupPending, startLookup] = useTransition();
   const [redeemPending, startRedeem] = useTransition();
 
@@ -67,6 +78,7 @@ export function GiftCardRedeemDialog({
     setAmount('');
     setNotes('');
     setLookupError(null);
+    setScannerOpen(false);
   };
 
   useEffect(() => {
@@ -102,6 +114,14 @@ export function GiftCardRedeemDialog({
       }
       setCard(found);
     });
+  };
+
+  const handleScanDetected = (raw: string) => {
+    const scanned = raw.trim().toUpperCase();
+    if (!scanned) return;
+    setScannerOpen(false);
+    setCode(scanned);
+    handleLookup(scanned);
   };
 
   const handleRedeem = () => {
@@ -156,31 +176,65 @@ export function GiftCardRedeemDialog({
         <DialogHeader>
           <DialogTitle>Canjear gift card</DialogTitle>
           <DialogDescription>
-            Ingresa el código o escanéalo desde el correo. Confirma el monto a entregar al cliente.
+            Ingresa el código o escanea el QR del correo. Confirma el monto a entregar al cliente.
           </DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4'>
-          <div>
-            <Label>Código</Label>
-            <div className='mt-1 flex gap-2'>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder='XXXX-XXXX-XXXX-XXXX'
-                className='font-mono tracking-wider uppercase'
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleLookup();
-                }}
-              />
-              <Button variant='outline' onClick={() => handleLookup()} disabled={lookupPending}>
-                {lookupPending ? <Loader2 className='size-4 animate-spin' /> : <Search className='size-4' />}
+          {scannerOpen ? (
+            <div className='space-y-2'>
+              <div className='relative overflow-hidden rounded-lg border bg-black'>
+                <QrScanner
+                  onScan={(results) => {
+                    const raw = results?.[0]?.rawValue;
+                    if (raw) handleScanDetected(raw);
+                  }}
+                  onError={(error) => {
+                    console.error('[qr-scanner]', error);
+                    toast.error('No se pudo acceder a la cámara');
+                    setScannerOpen(false);
+                  }}
+                  constraints={{ facingMode: 'environment' }}
+                  scanDelay={250}
+                  components={{ finder: true, torch: true }}
+                  styles={{ container: { width: '100%' }, video: { width: '100%' } }}
+                />
+              </div>
+              <Button variant='outline' className='w-full' onClick={() => setScannerOpen(false)}>
+                <X className='size-4' />
+                Cancelar escaneo
               </Button>
             </div>
-            {lookupError && <p className='mt-1 text-xs text-red-600'>{lookupError}</p>}
-          </div>
+          ) : (
+            <div>
+              <Label>Código</Label>
+              <div className='mt-1 flex gap-2'>
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  placeholder='XXXX-XXXX-XXXX-XXXX'
+                  className='font-mono tracking-wider uppercase'
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleLookup();
+                  }}
+                />
+                <Button
+                  variant='outline'
+                  onClick={() => setScannerOpen(true)}
+                  disabled={lookupPending}
+                  title='Escanear QR'
+                >
+                  <Camera className='size-4' />
+                </Button>
+                <Button variant='outline' onClick={() => handleLookup()} disabled={lookupPending} title='Buscar'>
+                  {lookupPending ? <Loader2 className='size-4 animate-spin' /> : <Search className='size-4' />}
+                </Button>
+              </div>
+              {lookupError && <p className='mt-1 text-xs text-red-600'>{lookupError}</p>}
+            </div>
+          )}
 
-          {card && (
+          {!scannerOpen && card && (
             <div className='bg-muted/30 space-y-3 rounded-lg border p-4'>
               <div className='flex items-start gap-3'>
                 <div className='bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg'>
@@ -266,7 +320,7 @@ export function GiftCardRedeemDialog({
               Cancelar
             </Button>
           </DialogClose>
-          <Button onClick={handleRedeem} disabled={!canRedeem || redeemPending}>
+          <Button onClick={handleRedeem} disabled={!canRedeem || redeemPending || scannerOpen}>
             {redeemPending ? <Loader2 className='size-4 animate-spin' /> : null}
             Canjear
           </Button>
