@@ -1,8 +1,9 @@
 'use client';
 
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Eye, Clock, Truck, Loader2, Package, XCircle, BadgeCheck, CheckCircle, CalendarClock } from 'lucide-react';
 
 import { formatPrice } from '@/lib/format';
@@ -75,15 +76,33 @@ const STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
 
 export function OrdersTable({ businessId, currency }: OrdersTableProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: orders = [], isLoading } = useOrders(businessId);
   const updateStatus = useUpdateOrderStatus(businessId);
   const cancelOrder = useCancelOrder(businessId);
 
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const selectedOrderId = searchParams.get('orderId');
+  const detailOpen = !!selectedOrderId;
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+
+  const setDetailOrderId = (orderId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (orderId) params.set('orderId', orderId);
+    else params.delete('orderId');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  useEffect(() => {
+    if (selectedOrderId) {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(selectedOrderId) });
+    }
+  }, [selectedOrderId, queryClient]);
 
   const selectedOrder = (orders as Order[]).find((o) => o.id === selectedOrderId) ?? null;
   const { data: detail, isLoading: detailLoading } = useOrderDetail(detailOpen ? selectedOrderId : null);
@@ -98,23 +117,21 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
     new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date));
 
   const handleViewDetail = (order: Order) => {
-    setSelectedOrderId(order.id);
-    setDetailOpen(true);
-    queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
+    setDetailOrderId(order.id);
   };
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = (order: Order, newStatus: OrderStatus) => {
     if (newStatus === 'cancelled') {
-      setSelectedOrderId(orderId);
+      setCancelTarget(order);
       setCancelOpen(true);
       return;
     }
     updateStatus.mutate(
-      { orderId, status: newStatus },
+      { orderId: order.id, status: newStatus },
       {
         onSuccess: () => {
           toast.success('Estado actualizado');
-          if (detailOpen) queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+          if (detailOpen) queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
         },
         onError: (err) => toast.error(err.message),
       }
@@ -219,7 +236,7 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
                         return (
                           <Select
                             value={order.status}
-                            onValueChange={(value) => handleStatusChange(order.id, value as OrderStatus)}
+                            onValueChange={(value) => handleStatusChange(order, value as OrderStatus)}
                             disabled={isPending}
                           >
                             <SelectTrigger className='h-8 w-40 text-xs'>
@@ -253,7 +270,12 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
       )}
 
       {/* Order detail dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+      <Dialog
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (!open) setDetailOrderId(null);
+        }}
+      >
         <DialogContent className='max-w-lg'>
           <DialogHeader>
             <DialogTitle>
@@ -516,14 +538,22 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
                             variant='outline'
                             size='sm'
                             disabled={isPending}
-                            onClick={() => handleStatusChange(selectedOrder.id, newStatus)}
+                            onClick={() => handleStatusChange(selectedOrder, newStatus)}
                           >
                             {cfg.label}
                           </Button>
                         );
                       })}
                     {STATUS_TRANSITIONS[selectedOrder.status].includes('cancelled') && (
-                      <Button variant='destructive' size='sm' disabled={isPending} onClick={() => setCancelOpen(true)}>
+                      <Button
+                        variant='destructive'
+                        size='sm'
+                        disabled={isPending}
+                        onClick={() => {
+                          setCancelTarget(selectedOrder);
+                          setCancelOpen(true);
+                        }}
+                      >
                         <XCircle className='mr-1 size-3.5' />
                         {selectedOrder.orderType === 'reservation' ? 'Cancelar reserva' : 'Cancelar pedido'}
                       </Button>
@@ -537,14 +567,20 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
       </Dialog>
 
       {/* Cancel confirmation dialog */}
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+      <Dialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          setCancelOpen(open);
+          if (!open) setCancelTarget(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedOrder?.orderType === 'reservation' ? 'Cancelar reserva' : 'Cancelar pedido'}
+              {cancelTarget?.orderType === 'reservation' ? 'Cancelar reserva' : 'Cancelar pedido'}
             </DialogTitle>
             <DialogDescription>
-              {selectedOrder?.inventoryDeducted
+              {cancelTarget?.inventoryDeducted
                 ? '¿Estás seguro? El inventario será restaurado automáticamente.'
                 : '¿Estás seguro? Esta acción marcará la solicitud como cancelada.'}
             </DialogDescription>
@@ -565,18 +601,20 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
                 size='sm'
                 disabled={isPending}
                 onClick={() => {
-                  if (!selectedOrder) return;
+                  if (!cancelTarget) return;
+                  const target = cancelTarget;
                   cancelOrder.mutate(
-                    { orderId: selectedOrder.id, reason: cancelReason || undefined },
+                    { orderId: target.id, reason: cancelReason || undefined },
                     {
                       onSuccess: () => {
                         toast.success(
-                          selectedOrder?.inventoryDeducted
-                            ? `${selectedOrder.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado. Inventario restaurado.`
-                            : `${selectedOrder?.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado.`
+                          target.inventoryDeducted
+                            ? `${target.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado. Inventario restaurado.`
+                            : `${target.orderType === 'reservation' ? 'Reserva' : 'Pedido'} cancelado.`
                         );
                         setCancelOpen(false);
-                        setDetailOpen(false);
+                        setCancelTarget(null);
+                        setDetailOrderId(null);
                         setCancelReason('');
                       },
                       onError: (err) => toast.error(err.message),
@@ -586,7 +624,7 @@ export function OrdersTable({ businessId, currency }: OrdersTableProps) {
               >
                 {cancelOrder.isPending
                   ? 'Cancelando...'
-                  : `Confirmar cancelación de ${selectedOrder?.orderType === 'reservation' ? 'reserva' : 'pedido'}`}
+                  : `Confirmar cancelación de ${cancelTarget?.orderType === 'reservation' ? 'reserva' : 'pedido'}`}
               </Button>
             </div>
           </div>

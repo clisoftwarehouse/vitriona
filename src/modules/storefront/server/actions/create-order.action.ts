@@ -666,7 +666,7 @@ export async function createOrderAction(input: CreateOrderInput) {
       description: isReservation
         ? `${customerName.trim()} solicitó una reserva por ${fmtTotal}`
         : `${customerName.trim()} realizó un pedido por ${fmtTotal}`,
-      href: `/dashboard/businesses/${businessId}/orders/${order.id}`,
+      href: `/dashboard/businesses/${businessId}/orders?orderId=${order.id}`,
     });
   }
 
