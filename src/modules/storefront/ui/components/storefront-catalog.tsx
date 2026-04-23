@@ -675,7 +675,7 @@ function HeroSection({
   if (isBanner) {
     return (
       <section className='relative overflow-hidden'>
-        <Image src={imageUrl!} alt={titlePlain} fill sizes='100vw' className='object-cover' priority />
+        <Image src={imageUrl!} alt={titlePlain} fill sizes='100vw' quality={90} className='object-cover' priority />
         <div className='absolute inset-0 bg-black/50' />
         <div className='relative mx-auto max-w-7xl px-4 py-20 text-center text-white sm:px-6 sm:py-28 lg:px-8 lg:py-36'>
           {badge && (
@@ -785,6 +785,7 @@ function HeroSection({
               alt={titlePlain}
               fill
               sizes='(max-width: 1024px) 100vw, 50vw'
+              quality={90}
               className='object-cover'
               priority
             />
@@ -808,7 +809,7 @@ function HeroSection({
     >
       {hasCenteredImage && (
         <>
-          <Image src={imageUrl!} alt={titlePlain} fill sizes='100vw' className='object-cover' priority />
+          <Image src={imageUrl!} alt={titlePlain} fill sizes='100vw' quality={90} className='object-cover' priority />
           <div className='absolute inset-0 bg-black/50' />
         </>
       )}
@@ -1510,6 +1511,7 @@ function ExperiencesGrid({
                 alt={p.images[0].alt || p.name}
                 fill
                 sizes='(max-width: 640px) 100vw, 50vw'
+                quality={90}
                 className='object-cover transition-transform duration-500 group-hover:scale-105'
               />
             ) : (
@@ -1629,6 +1631,7 @@ function ProductCard({
             src={product.images[0].url}
             alt={product.images[0].alt || product.name}
             fill
+            quality={90}
             sizes={
               isList
                 ? '144px'
@@ -1781,6 +1784,7 @@ function AboutSection({
               alt={businessName}
               fill
               sizes='(max-width: 1024px) 100vw, 50vw'
+              quality={90}
               className='object-cover'
             />
           </div>

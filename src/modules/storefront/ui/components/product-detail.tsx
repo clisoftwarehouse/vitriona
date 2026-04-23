@@ -261,6 +261,7 @@ export function ProductDetail({
                 alt={displayImages[selectedImage].alt || product.name}
                 fill
                 sizes='(max-width: 768px) 100vw, 50vw'
+                quality={90}
                 className='object-cover'
                 priority
               />
