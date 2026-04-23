@@ -14,7 +14,7 @@ export function Footer() {
               <img src='/images/vitriona-logo-light.png' className='block h-14 w-auto dark:hidden' alt='Vitriona' />
             </Link>
             <p className='text-muted-foreground mt-3 max-w-sm text-sm leading-relaxed'>
-              La plataforma todo-en-uno para crear catálogos digitales, gestionar pedidos y atender clientes con
+              La plataforma todo-en-uno para crear tiendas digitales, gestionar pedidos y atender clientes con
               inteligencia artificial.
             </p>
           </div>

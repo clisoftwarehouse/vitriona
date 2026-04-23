@@ -13,14 +13,14 @@ const STEPS = [
   },
   {
     step: '03',
-    title: 'Personaliza tu catálogo',
+    title: 'Personaliza tu tienda',
     description: 'Usa el Site Builder para elegir colores, fuentes y layout. Tu storefront queda listo en minutos.',
   },
   {
     step: '04',
-    title: 'Comparte tu catálogo y vende',
+    title: 'Comparte tu tienda y vende',
     description:
-      'Comparte el enlace de tu catálogo a través del código QR generado y empieza a recibir pedidos al instante.',
+      'Comparte el enlace de tu tienda a través del código QR generado y empieza a recibir pedidos al instante.',
   },
 ];
 

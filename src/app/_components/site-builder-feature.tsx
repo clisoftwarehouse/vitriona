@@ -14,13 +14,13 @@ const BUILDER_FEATURES = [
     icon: Layers,
     title: 'Secciones Modulares',
     description:
-      'Activa o desactiva secciones de tu catálogo con un clic. Muestra banners comerciales, categorías destacadas y más.',
+      'Activa o desactiva secciones de tu tienda con un clic. Muestra banners comerciales, categorías destacadas y más.',
   },
   {
     icon: Smartphone,
     title: 'Diseño Responsivo',
     description:
-      'Tu catálogo se verá increíble en cualquier dispositivo, optimizado automáticamente para móviles y pantallas grandes.',
+      'Tu tienda se verá increíble en cualquier dispositivo, optimizada automáticamente para móviles y pantallas grandes.',
   },
   {
     icon: MousePointerSquareDashed,
@@ -40,7 +40,7 @@ export function SiteBuilderFeature() {
               Site Builder Integrado
             </div>
             <h2 className='text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl'>
-              Crea el catálogo perfecto sin saber programar
+              Crea la tienda perfecta sin saber programar
             </h2>
             <p className='text-muted-foreground mt-4 text-lg'>
               Diseña una experiencia de compra única para tus clientes. Nuestro poderoso editor en vivo te permite

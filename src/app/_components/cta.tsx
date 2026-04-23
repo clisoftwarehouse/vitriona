@@ -15,7 +15,7 @@ export function CTA() {
           <div className='relative z-10'>
             <h2 className='text-primary-foreground text-3xl font-bold md:text-4xl'>Empieza a vender hoy</h2>
             <p className='text-primary-foreground/80 mx-auto mt-4 max-w-xl text-base'>
-              Crea tu catálogo digital en minutos, activa tu chatbot con IA y comparte el enlace con tus clientes.
+              Crea tu tienda digital en minutos, activa tu chatbot con IA y comparte el enlace con tus clientes.
             </p>
             <div className='mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row'>
               <Link

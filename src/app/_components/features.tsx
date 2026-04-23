@@ -3,16 +3,25 @@
 import { useState } from 'react';
 import {
   Bot,
-  Globe,
+  Gift,
+  Tags,
+  Star,
+  Link2,
+  Boxes,
   Store,
+  Truck,
+  MapPin,
   QrCode,
   Shield,
+  Receipt,
   Package,
   Palette,
   Calendar,
   Sparkles,
+  Briefcase,
   BarChart3,
   Smartphone,
+  TrendingUp,
   ChevronDown,
   ShoppingCart,
   MessageSquare,
@@ -23,14 +32,19 @@ import { ScrollReveal } from './scroll-reveal';
 const FEATURES = [
   {
     icon: Store,
-    title: 'Catálogos personalizados',
-    description: 'Crea múltiples catálogos con tu marca, colores y estilo. Personaliza todo desde el Site Builder.',
+    title: 'Tiendas personalizadas',
+    description: 'Crea múltiples tiendas con tu marca, colores y estilo. Personaliza todo desde el Site Builder.',
+  },
+  {
+    icon: Palette,
+    title: 'Site Builder visual',
+    description: 'Personaliza colores, tipografías, secciones y layout sin escribir una sola línea de código.',
   },
   {
     icon: Bot,
     title: 'Chatbot con IA',
     description:
-      'Un asistente entrenado con tu catálogo que responde preguntas, sugiere productos y crea pedidos automáticamente.',
+      'Un asistente entrenado con tu tienda que responde preguntas, sugiere productos y crea pedidos automáticamente.',
     addOn: true,
   },
   {
@@ -40,10 +54,10 @@ const FEATURES = [
       'Recibe pedidos con métodos de pago configurables, verificación automática y gestión completa desde el dashboard.',
   },
   {
-    icon: Calendar,
-    title: 'Agenda de citas',
+    icon: Truck,
+    title: 'Envíos y retiros',
     description:
-      'Integración con Google Calendar. Tus clientes agendan directamente a través del chatbot o tu storefront.',
+      'Configura métodos de entrega flexibles: envío a domicilio, retiro en tienda, delivery local con sus propias reglas.',
   },
   {
     icon: MessageSquare,
@@ -51,9 +65,22 @@ const FEATURES = [
     description: 'Cero fricción para LATAM. El cliente completa su pedido y lo envía directo a tu WhatsApp.',
   },
   {
-    icon: Palette,
-    title: 'Site Builder visual',
-    description: 'Personaliza colores, tipografías, secciones y layout sin escribir una sola línea de código.',
+    icon: Receipt,
+    title: 'Punto de venta (POS)',
+    description:
+      'Vende también en tu local físico. Terminal integrada que comparte inventario, clientes y reportes con tu tienda online.',
+  },
+  {
+    icon: Calendar,
+    title: 'Agenda de citas',
+    description:
+      'Integración con Google Calendar. Tus clientes agendan directamente a través del chatbot o tu storefront.',
+  },
+  {
+    icon: Briefcase,
+    title: 'Servicios agendables',
+    description:
+      'Vende servicios con duración, disponibilidad y reservas. Ideal para salones, consultorios y talleres.',
   },
   {
     icon: Package,
@@ -61,30 +88,65 @@ const FEATURES = [
     description: 'Control de stock por producto y variante. Deducción automática al crear pedidos.',
   },
   {
-    icon: BarChart3,
-    title: 'Dashboard completo',
-    description: 'Métricas de ventas, pedidos, productos y reseñas. Todo lo que necesitas en un solo lugar.',
-  },
-  {
-    icon: QrCode,
-    title: 'QR Code',
+    icon: Tags,
+    title: 'Variantes y atributos',
     description:
-      'Genera códigos QR para tus catálogos. Ideal para comercios físicos que quieren digitalizar su vitrina.',
+      'Gestiona talles, colores, materiales y cualquier atributo personalizado con stock y precio independiente por variante.',
   },
   {
-    icon: Globe,
-    title: 'Multi-negocio',
-    description: 'Gestiona varios negocios desde una sola cuenta. Cada uno con sus catálogos, productos y chatbot.',
+    icon: Boxes,
+    title: 'Combos y paquetes',
+    description:
+      'Arma bundles con múltiples productos y slots configurables. Vende packs con precios especiales y control de stock.',
   },
   {
-    icon: Smartphone,
-    title: 'Mobile-first',
-    description: 'Storefronts optimizados para móviles. Tus clientes compran cómodamente desde cualquier dispositivo.',
+    icon: Link2,
+    title: 'Productos relacionados',
+    description: 'Sugiere productos complementarios en cada ficha para aumentar el ticket promedio de tus ventas.',
   },
   {
     icon: Shield,
     title: 'Cupones y descuentos',
     description: 'Crea cupones con reglas flexibles: porcentaje, monto fijo, uso limitado, fechas de vigencia.',
+  },
+  {
+    icon: Gift,
+    title: 'Tarjetas de regalo',
+    description:
+      'Emite gift cards con monto fijo, porcentaje o productos específicos. Los clientes las canjean con QR en segundos.',
+  },
+  {
+    icon: Star,
+    title: 'Reseñas y calificaciones',
+    description:
+      'Tus clientes dejan reviews verificadas en cada producto. Construí reputación y aumentá la conversión.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Dashboard completo',
+    description: 'Métricas de ventas, pedidos, productos y reseñas. Todo lo que necesitas en un solo lugar.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Reportes avanzados',
+    description:
+      'Reportes detallados de ventas, inventario, clientes, productos y cupones. Exportá y tomá decisiones con datos reales.',
+  },
+  {
+    icon: MapPin,
+    title: 'Geo analíticas',
+    description:
+      'Descubre desde dónde compran tus clientes. Insights geográficos y de comportamiento de tu storefront.',
+  },
+  {
+    icon: QrCode,
+    title: 'QR Code',
+    description: 'Genera códigos QR para tus tiendas. Ideal para comercios físicos que quieren digitalizar su vitrina.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Mobile-first',
+    description: 'Storefronts optimizados para móviles. Tus clientes compran cómodamente desde cualquier dispositivo.',
   },
 ];
 
@@ -98,7 +160,7 @@ export function Features() {
           <p className='text-primary text-sm font-semibold'>Funcionalidades</p>
           <h2 className='mt-2 text-3xl font-bold tracking-tight md:text-4xl'>Todo lo que tu negocio necesita</h2>
           <p className='text-muted-foreground mx-auto mt-4 max-w-2xl'>
-            Desde catálogos digitales hasta un chatbot con inteligencia artificial. Una plataforma completa para vender
+            Desde tiendas digitales hasta un chatbot con inteligencia artificial. Una plataforma completa para vender
             más y atender mejor.
           </p>
         </div>

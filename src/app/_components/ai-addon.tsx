@@ -76,7 +76,7 @@ export function AIAddOn() {
           </div>
           <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>Potencia tu negocio con un chatbot IA</h2>
           <p className='text-muted-foreground mx-auto mt-4 max-w-2xl'>
-            Agrega un asistente de inteligencia artificial a cualquier plan. Tu chatbot conoce tu catálogo, atiende
+            Agrega un asistente de inteligencia artificial a cualquier plan. Tu chatbot conoce tu tienda, atiende
             clientes, crea pedidos y agenda citas — todo automáticamente.
           </p>
 

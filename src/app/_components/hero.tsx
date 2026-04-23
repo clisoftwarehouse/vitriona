@@ -31,14 +31,14 @@ export function Hero() {
         </div>
 
         <h1 className='animate-fade-in-up mx-auto max-w-4xl text-4xl font-bold tracking-tight delay-100 sm:text-5xl md:text-6xl lg:text-7xl'>
-          Tu catálogo digital con{' '}
+          Tu tienda online con{' '}
           <span className='from-primary bg-linear-to-r to-purple-400 bg-clip-text text-transparent'>
             asistente de IA
           </span>
         </h1>
 
         <p className='animate-fade-in-up text-muted-foreground mx-auto mt-6 max-w-2xl text-lg delay-200 md:text-xl'>
-          Crea catálogos personalizados, recibe pedidos por WhatsApp, agenda citas y potencia tu atención al cliente con
+          Crea tu tienda personalizada, recibe pedidos por WhatsApp, agenda citas y potencia tu atención al cliente con
           un chatbot de IA.
         </p>
 
@@ -47,7 +47,7 @@ export function Hero() {
             href='/auth/register'
             className='bg-primary text-primary-foreground shadow-primary/25 hover:shadow-primary/30 inline-flex h-12 items-center gap-2 rounded-xl px-8 text-base font-semibold shadow-lg transition-all hover:opacity-90 hover:shadow-xl'
           >
-            Crear mi catálogo gratis
+            Crear mi tienda gratis
             <ArrowRight className='size-4' />
           </Link>
           <a
@@ -61,7 +61,7 @@ export function Hero() {
         {/* Stats */}
         <div className='animate-fade-in-up mt-16 grid grid-cols-2 gap-8 delay-500 md:grid-cols-4'>
           {[
-            { value: 'Ilimitados', label: 'Catálogos' },
+            { value: 'Ilimitadas', label: 'Tiendas' },
             { value: '24/7', label: 'Chatbot IA' },
             { value: 'WhatsApp', label: 'Checkout' },
             { value: 'Gratis', label: 'Para empezar' },
