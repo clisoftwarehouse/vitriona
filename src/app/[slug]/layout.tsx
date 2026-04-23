@@ -172,7 +172,6 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                   alt={business.name}
                   width={logoSize}
                   height={logoSize}
-                  unoptimized
                   className='object-contain'
                   style={{
                     borderRadius: 'var(--sf-radius, 0.75rem)',
@@ -237,7 +236,6 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
                       alt={business.name}
                       width={footerLogoSize}
                       height={footerLogoSize}
-                      unoptimized
                       className='object-contain'
                       style={{
                         borderRadius: 'var(--sf-radius, 0.75rem)',

@@ -19,7 +19,6 @@ export function WatermarkOverlay() {
               width={80}
               height={80}
               className='size-full object-contain'
-              unoptimized
             />
           </div>
         ))}

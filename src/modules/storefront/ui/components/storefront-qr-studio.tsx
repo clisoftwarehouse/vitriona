@@ -564,7 +564,6 @@ export function StorefrontQrStudio({
                       alt='Logo para QR'
                       width={64}
                       height={64}
-                      unoptimized
                       className='h-full w-full object-contain'
                     />
                   </div>

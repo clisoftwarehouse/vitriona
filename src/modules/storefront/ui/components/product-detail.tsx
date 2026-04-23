@@ -260,7 +260,6 @@ export function ProductDetail({
                 src={displayImages[selectedImage].url}
                 alt={displayImages[selectedImage].alt || product.name}
                 fill
-                unoptimized
                 sizes='(max-width: 768px) 100vw, 50vw'
                 className='object-cover'
                 priority
@@ -291,14 +290,7 @@ export function ProductDetail({
                     opacity: idx === selectedImage ? 1 : 0.6,
                   }}
                 >
-                  <Image
-                    src={img.url}
-                    alt={img.alt || product.name}
-                    fill
-                    unoptimized
-                    sizes='80px'
-                    className='object-cover'
-                  />
+                  <Image src={img.url} alt={img.alt || product.name} fill sizes='80px' className='object-cover' />
                 </button>
               ))}
             </div>
@@ -800,7 +792,6 @@ export function RelatedProductsSection({
                     src={product.images[0].url}
                     alt={product.images[0].alt || product.name}
                     fill
-                    unoptimized
                     sizes='(max-width: 640px) 44vw, 13rem'
                     className='object-cover transition-transform duration-500 group-hover:scale-105'
                   />

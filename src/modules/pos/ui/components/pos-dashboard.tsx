@@ -357,7 +357,6 @@ export function PosDashboard({ businessId, currency, products, paymentMethods, d
                         src={product.images[0].url}
                         alt={product.name}
                         fill
-                        unoptimized
                         sizes='40px'
                         className='object-cover'
                       />

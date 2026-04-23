@@ -19,10 +19,11 @@ const nextConfig: NextConfig = {
         hostname: '**.googleusercontent.com',
       },
     ],
-    minimumCacheTTL: 3600,
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 2678400,
+    formats: ['image/webp'],
+    qualities: [100],
+    deviceSizes: [640, 828, 1200],
+    imageSizes: [48, 64, 96, 128, 256],
   },
   headers: async () => [
     {
@@ -46,7 +47,7 @@ const nextConfig: NextConfig = {
     },
     {
       source: '/_next/image/:path*',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=2678400, stale-while-revalidate=604800' }],
     },
   ],
 };

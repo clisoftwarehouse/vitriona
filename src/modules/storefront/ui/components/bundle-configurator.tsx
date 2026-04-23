@@ -232,14 +232,7 @@ export function BundleConfigurator({ product, config, currency, businessSlug }: 
           style={{ borderRadius: 'var(--sf-radius, 0.75rem)', backgroundColor: 'var(--sf-surface, #f9fafb)' }}
         >
           {item.image ? (
-            <Image
-              src={item.image.url}
-              alt={item.image.alt || item.name}
-              fill
-              unoptimized
-              className='object-cover'
-              sizes='56px'
-            />
+            <Image src={item.image.url} alt={item.image.alt || item.name} fill className='object-cover' sizes='56px' />
           ) : (
             <div className='flex size-full items-center justify-center'>
               <ImageOff className='size-5 opacity-20' />

@@ -18,8 +18,9 @@ import {
 const MAX_PRODUCT_IMAGES = 5;
 
 const COMPRESSION_OPTIONS = {
-  maxSizeMB: 0.3,
-  maxWidthOrHeight: 1920,
+  maxSizeMB: 1,
+  maxWidthOrHeight: 2400,
+  initialQuality: 0.92,
   useWebWorker: true,
   fileType: 'image/webp' as const,
 };
