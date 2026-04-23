@@ -11,7 +11,14 @@ import { businesses, paymentMethods } from '@/db/schema';
 
 async function verifyBusinessOwnership(businessId: string, userId: string) {
   const [business] = await db
-    .select({ id: businesses.id, plan: businesses.plan })
+    .select({
+      id: businesses.id,
+      plan: businesses.plan,
+      customMaxProducts: businesses.customMaxProducts,
+      customMaxVisitsPerMonth: businesses.customMaxVisitsPerMonth,
+      customMaxPaymentMethods: businesses.customMaxPaymentMethods,
+      customMaxDeliveryMethods: businesses.customMaxDeliveryMethods,
+    })
     .from(businesses)
     .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
     .limit(1);
@@ -62,7 +69,7 @@ export async function createPaymentMethodAction(input: CreatePaymentMethodInput)
     if (!input.name.trim()) return { error: 'El nombre es requerido' };
 
     // ── Plan-based limit ──
-    const limits = getPlanLimits(business.plan);
+    const limits = getPlanLimits(business.plan, business);
     const [{ total }] = await db
       .select({ total: count() })
       .from(paymentMethods)

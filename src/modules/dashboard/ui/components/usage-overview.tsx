@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Bot, Gauge, ArrowUpCircle } from 'lucide-react';
+import { Bot, Gauge, Sparkles, ArrowUpCircle } from 'lucide-react';
 
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { type UsageStats } from '@/modules/dashboard/server/queries/get-usage-stats';
@@ -16,12 +16,37 @@ const AI_PLAN_LABELS: Record<string, string> = {
   ia_enterprise: 'AI Enterprise',
 };
 
-function UsageBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
+function UsageBar({
+  label,
+  used,
+  limit,
+  customized,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+  customized?: boolean;
+}) {
+  const labelNode = (
+    <span className='flex items-center gap-1.5 font-medium'>
+      {label}
+      {customized && (
+        <span
+          title='Límite personalizado'
+          className='inline-flex items-center gap-0.5 rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400'
+        >
+          <Sparkles className='size-2.5' />
+          Personalizado
+        </span>
+      )}
+    </span>
+  );
+
   if (limit === null) {
     return (
       <div>
         <div className='mb-1 flex items-center justify-between text-sm'>
-          <span className='font-medium'>{label}</span>
+          {labelNode}
           <span className='text-muted-foreground text-xs'>{used.toLocaleString()} (ilimitado)</span>
         </div>
         <div className='bg-muted h-2 overflow-hidden rounded-full'>
@@ -38,7 +63,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   return (
     <div>
       <div className='mb-1 flex items-center justify-between text-sm'>
-        <span className='font-medium'>{label}</span>
+        {labelNode}
         <span
           className={`text-xs font-medium ${isCritical ? 'text-destructive' : isWarning ? 'text-amber-500' : 'text-muted-foreground'}`}
         >
@@ -69,10 +94,19 @@ export function UsageOverview({ data }: { data: UsageStats }) {
         <div className='flex items-start justify-between'>
           <div>
             <p className='text-muted-foreground text-xs font-semibold tracking-widest uppercase'>Uso del plan</p>
-            <div className='mt-1 flex items-baseline gap-2'>
+            <div className='mt-1 flex flex-wrap items-baseline gap-2'>
               <span className='text-lg font-bold tracking-tight'>
                 Plan {PLAN_LABELS[data.planType] ?? data.planType}
               </span>
+              {data.hasCustomLimits && (
+                <span
+                  title={data.customLimitsNote ?? 'Tu plan tiene límites personalizados'}
+                  className='inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400'
+                >
+                  <Sparkles className='size-3' />
+                  Personalizado
+                </span>
+              )}
               {data.aiPlanType && (
                 <span className='rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400'>
                   {AI_PLAN_LABELS[data.aiPlanType] ?? data.aiPlanType}
@@ -86,8 +120,19 @@ export function UsageOverview({ data }: { data: UsageStats }) {
         </div>
       </CardHeader>
       <CardContent className='space-y-4 px-5'>
+        {data.hasCustomLimits && data.customLimitsNote && (
+          <p className='text-muted-foreground border-l-2 border-indigo-500/40 pl-2 text-xs italic'>
+            {data.customLimitsNote}
+          </p>
+        )}
         {planItems.map((item) => (
-          <UsageBar key={item.label} label={item.label} used={item.used} limit={item.limit} />
+          <UsageBar
+            key={item.label}
+            label={item.label}
+            used={item.used}
+            limit={item.limit}
+            customized={item.customized}
+          />
         ))}
 
         {addonItems.length > 0 && (

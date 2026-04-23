@@ -56,7 +56,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
   if (!business) notFound();
 
   // ── Visit tracking (Redis, fire-and-forget) ──
-  const limits = getPlanLimits(business.plan);
+  const limits = getPlanLimits(business.plan, business);
   let visitLimitReached = false;
   try {
     const count = await incrementVisit(business.id);

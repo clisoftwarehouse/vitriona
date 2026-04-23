@@ -13,6 +13,19 @@ export interface PlanLimits {
   watermark: boolean;
 }
 
+/**
+ * Per-business overrides stored on the businesses table. Each field is nullable:
+ * - null/undefined → fall back to the base plan limit
+ * - finite integer → hard limit
+ * - -1 → unlimited (rendered as Infinity at runtime)
+ */
+export interface PlanLimitOverrides {
+  customMaxProducts?: number | null;
+  customMaxVisitsPerMonth?: number | null;
+  customMaxPaymentMethods?: number | null;
+  customMaxDeliveryMethods?: number | null;
+}
+
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
     maxProducts: 10,
@@ -37,6 +50,30 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   },
 };
 
-export function getPlanLimits(plan: PlanType): PlanLimits {
-  return PLAN_LIMITS[plan];
+function resolveOverride(base: number, override: number | null | undefined): number {
+  if (override === null || override === undefined) return base;
+  if (override < 0) return Infinity;
+  return override;
+}
+
+export function getPlanLimits(plan: PlanType, overrides?: PlanLimitOverrides | null): PlanLimits {
+  const base = PLAN_LIMITS[plan];
+  if (!overrides) return base;
+  return {
+    maxProducts: resolveOverride(base.maxProducts, overrides.customMaxProducts),
+    maxVisitsPerMonth: resolveOverride(base.maxVisitsPerMonth, overrides.customMaxVisitsPerMonth),
+    maxPaymentMethods: resolveOverride(base.maxPaymentMethods, overrides.customMaxPaymentMethods),
+    maxDeliveryMethods: resolveOverride(base.maxDeliveryMethods, overrides.customMaxDeliveryMethods),
+    watermark: base.watermark,
+  };
+}
+
+export function hasCustomLimits(overrides?: PlanLimitOverrides | null): boolean {
+  if (!overrides) return false;
+  return (
+    overrides.customMaxProducts != null ||
+    overrides.customMaxVisitsPerMonth != null ||
+    overrides.customMaxPaymentMethods != null ||
+    overrides.customMaxDeliveryMethods != null
+  );
 }

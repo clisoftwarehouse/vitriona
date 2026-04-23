@@ -5,7 +5,7 @@ import { eq, and, count } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getVisitCount } from '@/lib/visit-tracker';
-import { getPlanLimits, type PlanType } from '@/lib/plan-limits';
+import { getPlanLimits, type PlanType, hasCustomLimits } from '@/lib/plan-limits';
 import { products, businesses, paymentMethods, deliveryMethods, businessAiQuotas } from '@/db/schema';
 
 export interface UsageItem {
@@ -13,12 +13,15 @@ export interface UsageItem {
   used: number;
   limit: number | null;
   category: 'plan' | 'addon';
+  customized?: boolean;
 }
 
 export interface UsageStats {
   planType: string;
   aiPlanType: string | null;
   items: UsageItem[];
+  hasCustomLimits: boolean;
+  customLimitsNote: string | null;
 }
 
 export async function getUsageStats(businessId: string): Promise<UsageStats | null> {
@@ -26,14 +29,22 @@ export async function getUsageStats(businessId: string): Promise<UsageStats | nu
   if (!session?.user?.id) return null;
 
   const [biz] = await db
-    .select({ id: businesses.id, plan: businesses.plan })
+    .select({
+      id: businesses.id,
+      plan: businesses.plan,
+      customMaxProducts: businesses.customMaxProducts,
+      customMaxVisitsPerMonth: businesses.customMaxVisitsPerMonth,
+      customMaxPaymentMethods: businesses.customMaxPaymentMethods,
+      customMaxDeliveryMethods: businesses.customMaxDeliveryMethods,
+      customLimitsNote: businesses.customLimitsNote,
+    })
     .from(businesses)
     .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
     .limit(1);
   if (!biz) return null;
 
   const plan = biz.plan as PlanType;
-  const limits = getPlanLimits(plan);
+  const limits = getPlanLimits(plan, biz);
 
   // Count products
   const [productCount] = await db.select({ total: count() }).from(products).where(eq(products.businessId, businessId));
@@ -64,26 +75,30 @@ export async function getUsageStats(businessId: string): Promise<UsageStats | nu
     {
       label: 'Productos',
       used: productCount?.total ?? 0,
-      limit: limits.maxProducts,
+      limit: limits.maxProducts === Infinity ? null : limits.maxProducts,
       category: 'plan',
+      customized: biz.customMaxProducts != null,
     },
     {
       label: 'Visitas del mes',
       used: visits,
-      limit: limits.maxVisitsPerMonth,
+      limit: limits.maxVisitsPerMonth === Infinity ? null : limits.maxVisitsPerMonth,
       category: 'plan',
+      customized: biz.customMaxVisitsPerMonth != null,
     },
     {
       label: 'Métodos de pago',
       used: pmCount?.total ?? 0,
       limit: limits.maxPaymentMethods === Infinity ? null : limits.maxPaymentMethods,
       category: 'plan',
+      customized: biz.customMaxPaymentMethods != null,
     },
     {
       label: 'Métodos de envío',
       used: dmCount?.total ?? 0,
       limit: limits.maxDeliveryMethods === Infinity ? null : limits.maxDeliveryMethods,
       category: 'plan',
+      customized: biz.customMaxDeliveryMethods != null,
     },
   ];
 
@@ -100,5 +115,7 @@ export async function getUsageStats(businessId: string): Promise<UsageStats | nu
     planType: plan,
     aiPlanType: aiQuota?.aiPlanType ?? null,
     items,
+    hasCustomLimits: hasCustomLimits(biz),
+    customLimitsNote: biz.customLimitsNote,
   };
 }

@@ -1,8 +1,13 @@
 import type { NextConfig } from 'next';
 
+import { version as appVersion } from './package.json';
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   compress: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   images: {
     remotePatterns: [
       {

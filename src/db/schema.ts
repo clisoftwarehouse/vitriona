@@ -177,6 +177,14 @@ export const businesses = pgTable('businesses', {
   billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
   scheduledPlan: text('scheduled_plan', { enum: ['free', 'pro', 'business'] }),
 
+  // ── Custom plan overrides (negotiated exceptions on top of base plan) ──
+  // NULL = use base plan limit. -1 = unlimited.
+  customMaxProducts: integer('custom_max_products'),
+  customMaxVisitsPerMonth: integer('custom_max_visits_per_month'),
+  customMaxPaymentMethods: integer('custom_max_payment_methods'),
+  customMaxDeliveryMethods: integer('custom_max_delivery_methods'),
+  customLimitsNote: text('custom_limits_note'),
+
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
 });

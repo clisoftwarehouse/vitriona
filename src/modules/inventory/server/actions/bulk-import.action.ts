@@ -31,14 +31,22 @@ export async function bulkImportProductsAction(businessId: string, rows: BulkPro
     }
 
     const [business] = await db
-      .select({ id: businesses.id, slug: businesses.slug, plan: businesses.plan })
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+        plan: businesses.plan,
+        customMaxProducts: businesses.customMaxProducts,
+        customMaxVisitsPerMonth: businesses.customMaxVisitsPerMonth,
+        customMaxPaymentMethods: businesses.customMaxPaymentMethods,
+        customMaxDeliveryMethods: businesses.customMaxDeliveryMethods,
+      })
       .from(businesses)
       .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 
     // ── Plan-based product limit ──
-    const limits = getPlanLimits(business.plan);
+    const limits = getPlanLimits(business.plan, business);
     const [{ total: currentCount }] = await db
       .select({ total: count() })
       .from(products)

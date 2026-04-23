@@ -338,6 +338,15 @@ export function AppSidebar({
           </button>
         </div>
       )}
+
+      <div
+        className={cn(
+          'text-muted-foreground/70 border-sidebar-border border-t px-3 py-2 text-center text-[10px] font-medium tracking-wider tabular-nums select-none',
+          collapsed && 'px-1'
+        )}
+      >
+        v{process.env.NEXT_PUBLIC_APP_VERSION}
+      </div>
     </aside>
   );
 }
