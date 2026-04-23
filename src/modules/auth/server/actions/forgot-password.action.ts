@@ -1,9 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { users, otpTokens } from '@/db/schema';
+import { notDeletedUser } from '@/db/soft-delete';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { sendOtpEmail } from '@/modules/auth/server/email/resend';
 import { hashOtp, generateOtp, otpExpiresAt } from '@/modules/auth/server/lib/otp';
@@ -22,7 +23,7 @@ export async function forgotPasswordAction(values: ForgotPasswordFormValues) {
     const [user] = await db
       .select({ id: users.id, name: users.name })
       .from(users)
-      .where(eq(users.email, email))
+      .where(and(eq(users.email, email), notDeletedUser))
       .limit(1);
 
     if (!user) return { success: true };

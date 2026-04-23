@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
@@ -7,6 +7,7 @@ import { db } from '@/db/drizzle';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import type { UpdateProductFormValues } from '@/modules/products/ui/schemas/product.schemas';
 import {
   products,
@@ -28,13 +29,17 @@ export async function updateProductAction(productId: string, values: UpdateProdu
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, productId), notDeletedProduct))
+      .limit(1);
     if (!product) return { error: 'Producto no encontrado' };
 
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 

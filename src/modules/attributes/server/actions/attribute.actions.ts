@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, productAttributes } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 
@@ -26,7 +27,7 @@ async function verifyBusinessOwnership(businessId: string, userId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   return business ?? null;
 }

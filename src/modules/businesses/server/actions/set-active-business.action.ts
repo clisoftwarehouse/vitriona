@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, userPreferences } from '@/db/schema';
 
 const ACTIVE_BUSINESS_COOKIE = 'active_business_id';
@@ -16,7 +17,7 @@ export async function setActiveBusinessAction(businessId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) return { error: 'Negocio no encontrado' };
@@ -61,13 +62,17 @@ export async function getActiveBusinessAction() {
     const [business] = await db
       .select()
       .from(businesses)
-      .where(and(eq(businesses.id, activeId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, activeId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
 
     if (business) return business;
   }
 
-  const [firstBusiness] = await db.select().from(businesses).where(eq(businesses.userId, session.user.id)).limit(1);
+  const [firstBusiness] = await db
+    .select()
+    .from(businesses)
+    .where(and(eq(businesses.userId, session.user.id), notDeletedBusiness))
+    .limit(1);
 
   if (firstBusiness) {
     const cookieStore = await cookies();

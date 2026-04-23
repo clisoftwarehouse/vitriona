@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { eq, and, inArray } from 'drizzle-orm';
 
@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getRedis } from '@/lib/redis';
 import { products, businesses } from '@/db/schema';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { type DashboardTimeframe, getDashboardTimeframeMeta } from '@/modules/dashboard/lib/dashboard-timeframe';
 import { getCountryNameFromCode, formatStorefrontLocationLabel } from '@/modules/storefront/lib/storefront-analytics';
 import {
@@ -187,7 +188,7 @@ export async function getStorefrontAnalytics(
   const [business] = await db
     .select({ id: businesses.id, name: businesses.name, slug: businesses.slug })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) {

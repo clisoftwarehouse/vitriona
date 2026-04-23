@@ -1,31 +1,52 @@
+import { sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
-import { text, jsonb, integer, boolean, numeric, pgTable, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import {
+  text,
+  jsonb,
+  integer,
+  boolean,
+  numeric,
+  pgTable,
+  timestamp,
+  primaryKey,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 import type { StorefrontQrSettings } from '../modules/storefront/lib/storefront-qr';
 
-export const users = pgTable('users', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text('name'),
-  email: text('email').unique().notNull(),
-  emailVerified: timestamp('email_verified', { mode: 'date' }),
-  image: text('image'),
-  password: text('password'),
-  role: text('role', { enum: ['user', 'admin'] })
-    .notNull()
-    .default('user'),
-  phone: text('phone'),
-  timezone: text('timezone').default('America/Santo_Domingo'),
-  locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
-  avatarUrl: text('avatar_url'),
-  onboardingDone: boolean('onboarding_done').notNull().default(false),
-  resetPasswordToken: text('reset_password_token'),
-  resetPasswordTokenExpiry: timestamp('reset_password_token_expiry', { mode: 'date' }),
-  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text('name'),
+    email: text('email').notNull(),
+    emailVerified: timestamp('email_verified', { mode: 'date' }),
+    image: text('image'),
+    password: text('password'),
+    role: text('role', { enum: ['user', 'admin'] })
+      .notNull()
+      .default('user'),
+    phone: text('phone'),
+    timezone: text('timezone').default('America/Santo_Domingo'),
+    locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
+    avatarUrl: text('avatar_url'),
+    onboardingDone: boolean('onboarding_done').notNull().default(false),
+    resetPasswordToken: text('reset_password_token'),
+    resetPasswordTokenExpiry: timestamp('reset_password_token_expiry', { mode: 'date' }),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+    deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('users_email_active_unique')
+      .on(table.email)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
 
 export const userPreferences = pgTable('user_preferences', {
   id: text('id')
@@ -109,85 +130,95 @@ export const otpTokens = pgTable('otp_tokens', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
-export const businesses = pgTable('businesses', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  slug: text('slug').unique().notNull(),
-  description: text('description'),
-  logoUrl: text('logo_url'),
-  bannerUrl: text('banner_url'),
-  category: text('category', {
-    enum: [
-      'food',
-      'jewelry',
-      'clothing',
-      'electronics',
-      'beauty',
-      'home',
-      'sports',
-      'toys',
-      'books',
-      'services',
-      'other',
-    ],
-  }),
-  phone: text('phone'),
-  email: text('email'),
-  address: text('address'),
-  whatsappNumber: text('whatsapp_number'),
+export const businesses = pgTable(
+  'businesses',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description'),
+    logoUrl: text('logo_url'),
+    bannerUrl: text('banner_url'),
+    category: text('category', {
+      enum: [
+        'food',
+        'jewelry',
+        'clothing',
+        'electronics',
+        'beauty',
+        'home',
+        'sports',
+        'toys',
+        'books',
+        'services',
+        'other',
+      ],
+    }),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    whatsappNumber: text('whatsapp_number'),
 
-  // ── Regional ──
-  currency: text('currency').notNull().default('USD'),
-  timezone: text('timezone').default('America/Santo_Domingo'),
-  locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
+    // ── Regional ──
+    currency: text('currency').notNull().default('USD'),
+    timezone: text('timezone').default('America/Santo_Domingo'),
+    locale: text('locale', { enum: ['es', 'en', 'pt'] }).default('es'),
 
-  // ── Web & Social ──
-  website: text('website'),
-  instagramUrl: text('instagram_url'),
-  facebookUrl: text('facebook_url'),
-  tiktokUrl: text('tiktok_url'),
-  twitterUrl: text('twitter_url'),
-  youtubeUrl: text('youtube_url'),
+    // ── Web & Social ──
+    website: text('website'),
+    instagramUrl: text('instagram_url'),
+    facebookUrl: text('facebook_url'),
+    tiktokUrl: text('tiktok_url'),
+    twitterUrl: text('twitter_url'),
+    youtubeUrl: text('youtube_url'),
 
-  // ── Location ──
-  country: text('country'),
-  city: text('city'),
-  state: text('state'),
-  zipCode: text('zip_code'),
+    // ── Location ──
+    country: text('country'),
+    city: text('city'),
+    state: text('state'),
+    zipCode: text('zip_code'),
 
-  // ── Fiscal ──
-  taxId: text('tax_id'),
+    // ── Fiscal ──
+    taxId: text('tax_id'),
 
-  // ── Schedule ──
-  businessHours: jsonb('business_hours').$type<Record<string, { open: string; close: string; closed: boolean }>>(),
-  qrSettings: jsonb('qr_settings').$type<StorefrontQrSettings>(),
+    // ── Schedule ──
+    businessHours: jsonb('business_hours').$type<Record<string, { open: string; close: string; closed: boolean }>>(),
+    qrSettings: jsonb('qr_settings').$type<StorefrontQrSettings>(),
 
-  isActive: boolean('is_active').notNull().default(true),
-  plan: text('plan', { enum: ['free', 'pro', 'business'] })
-    .notNull()
-    .default('free'),
+    isActive: boolean('is_active').notNull().default(true),
+    plan: text('plan', { enum: ['free', 'pro', 'business'] })
+      .notNull()
+      .default('free'),
 
-  // ── Billing ──
-  billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }),
-  billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
-  scheduledPlan: text('scheduled_plan', { enum: ['free', 'pro', 'business'] }),
+    // ── Billing ──
+    billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }),
+    billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
+    scheduledPlan: text('scheduled_plan', { enum: ['free', 'pro', 'business'] }),
 
-  // ── Custom plan overrides (negotiated exceptions on top of base plan) ──
-  // NULL = use base plan limit. -1 = unlimited.
-  customMaxProducts: integer('custom_max_products'),
-  customMaxVisitsPerMonth: integer('custom_max_visits_per_month'),
-  customMaxPaymentMethods: integer('custom_max_payment_methods'),
-  customMaxDeliveryMethods: integer('custom_max_delivery_methods'),
-  customLimitsNote: text('custom_limits_note'),
+    // ── Custom plan overrides (negotiated exceptions on top of base plan) ──
+    // NULL = use base plan limit. -1 = unlimited.
+    customMaxProducts: integer('custom_max_products'),
+    customMaxVisitsPerMonth: integer('custom_max_visits_per_month'),
+    customMaxPaymentMethods: integer('custom_max_payment_methods'),
+    customMaxDeliveryMethods: integer('custom_max_delivery_methods'),
+    customLimitsNote: text('custom_limits_note'),
 
-  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
-});
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+    deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('businesses_slug_active_unique')
+      .on(table.slug)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
 
 export const catalogs = pgTable('catalogs', {
   id: text('id')
@@ -432,6 +463,8 @@ export const products = pgTable('products', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 });
 
 export const bundleSlots = pgTable('bundle_slots', {
@@ -683,6 +716,8 @@ export const orders = pgTable('orders', {
   cancelReason: text('cancel_reason'),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 });
 
 export const orderStatusHistory = pgTable('order_status_history', {
@@ -898,6 +933,8 @@ export const giftCards = pgTable('gift_cards', {
   isActive: boolean('is_active').notNull().default(true),
   redeemedAt: timestamp('redeemed_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 });
 
 export const giftCardRedemptions = pgTable('gift_card_redemptions', {
@@ -920,6 +957,8 @@ export const giftCardRedemptions = pgTable('gift_card_redemptions', {
   balanceBefore: numeric('balance_before', { precision: 10, scale: 2 }),
   balanceAfter: numeric('balance_after', { precision: 10, scale: 2 }),
   redeemedAt: timestamp('redeemed_at', { mode: 'date' }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 });
 
 export const coupons = pgTable('coupons', {
@@ -944,6 +983,8 @@ export const coupons = pgTable('coupons', {
   expiresAt: timestamp('expires_at', { mode: 'date' }),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 });
 
 // ── Chatbot Activation Requests ──

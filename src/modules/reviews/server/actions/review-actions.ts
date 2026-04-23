@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and, avg, desc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { rateLimitAction } from '@/lib/rate-limit';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, notifications, productReviews } from '@/db/schema';
 
 /* ─── Public: get approved reviews for a product ─── */
@@ -97,7 +98,7 @@ export async function getBusinessReviewsAction(businessId: string) {
     const [biz] = await db
       .select()
       .from(businesses)
-      .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!biz) return { error: 'No autorizado', data: [] };
 
@@ -127,7 +128,7 @@ export async function toggleReviewApprovalAction(reviewId: string, approved: boo
     const [biz] = await db
       .select()
       .from(businesses)
-      .where(and(eq(businesses.id, review.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, review.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!biz) return { error: 'No autorizado' };
 
@@ -152,7 +153,7 @@ export async function deleteReviewAction(reviewId: string) {
     const [biz] = await db
       .select()
       .from(businesses)
-      .where(and(eq(businesses.id, review.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, review.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!biz) return { error: 'No autorizado' };
 

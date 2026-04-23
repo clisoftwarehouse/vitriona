@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 import { cookies } from 'next/headers';
@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { catalogs, businesses } from '@/db/schema';
+import { notDeletedBusiness } from '@/db/soft-delete';
 
 const ACTIVE_CATALOG_COOKIE = 'active_catalog_id';
 
@@ -19,7 +20,7 @@ export async function setActiveCatalogAction(catalogId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) return { error: 'No autorizado' };
@@ -54,7 +55,7 @@ export async function getActiveCatalogAction() {
       const [business] = await db
         .select({ id: businesses.id, name: businesses.name })
         .from(businesses)
-        .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+        .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
         .limit(1);
 
       if (business) return { ...catalog, businessName: business.name };
@@ -62,7 +63,11 @@ export async function getActiveCatalogAction() {
   }
 
   // Fallback: first catalog of the first business
-  const [firstBusiness] = await db.select().from(businesses).where(eq(businesses.userId, session.user.id)).limit(1);
+  const [firstBusiness] = await db
+    .select()
+    .from(businesses)
+    .where(and(eq(businesses.userId, session.user.id), notDeletedBusiness))
+    .limit(1);
 
   if (!firstBusiness) return null;
 
@@ -90,7 +95,7 @@ export async function getAllCatalogsForSidebar() {
   const userBusinesses = await db
     .select({ id: businesses.id, name: businesses.name, slug: businesses.slug })
     .from(businesses)
-    .where(eq(businesses.userId, session.user.id));
+    .where(and(eq(businesses.userId, session.user.id), notDeletedBusiness));
 
   if (userBusinesses.length === 0) return [];
 

@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { categories, businesses } from '@/db/schema';
+import { notDeletedBusiness } from '@/db/soft-delete';
 
 export async function deleteCategoryAction(categoryId: string) {
   try {
@@ -17,7 +18,7 @@ export async function deleteCategoryAction(categoryId: string) {
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, category.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, category.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 

@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, ne, and, sum, gte, sql, asc, desc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { type ReportTimeframe, getReportTimeframeMeta } from '@/modules/reports/lib/report-timeframe';
+import { notDeletedOrder, notDeletedCoupon, notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { orders, coupons, products, businesses, orderItems, categories, inventoryMovements } from '@/db/schema';
 
 // ── Sales Report ──
@@ -31,7 +32,7 @@ export async function getSalesReport(businessId: string, timeframe: ReportTimefr
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
@@ -39,7 +40,8 @@ export async function getSalesReport(businessId: string, timeframe: ReportTimefr
   const dateFilter = and(
     eq(orders.businessId, businessId),
     gte(orders.createdAt, meta.start),
-    sql`${orders.createdAt} < ${meta.end}`
+    sql`${orders.createdAt} < ${meta.end}`,
+    notDeletedOrder
   );
   const activeDateFilter = and(dateFilter, ne(orders.status, 'cancelled'));
 
@@ -145,7 +147,7 @@ export async function getProductsReport(
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
@@ -164,7 +166,8 @@ export async function getProductsReport(
         eq(orders.businessId, businessId),
         gte(orders.createdAt, meta.start),
         sql`${orders.createdAt} < ${meta.end}`,
-        ne(orders.status, 'cancelled')
+        ne(orders.status, 'cancelled'),
+        notDeletedOrder
       )
     )
     .groupBy(orderItems.productName)
@@ -186,7 +189,8 @@ export async function getProductsReport(
         eq(orders.businessId, businessId),
         gte(orders.createdAt, meta.start),
         sql`${orders.createdAt} < ${meta.end}`,
-        ne(orders.status, 'cancelled')
+        ne(orders.status, 'cancelled'),
+        notDeletedOrder
       )
     )
     .groupBy(categories.name)
@@ -203,7 +207,7 @@ export async function getProductsReport(
       ),
     })
     .from(products)
-    .where(eq(products.businessId, businessId));
+    .where(and(eq(products.businessId, businessId), notDeletedProduct));
 
   const lowStockItems = await db
     .select({
@@ -218,7 +222,8 @@ export async function getProductsReport(
         eq(products.businessId, businessId),
         eq(products.trackInventory, true),
         eq(products.status, 'active'),
-        sql`${products.stock} <= ${products.minStock}`
+        sql`${products.stock} <= ${products.minStock}`,
+        notDeletedProduct
       )
     )
     .orderBy(asc(products.stock))
@@ -280,7 +285,7 @@ export async function getInventoryReport(
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
@@ -369,7 +374,7 @@ export async function getCustomersReport(
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
@@ -378,7 +383,8 @@ export async function getCustomersReport(
     eq(orders.businessId, businessId),
     gte(orders.createdAt, meta.start),
     sql`${orders.createdAt} < ${meta.end}`,
-    ne(orders.status, 'cancelled')
+    ne(orders.status, 'cancelled'),
+    notDeletedOrder
   );
 
   const topCustomers = await db
@@ -464,7 +470,7 @@ export async function getCouponsReport(
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
@@ -473,7 +479,7 @@ export async function getCouponsReport(
   const allCoupons = await db
     .select()
     .from(coupons)
-    .where(eq(coupons.businessId, businessId))
+    .where(and(eq(coupons.businessId, businessId), notDeletedCoupon))
     .orderBy(desc(coupons.createdAt));
 
   const ordersWithCoupons = await db
@@ -489,7 +495,8 @@ export async function getCouponsReport(
         gte(orders.createdAt, meta.start),
         sql`${orders.createdAt} < ${meta.end}`,
         ne(orders.status, 'cancelled'),
-        sql`${orders.couponCode} IS NOT NULL`
+        sql`${orders.couponCode} IS NOT NULL`,
+        notDeletedOrder
       )
     )
     .groupBy(orders.couponCode);

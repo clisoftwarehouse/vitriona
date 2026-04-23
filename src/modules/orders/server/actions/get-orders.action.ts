@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedOrder, notDeletedBusiness } from '@/db/soft-delete';
 import { orders, businesses, orderItems, orderStatusHistory, orderBundleComponents } from '@/db/schema';
 
 export async function getOrdersByBusinessAction(businessId: string) {
@@ -13,7 +14,7 @@ export async function getOrdersByBusinessAction(businessId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) return { error: 'Negocio no encontrado' };
@@ -21,7 +22,7 @@ export async function getOrdersByBusinessAction(businessId: string) {
   const orderList = await db
     .select()
     .from(orders)
-    .where(eq(orders.businessId, businessId))
+    .where(and(eq(orders.businessId, businessId), notDeletedOrder))
     .orderBy(desc(orders.createdAt));
 
   return { orders: orderList };
@@ -31,13 +32,17 @@ export async function getOrderDetailAction(orderId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: 'No autorizado' };
 
-  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), notDeletedOrder))
+    .limit(1);
   if (!order) return { error: 'Pedido no encontrado' };
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, order.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, order.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) return { error: 'No autorizado' };

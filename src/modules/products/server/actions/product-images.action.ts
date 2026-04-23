@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { del } from '@vercel/blob';
 import { eq, and, isNull } from 'drizzle-orm';
@@ -6,17 +6,22 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { products, businesses, productImages } from '@/db/schema';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 
 const MAX_PRODUCT_IMAGES = 25;
 
 async function verifyProductOwnership(productId: string, userId: string) {
-  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), notDeletedProduct))
+    .limit(1);
   if (!product) return null;
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   if (!business) return null;
 

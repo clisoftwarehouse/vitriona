@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getPlanLimits } from '@/lib/plan-limits';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { generateSku } from '@/modules/products/lib/generate-sku';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
@@ -52,7 +53,7 @@ export async function createProductAction(
         customMaxDeliveryMethods: businesses.customMaxDeliveryMethods,
       })
       .from(businesses)
-      .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 

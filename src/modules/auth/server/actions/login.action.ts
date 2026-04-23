@@ -1,12 +1,13 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { AuthError } from 'next-auth';
 import { isRedirectError } from 'next/dist/client/components/redirect-error';
 
 import { signIn } from '@/auth';
 import { db } from '@/db/drizzle';
 import { users } from '@/db/schema';
+import { notDeletedUser } from '@/db/soft-delete';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { AUTH_ROUTES } from '@/modules/auth/constants';
 import { resendOtpAction } from '@/modules/auth/server/actions/resend-otp.action';
@@ -23,7 +24,7 @@ export async function loginAction(values: LoginFormValues) {
     const [user] = await db
       .select({ emailVerified: users.emailVerified, name: users.name })
       .from(users)
-      .where(eq(users.email, parsed.data.email))
+      .where(and(eq(users.email, parsed.data.email), notDeletedUser))
       .limit(1);
 
     if (user && !user.emailVerified) {

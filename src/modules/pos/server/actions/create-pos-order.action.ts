@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import crypto from 'crypto';
 import { eq, and, sql, gte } from 'drizzle-orm';
@@ -6,6 +6,7 @@ import { eq, and, sql, gte } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
   orders,
@@ -73,7 +74,7 @@ export async function createPosOrderAction(input: CreatePosOrderInput) {
   const [business] = await db
     .select({ id: businesses.id, userId: businesses.userId, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return { error: 'Negocio no encontrado' };
 
@@ -103,7 +104,7 @@ export async function createPosOrderAction(input: CreatePosOrderInput) {
         type: products.type,
       })
       .from(products)
-      .where(and(eq(products.id, item.productId), eq(products.businessId, businessId)))
+      .where(and(eq(products.id, item.productId), eq(products.businessId, businessId), notDeletedProduct))
       .limit(1);
     if (!product) return { error: `Producto "${item.productName}" no encontrado` };
 
@@ -160,7 +161,7 @@ export async function createPosOrderAction(input: CreatePosOrderInput) {
     const [product] = await db
       .select({ id: products.id, stock: products.stock, trackInventory: products.trackInventory, name: products.name })
       .from(products)
-      .where(eq(products.id, item.productId))
+      .where(and(eq(products.id, item.productId), notDeletedProduct))
       .limit(1);
 
     if (!product?.trackInventory) continue;

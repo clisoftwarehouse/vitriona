@@ -1,6 +1,7 @@
 import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
+import { notDeletedProduct } from '@/db/soft-delete';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import { products, bundleItems, productVariants } from '@/db/schema';
 
@@ -153,7 +154,7 @@ export async function syncBundleProductState(bundleProductId: string, options?: 
       type: products.type,
     })
     .from(products)
-    .where(eq(products.id, bundleProductId))
+    .where(and(eq(products.id, bundleProductId), notDeletedProduct))
     .limit(1);
 
   if (!bundleProduct || bundleProduct.type !== 'bundle') return null;

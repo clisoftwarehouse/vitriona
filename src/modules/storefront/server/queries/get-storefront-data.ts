@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { or, eq, and, asc, avg, sql, desc, count, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import {
   brands,
   catalogs,
@@ -27,9 +28,9 @@ const CACHE_SHORT = 30; // 30s – for data that changes often (products, stock)
 const CACHE_MEDIUM = 120; // 2min – for semi-static data (categories, catalogs)
 const CACHE_LONG = 300; // 5min – for rarely changing data (business info, settings)
 
-const storefrontActiveProductCondition = or(
-  eq(products.status, 'active'),
-  and(eq(products.trackInventory, false), eq(products.status, 'out_of_stock'))
+const storefrontActiveProductCondition = and(
+  notDeletedProduct,
+  or(eq(products.status, 'active'), and(eq(products.trackInventory, false), eq(products.status, 'out_of_stock')))
 );
 
 // ── Business by slug ─────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ export const getBusinessBySlug = cache((slug: string) =>
       const [business] = await db
         .select()
         .from(businesses)
-        .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true)))
+        .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true), notDeletedBusiness))
         .limit(1);
       return business ?? null;
     },

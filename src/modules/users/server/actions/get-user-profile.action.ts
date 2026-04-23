@@ -1,9 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedUser, notDeletedBusiness } from '@/db/soft-delete';
 import { users, accounts, businesses, userPreferences } from '@/db/schema';
 
 export async function getUserProfileAction() {
@@ -24,7 +25,7 @@ export async function getUserProfileAction() {
       createdAt: users.createdAt,
     })
     .from(users)
-    .where(eq(users.id, session.user.id))
+    .where(and(eq(users.id, session.user.id), notDeletedUser))
     .limit(1);
 
   if (!user) return { error: 'Usuario no encontrado' };
@@ -50,7 +51,7 @@ export async function getUserProfileAction() {
   const businessList = await db
     .select({ id: businesses.id, name: businesses.name, logoUrl: businesses.logoUrl })
     .from(businesses)
-    .where(eq(businesses.userId, session.user.id));
+    .where(and(eq(businesses.userId, session.user.id), notDeletedBusiness));
 
   return {
     user,

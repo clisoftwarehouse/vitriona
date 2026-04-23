@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, ne, and, asc, desc, ilike, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import {
   products,
   businesses,
@@ -36,11 +37,11 @@ export async function getProductsAction(businessId: string, options?: GetProduct
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return [];
 
-  const conditions = [eq(products.businessId, businessId)];
+  const conditions = [eq(products.businessId, businessId), notDeletedProduct];
 
   if (options?.categoryId) {
     conditions.push(eq(products.categoryId, options.categoryId));
@@ -63,14 +64,18 @@ export async function getProductByIdAction(productId: string) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), notDeletedProduct))
+    .limit(1);
   if (!product) return null;
 
   // Verify ownership via businessId
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return null;
 
@@ -108,11 +113,11 @@ export async function getBundleComponentOptionsAction(
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return [];
 
-  const conditions = [eq(products.businessId, businessId), ne(products.type, 'bundle')];
+  const conditions = [eq(products.businessId, businessId), ne(products.type, 'bundle'), notDeletedProduct];
 
   if (excludeProductId) {
     conditions.push(ne(products.id, excludeProductId));
@@ -154,13 +159,17 @@ export async function getBundleItemsAction(productId: string) {
   const session = await auth();
   if (!session?.user?.id) return [];
 
-  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), notDeletedProduct))
+    .limit(1);
   if (!product) return [];
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return [];
 

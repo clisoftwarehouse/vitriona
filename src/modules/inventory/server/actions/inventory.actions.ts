@@ -1,23 +1,28 @@
-'use server';
+﻿'use server';
 
 import { eq, and, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import { products, businesses, productVariants, inventoryMovements } from '@/db/schema';
 
 // ── Helpers ──
 
 async function verifyProductOwnership(productId: string, userId: string) {
-  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), notDeletedProduct))
+    .limit(1);
   if (!product) return null;
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
 
   return business ? product : null;
@@ -93,7 +98,7 @@ export async function getInventoryOverviewAction(businessId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return { error: 'No autorizado' };
 
@@ -211,7 +216,7 @@ export async function getLowStockProductsAction(businessId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return [];
 

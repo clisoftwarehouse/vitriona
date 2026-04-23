@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { categories, businesses } from '@/db/schema';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import { revalidateCategoriesCache } from '@/lib/cache-revalidation';
 import type { UpdateCategoryFormValues } from '@/modules/categories/ui/schemas/category.schemas';
@@ -20,7 +21,7 @@ export async function updateCategoryAction(categoryId: string, values: UpdateCat
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, category.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, category.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
     if (!business) return { error: 'No autorizado' };
 

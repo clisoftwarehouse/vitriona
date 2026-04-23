@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, ne, and, sum, gte, sql, desc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { orders, products, businesses, orderItems, productReviews } from '@/db/schema';
 import { type DashboardTimeframe, getDashboardTimeframeMeta } from '@/modules/dashboard/lib/dashboard-timeframe';
 
@@ -38,7 +39,7 @@ export async function getDashboardStats(businessId: string, timeframe: Dashboard
   const [biz] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 

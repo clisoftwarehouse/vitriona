@@ -1,6 +1,7 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
+import { notDeletedProduct } from '@/db/soft-delete';
 import { products, productVariants } from '@/db/schema';
 
 /**
@@ -27,7 +28,7 @@ export async function syncProductStockWithVariants(productId: string) {
   const [product] = await db
     .select({ trackInventory: products.trackInventory, status: products.status })
     .from(products)
-    .where(eq(products.id, productId))
+    .where(and(eq(products.id, productId), notDeletedProduct))
     .limit(1);
 
   if (!product) return;

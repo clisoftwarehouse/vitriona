@@ -4,6 +4,7 @@ import { eq, gt, and } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { users } from '@/db/schema';
+import { notDeletedUser } from '@/db/soft-delete';
 import { hashPassword } from '@/modules/auth/server/lib/password';
 import { resetPasswordSchema, type ResetPasswordFormValues } from '@/modules/auth/ui/schemas/auth.schemas';
 
@@ -19,7 +20,8 @@ export async function resetPasswordAction(values: ResetPasswordFormValues, email
         and(
           eq(users.email, email),
           eq(users.resetPasswordToken, resetToken),
-          gt(users.resetPasswordTokenExpiry, new Date())
+          gt(users.resetPasswordTokenExpiry, new Date()),
+          notDeletedUser
         )
       )
       .limit(1);

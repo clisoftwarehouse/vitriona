@@ -6,6 +6,7 @@ import { eq, and, sql, gte } from 'drizzle-orm';
 import { db } from '@/db/drizzle';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { validateReservationSelection } from '@/modules/orders/lib/reservations';
 import { incrementCouponUsage } from '@/modules/coupons/server/actions/coupon-actions';
 import { getBundleComponents, syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
@@ -152,7 +153,7 @@ export async function createOrderAction(input: CreateOrderInput) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.isActive, true)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.isActive, true), notDeletedBusiness))
     .limit(1);
   if (!business) return { error: 'Negocio no encontrado' };
 
@@ -187,7 +188,14 @@ export async function createOrderAction(input: CreateOrderInput) {
         type: products.type,
       })
       .from(products)
-      .where(and(eq(products.id, item.productId), eq(products.businessId, businessId), eq(products.status, 'active')))
+      .where(
+        and(
+          eq(products.id, item.productId),
+          eq(products.businessId, businessId),
+          eq(products.status, 'active'),
+          notDeletedProduct
+        )
+      )
       .limit(1);
     if (!product) return { error: `Producto no encontrado o no disponible` };
 
@@ -211,7 +219,12 @@ export async function createOrderAction(input: CreateOrderInput) {
             })
             .from(products)
             .where(
-              and(eq(products.id, sel.productId), eq(products.businessId, businessId), eq(products.status, 'active'))
+              and(
+                eq(products.id, sel.productId),
+                eq(products.businessId, businessId),
+                eq(products.status, 'active'),
+                notDeletedProduct
+              )
             )
             .limit(1);
 

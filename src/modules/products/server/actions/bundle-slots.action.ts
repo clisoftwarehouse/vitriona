@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { products, businesses, bundleItems, bundleSlots } from '@/db/schema';
 
 // ── Helpers ──
@@ -16,7 +17,7 @@ async function verifyBundleOwnership(productId: string) {
   const [product] = await db
     .select({ id: products.id, businessId: products.businessId, type: products.type })
     .from(products)
-    .where(eq(products.id, productId))
+    .where(and(eq(products.id, productId), notDeletedProduct))
     .limit(1);
 
   if (!product || product.type !== 'bundle') return null;
@@ -24,7 +25,7 @@ async function verifyBundleOwnership(productId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) return null;

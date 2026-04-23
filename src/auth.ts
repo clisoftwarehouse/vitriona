@@ -1,10 +1,11 @@
-import { eq } from 'drizzle-orm';
 import NextAuth from 'next-auth';
+import { eq, and } from 'drizzle-orm';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import Credentials from 'next-auth/providers/credentials';
 
 import { db } from '@/db/drizzle';
 import { authConfig } from '@/auth.config';
+import { notDeletedUser } from '@/db/soft-delete';
 import { verifyPassword } from '@/modules/auth/server/lib/password';
 import { users, accounts, sessions, authenticators, verificationTokens } from '@/db/schema';
 
@@ -30,7 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const [user] = await db
           .select()
           .from(users)
-          .where(eq(users.email, credentials.email as string))
+          .where(and(eq(users.email, credentials.email as string), notDeletedUser))
           .limit(1);
 
         if (!user || !user.password || !user.emailVerified) return null;

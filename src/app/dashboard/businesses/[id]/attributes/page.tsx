@@ -1,8 +1,9 @@
-import { eq, and, asc } from 'drizzle-orm';
+﻿import { eq, and, asc } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, productAttributes } from '@/db/schema';
 import { AttributesManager } from '@/modules/attributes/ui/components/attributes-manager';
 
@@ -19,7 +20,7 @@ export default async function AttributesPage({ params }: AttributesPageProps) {
   const [business] = await db
     .select()
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) notFound();

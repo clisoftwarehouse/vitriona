@@ -1,21 +1,26 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
+import { notDeletedProduct, notDeletedBusiness } from '@/db/soft-delete';
 import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import { products, businesses, bundleItems, productVariants } from '@/db/schema';
 
 async function verifyProductOwnership(productId: string, userId: string) {
-  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), notDeletedProduct))
+    .limit(1);
   if (!product) return null;
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, product.businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   if (!business) return null;
 

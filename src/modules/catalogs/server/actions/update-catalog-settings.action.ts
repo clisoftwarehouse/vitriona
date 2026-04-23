@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc, inArray } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { revalidateCatalogSettingsCache } from '@/lib/cache-revalidation';
 import { brands, catalogs, products, businesses, categories, productImages, catalogSettings } from '@/db/schema';
 
@@ -91,7 +92,7 @@ export async function updateCatalogSettingsAction(catalogId: string, values: Cat
     const [business] = await db
       .select({ id: businesses.id })
       .from(businesses)
-      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
 
     if (!business) return { error: 'No autorizado' };
@@ -127,7 +128,7 @@ export async function getCatalogSettingsForBuilder(catalogId: string) {
     const [business] = await db
       .select()
       .from(businesses)
-      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id)))
+      .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
       .limit(1);
 
     if (!business) return { error: 'No autorizado', data: null };

@@ -5,6 +5,7 @@ import { eq, and, sql, desc } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { coupons, businesses } from '@/db/schema';
+import { notDeletedCoupon, notDeletedBusiness } from '@/db/soft-delete';
 
 /* ─── Types ─── */
 
@@ -34,7 +35,7 @@ async function verifyOwnership(businessId: string, userId: string) {
   const [biz] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   return biz;
 }
@@ -51,7 +52,7 @@ export async function getCouponsAction(businessId: string) {
   const rows = await db
     .select()
     .from(coupons)
-    .where(eq(coupons.businessId, businessId))
+    .where(and(eq(coupons.businessId, businessId), notDeletedCoupon))
     .orderBy(desc(coupons.createdAt));
 
   return { data: rows };
@@ -74,11 +75,11 @@ export async function createCouponAction(input: CreateCouponInput) {
       return { error: 'El porcentaje no puede ser mayor a 100' };
     }
 
-    // Check for duplicate code within this business
+    // Check for duplicate code within this business (ignores soft-deleted)
     const [existing] = await db
       .select({ id: coupons.id })
       .from(coupons)
-      .where(and(eq(coupons.businessId, input.businessId), eq(coupons.code, code)))
+      .where(and(eq(coupons.businessId, input.businessId), eq(coupons.code, code), notDeletedCoupon))
       .limit(1);
     if (existing) return { error: 'Ya existe un cupón con ese código' };
 
@@ -110,7 +111,11 @@ export async function toggleCouponAction(couponId: string, isActive: boolean) {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [coupon] = await db.select().from(coupons).where(eq(coupons.id, couponId)).limit(1);
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.id, couponId), notDeletedCoupon))
+      .limit(1);
     if (!coupon) return { error: 'Cupón no encontrado' };
 
     const biz = await verifyOwnership(coupon.businessId, session.user.id);
@@ -124,20 +129,27 @@ export async function toggleCouponAction(couponId: string, isActive: boolean) {
   }
 }
 
-/* ─── Dashboard: delete coupon ─── */
+/* ─── Dashboard: delete coupon (soft-delete) ─── */
 
 export async function deleteCouponAction(couponId: string) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [coupon] = await db.select().from(coupons).where(eq(coupons.id, couponId)).limit(1);
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.id, couponId), notDeletedCoupon))
+      .limit(1);
     if (!coupon) return { error: 'Cupón no encontrado' };
 
     const biz = await verifyOwnership(coupon.businessId, session.user.id);
     if (!biz) return { error: 'No autorizado' };
 
-    await db.delete(coupons).where(eq(coupons.id, couponId));
+    await db
+      .update(coupons)
+      .set({ deletedAt: new Date(), deletedBy: session.user.id, isActive: false })
+      .where(eq(coupons.id, couponId));
 
     return { success: true };
   } catch {
@@ -160,7 +172,14 @@ export async function validateCouponAction(
     const [coupon] = await db
       .select()
       .from(coupons)
-      .where(and(eq(coupons.businessId, businessId), eq(coupons.code, normalizedCode), eq(coupons.isActive, true)))
+      .where(
+        and(
+          eq(coupons.businessId, businessId),
+          eq(coupons.code, normalizedCode),
+          eq(coupons.isActive, true),
+          notDeletedCoupon
+        )
+      )
       .limit(1);
 
     if (!coupon) return { error: 'Cupón no válido' };

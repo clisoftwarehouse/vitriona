@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getPlanLimits } from '@/lib/plan-limits';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, deliveryMethods } from '@/db/schema';
 
 // ── Helpers ──
@@ -20,7 +21,7 @@ async function verifyBusinessOwnership(businessId: string, userId: string) {
       customMaxDeliveryMethods: businesses.customMaxDeliveryMethods,
     })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   return business ?? null;
 }

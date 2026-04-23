@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
 import { products, giftCards, businesses, giftCardRedemptions } from '@/db/schema';
+import { notDeletedProduct, notDeletedGiftCard, notDeletedBusiness } from '@/db/soft-delete';
 import { giftCardEmailTemplate } from '@/modules/auth/server/email/templates/gift-card.template';
 
 /* ─── Types ─── */
@@ -52,7 +53,7 @@ async function verifyOwnership(businessId: string, userId: string) {
   const [biz] = await db
     .select({ id: businesses.id, name: businesses.name })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
   return biz;
 }
@@ -69,7 +70,7 @@ export async function getGiftCardsAction(businessId: string) {
   const rows = await db
     .select()
     .from(giftCards)
-    .where(eq(giftCards.businessId, businessId))
+    .where(and(eq(giftCards.businessId, businessId), notDeletedGiftCard))
     .orderBy(desc(giftCards.createdAt));
 
   return { data: rows };
@@ -109,11 +110,11 @@ export async function createGiftCardAction(input: CreateGiftCardInput) {
     // For free_product, initialValue is informational (stored as 0); quantity is the source of truth.
     const initialValue = input.type === 'free_product' ? 0 : input.initialValue;
 
-    // Check for duplicate code within this business
+    // Check for duplicate code within this business (ignores soft-deleted)
     const [existing] = await db
       .select({ id: giftCards.id })
       .from(giftCards)
-      .where(and(eq(giftCards.businessId, input.businessId), eq(giftCards.code, code)))
+      .where(and(eq(giftCards.businessId, input.businessId), eq(giftCards.code, code), notDeletedGiftCard))
       .limit(1);
     if (existing) return { error: 'Ya existe una gift card con ese código' };
 
@@ -181,7 +182,11 @@ export async function toggleGiftCardAction(giftCardId: string, isActive: boolean
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
+    const [card] = await db
+      .select()
+      .from(giftCards)
+      .where(and(eq(giftCards.id, giftCardId), notDeletedGiftCard))
+      .limit(1);
     if (!card) return { error: 'Gift card no encontrada' };
 
     const biz = await verifyOwnership(card.businessId, session.user.id);
@@ -195,20 +200,27 @@ export async function toggleGiftCardAction(giftCardId: string, isActive: boolean
   }
 }
 
-/* ─── Dashboard: delete gift card ─── */
+/* ─── Dashboard: delete gift card (soft-delete) ─── */
 
 export async function deleteGiftCardAction(giftCardId: string) {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
+    const [card] = await db
+      .select()
+      .from(giftCards)
+      .where(and(eq(giftCards.id, giftCardId), notDeletedGiftCard))
+      .limit(1);
     if (!card) return { error: 'Gift card no encontrada' };
 
     const biz = await verifyOwnership(card.businessId, session.user.id);
     if (!biz) return { error: 'No autorizado' };
 
-    await db.delete(giftCards).where(eq(giftCards.id, giftCardId));
+    await db
+      .update(giftCards)
+      .set({ deletedAt: new Date(), deletedBy: session.user.id, isActive: false })
+      .where(eq(giftCards.id, giftCardId));
 
     return { success: true };
   } catch {
@@ -232,7 +244,12 @@ export async function validateGiftCardAction(
       .select()
       .from(giftCards)
       .where(
-        and(eq(giftCards.businessId, businessId), eq(giftCards.code, normalizedCode), eq(giftCards.isActive, true))
+        and(
+          eq(giftCards.businessId, businessId),
+          eq(giftCards.code, normalizedCode),
+          eq(giftCards.isActive, true),
+          notDeletedGiftCard
+        )
       )
       .limit(1);
 
@@ -325,7 +342,11 @@ export interface DeductGiftCardResult {
 }
 
 export async function deductGiftCardBalance(giftCardId: string, amount: number): Promise<DeductGiftCardResult> {
-  const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
+  const [card] = await db
+    .select()
+    .from(giftCards)
+    .where(and(eq(giftCards.id, giftCardId), notDeletedGiftCard))
+    .limit(1);
   if (!card) return { success: false, error: 'Gift card no encontrada' };
   if (!card.isActive) return { success: false, error: 'Gift card inactiva' };
 
@@ -406,7 +427,11 @@ export async function redeemGiftCardManuallyAction(input: ManualRedeemInput) {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
-    const [card] = await db.select().from(giftCards).where(eq(giftCards.id, input.giftCardId)).limit(1);
+    const [card] = await db
+      .select()
+      .from(giftCards)
+      .where(and(eq(giftCards.id, input.giftCardId), notDeletedGiftCard))
+      .limit(1);
     if (!card) return { error: 'Gift card no encontrada' };
 
     const biz = await verifyOwnership(card.businessId, session.user.id);
@@ -472,7 +497,11 @@ export async function getGiftCardForRedemptionAction(code: string) {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) return { error: 'Código inválido' };
 
-    const [card] = await db.select().from(giftCards).where(eq(giftCards.code, normalizedCode)).limit(1);
+    const [card] = await db
+      .select()
+      .from(giftCards)
+      .where(and(eq(giftCards.code, normalizedCode), notDeletedGiftCard))
+      .limit(1);
     if (!card) return { error: 'Gift card no encontrada' };
 
     const biz = await verifyOwnership(card.businessId, session.user.id);
@@ -484,7 +513,7 @@ export async function getGiftCardForRedemptionAction(code: string) {
       applicableProducts = await db
         .select({ id: products.id, name: products.name, price: products.price })
         .from(products)
-        .where(inArray(products.id, applicableIds));
+        .where(and(inArray(products.id, applicableIds), notDeletedProduct));
     }
 
     return { data: { ...card, applicableProducts } };
@@ -499,7 +528,11 @@ export async function getGiftCardRedemptionsAction(giftCardId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: 'No autorizado', data: [] };
 
-  const [card] = await db.select().from(giftCards).where(eq(giftCards.id, giftCardId)).limit(1);
+  const [card] = await db
+    .select()
+    .from(giftCards)
+    .where(and(eq(giftCards.id, giftCardId), notDeletedGiftCard))
+    .limit(1);
   if (!card) return { error: 'Gift card no encontrada', data: [] };
 
   const biz = await verifyOwnership(card.businessId, session.user.id);

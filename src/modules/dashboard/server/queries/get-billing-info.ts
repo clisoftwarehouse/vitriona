@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { businesses, businessAiQuotas } from '@/db/schema';
 
 export interface BillingInfo {
@@ -37,7 +38,7 @@ export async function getBillingInfo(businessId: string): Promise<BillingInfo | 
       createdAt: businesses.createdAt,
     })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!biz) return null;

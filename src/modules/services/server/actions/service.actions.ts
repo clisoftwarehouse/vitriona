@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and, asc, desc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { catalogs, services, businesses } from '@/db/schema';
 import { generateSlug } from '@/modules/businesses/lib/slug';
 import type { CreateServiceFormValues } from '@/modules/services/ui/schemas/service.schemas';
@@ -17,7 +18,7 @@ async function verifyCatalogOwnership(catalogId: string, userId: string) {
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, catalog.businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
 
   return business ? catalog : null;

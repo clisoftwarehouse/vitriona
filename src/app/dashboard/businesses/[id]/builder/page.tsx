@@ -1,9 +1,10 @@
-import { eq, and } from 'drizzle-orm';
+﻿import { eq, and } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { catalogs, businesses } from '@/db/schema';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { SiteBuilder } from '@/modules/catalogs/ui/components/site-builder';
 import { getCatalogSettingsForBuilder } from '@/modules/catalogs/server/actions/update-catalog-settings.action';
 
@@ -21,7 +22,7 @@ export default async function BusinessBuilderPage({ params }: BuilderPageProps) 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, id), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, id), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
 
   if (!business) notFound();

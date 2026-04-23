@@ -1,8 +1,9 @@
-import { notFound } from 'next/navigation';
+﻿import { notFound } from 'next/navigation';
 import { eq, and, asc } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { PosDashboard } from '@/modules/pos/ui/components/pos-dashboard';
 import {
   products,
@@ -27,7 +28,7 @@ export default async function PosPage({ params }: PosPageProps) {
   const [business] = await db
     .select({ id: businesses.id, currency: businesses.currency })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) notFound();
 

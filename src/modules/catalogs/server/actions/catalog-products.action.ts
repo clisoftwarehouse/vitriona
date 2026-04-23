@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { revalidateProductsCache } from '@/lib/cache-revalidation';
 import { products, businesses, catalogProducts } from '@/db/schema';
 
@@ -14,7 +15,7 @@ export async function getBusinessProductsWithCatalogStatus(businessId: string, c
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return { error: 'Negocio no encontrado' };
 
@@ -52,7 +53,7 @@ export async function syncCatalogProductsAction(catalogId: string, businessId: s
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!business) return { error: 'No autorizado' };
 

@@ -1,9 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { users, otpTokens } from '@/db/schema';
+import { notDeletedUser } from '@/db/soft-delete';
 import { rateLimitAction } from '@/lib/rate-limit';
 import { sendOtpEmail } from '@/modules/auth/server/email/resend';
 import { hashPassword } from '@/modules/auth/server/lib/password';
@@ -20,7 +21,11 @@ export async function registerAction(values: RegisterFormValues) {
 
     const { email, name, password } = parsed.data;
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, email), notDeletedUser))
+      .limit(1);
 
     if (existing) return { error: 'Este email ya está registrado' };
 

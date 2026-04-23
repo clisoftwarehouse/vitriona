@@ -1,9 +1,10 @@
-'use server';
+﻿'use server';
 
 import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
+import { notDeletedOrder, notDeletedBusiness } from '@/db/soft-delete';
 import { syncProductStockWithVariants } from '@/lib/sync-product-stock';
 import { syncBundlesForComponent } from '@/modules/products/server/lib/bundles';
 import {
@@ -22,13 +23,17 @@ type OrderStatus = 'pending_payment' | 'payment_verified' | 'preparing' | 'shipp
 // ── Helpers ──
 
 async function verifyOrderOwnership(orderId: string, userId: string) {
-  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), notDeletedOrder))
+    .limit(1);
   if (!order) return null;
 
   const [business] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(and(eq(businesses.id, order.businessId), eq(businesses.userId, userId)))
+    .where(and(eq(businesses.id, order.businessId), eq(businesses.userId, userId), notDeletedBusiness))
     .limit(1);
 
   return business ? order : null;

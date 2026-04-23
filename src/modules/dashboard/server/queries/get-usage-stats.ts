@@ -1,10 +1,11 @@
-'use server';
+﻿'use server';
 
 import { eq, and, count } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { getVisitCount } from '@/lib/visit-tracker';
+import { notDeletedBusiness } from '@/db/soft-delete';
 import { getPlanLimits, type PlanType, hasCustomLimits } from '@/lib/plan-limits';
 import { products, businesses, paymentMethods, deliveryMethods, businessAiQuotas } from '@/db/schema';
 
@@ -39,7 +40,7 @@ export async function getUsageStats(businessId: string): Promise<UsageStats | nu
       customLimitsNote: businesses.customLimitsNote,
     })
     .from(businesses)
-    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id)))
+    .where(and(eq(businesses.id, businessId), eq(businesses.userId, session.user.id), notDeletedBusiness))
     .limit(1);
   if (!biz) return null;
 
