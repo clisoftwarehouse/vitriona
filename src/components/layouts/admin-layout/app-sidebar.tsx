@@ -78,6 +78,11 @@ export function AppSidebar({
               icon: BookOpen,
             },
             {
+              label: 'Links',
+              href: `/dashboard/businesses/${activeBusiness.id}/links`,
+              icon: ExternalLink,
+            },
+            {
               label: 'Categorías',
               href: `/dashboard/businesses/${activeBusiness.id}/categories`,
               icon: Tags,

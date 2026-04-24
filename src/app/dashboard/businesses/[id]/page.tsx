@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Bot, Store, QrCode, ArrowLeft, Paintbrush, ChevronDown } from 'lucide-react';
+import { Bot, Store, QrCode, ArrowLeft, Paintbrush, ChevronDown, ExternalLink } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -136,6 +136,25 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
             </div>
             <Button asChild>
               <Link href={`/dashboard/businesses/${business.id}/qr`}>Abrir QR Studio</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className='border-primary/20 bg-primary/5'>
+          <CardContent className='flex items-center justify-between p-5'>
+            <div className='flex items-center gap-3'>
+              <div className='bg-primary/10 flex size-10 items-center justify-center rounded-lg'>
+                <ExternalLink className='text-primary size-5' />
+              </div>
+              <div>
+                <h3 className='font-semibold'>Página de Links</h3>
+                <p className='text-muted-foreground text-sm'>
+                  Tu link bio tipo Linktree con todos tus links y redes sociales.
+                </p>
+              </div>
+            </div>
+            <Button asChild>
+              <Link href={`/dashboard/businesses/${business.id}/links`}>Gestionar links</Link>
             </Button>
           </CardContent>
         </Card>
