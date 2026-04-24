@@ -417,7 +417,7 @@ export function StorefrontCatalog({
                           ? 'Experiencias'
                           : 'Todos los productos'}
               </h2>
-              <span className='text-sm opacity-40'>
+              <span className='text-sm opacity-60'>
                 {products.length} producto{products.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -906,7 +906,7 @@ function SearchBar({
 
   return (
     <div className='relative w-full'>
-      <Search className={`absolute top-1/2 left-4 size-4 -translate-y-1/2 ${dark ? 'text-white/50' : 'opacity-40'}`} />
+      <Search className={`absolute top-1/2 left-4 size-4 -translate-y-1/2 ${dark ? 'text-white/70' : 'opacity-60'}`} />
       <input
         type='text'
         value={value}
@@ -927,7 +927,8 @@ function SearchBar({
       {value ? (
         <button
           onClick={() => onChange('')}
-          className={`absolute top-1/2 right-4 -translate-y-1/2 rounded-full p-0.5 transition-colors ${dark ? 'text-white/50 hover:text-white' : 'opacity-40 hover:opacity-70'}`}
+          aria-label='Limpiar búsqueda'
+          className={`absolute top-1/2 right-4 -translate-y-1/2 rounded-full p-0.5 transition-colors ${dark ? 'text-white/70 hover:text-white' : 'opacity-60 hover:opacity-90'}`}
         >
           <X className='size-4' />
         </button>
@@ -935,8 +936,8 @@ function SearchBar({
         <kbd
           className='absolute top-1/2 right-4 -translate-y-1/2 border px-1.5 py-0.5 font-mono text-[10px]'
           style={{
-            borderColor: dark ? 'rgba(255,255,255,0.2)' : 'var(--sf-border, #e5e7eb)',
-            color: dark ? 'rgba(255,255,255,0.4)' : 'var(--sf-border, #e5e7eb)',
+            borderColor: dark ? 'rgba(255,255,255,0.3)' : 'var(--sf-border, #e5e7eb)',
+            color: dark ? 'rgba(255,255,255,0.7)' : 'var(--sf-muted-foreground, #6b7280)',
             borderRadius: 'calc(var(--sf-radius, 0.75rem) * 0.5)',
           }}
         >
@@ -1079,7 +1080,7 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
   return (
     <div className='mb-6 flex items-center justify-between'>
       <h2 className='text-xl font-bold tracking-tight'>{title}</h2>
-      <span className='text-sm opacity-40'>
+      <span className='text-sm opacity-60'>
         {count} producto{count !== 1 ? 's' : ''}
       </span>
     </div>
@@ -1154,11 +1155,11 @@ function CatalogsCarousel({ catalogs, slug }: { catalogs: CatalogPreview[]; slug
             <div className='flex items-center justify-between p-3'>
               <div className='min-w-0'>
                 <h3 className='truncate text-sm font-semibold'>{cat.name}</h3>
-                {cat.description && <p className='mt-0.5 truncate text-xs opacity-50'>{cat.description}</p>}
+                {cat.description && <p className='mt-0.5 truncate text-xs opacity-70'>{cat.description}</p>}
               </div>
               <div className='flex shrink-0 items-center gap-1 pl-2'>
-                <span className='text-xs opacity-40'>{cat.totalProducts}</span>
-                <ChevronRight className='size-3.5 opacity-40 transition-transform group-hover:translate-x-0.5' />
+                <span className='text-xs opacity-60'>{cat.totalProducts}</span>
+                <ChevronRight className='size-3.5 opacity-60 transition-transform group-hover:translate-x-0.5' />
               </div>
             </div>
           </Link>
@@ -1272,9 +1273,9 @@ function RestaurantMenu({
       {sections.map((section) => (
         <div key={section.name}>
           <div className='mb-5 border-b-2 pb-2' style={{ borderColor: 'var(--sf-primary, #000)' }}>
-            <h3 className='text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
+            <h2 className='text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
               {section.name}
-            </h3>
+            </h2>
           </div>
           <div className='space-y-5'>
             {section.items.map((p) => {
@@ -1405,9 +1406,9 @@ function ServicesList({
     <div className='space-y-10'>
       {sections.map((section) => (
         <div key={section.name}>
-          <h3 className='mb-4 text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
+          <h2 className='mb-4 text-lg font-bold tracking-tight sm:text-xl' style={{ color: 'var(--sf-primary, #000)' }}>
             {section.name}
-          </h3>
+          </h2>
           <div className='grid gap-4'>
             {section.items.map((p) => (
               <Link
@@ -1439,7 +1440,7 @@ function ServicesList({
                   {showWatermark && p.images[0]?.url && <WatermarkOverlay />}
                 </div>
                 <div className='flex flex-1 flex-col justify-center py-3 pr-4'>
-                  <h4 className='text-sm font-semibold sm:text-base'>{p.name}</h4>
+                  <h3 className='text-sm font-semibold sm:text-base'>{p.name}</h3>
                   {p.description && (
                     <p className='mt-1 line-clamp-2 text-xs leading-relaxed opacity-50 sm:text-sm'>{p.description}</p>
                   )}
@@ -1524,7 +1525,7 @@ function ExperiencesGrid({
             <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
             {/* Text overlay */}
             <div className='absolute inset-x-0 bottom-0 p-4 text-white'>
-              <h4 className='text-base font-bold sm:text-lg'>{p.name}</h4>
+              <h3 className='text-base font-bold sm:text-lg'>{p.name}</h3>
               {p.description && <p className='mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm'>{p.description}</p>}
               <div className='mt-2 flex items-center gap-3'>
                 {showPrices && <span className='text-sm font-bold'>{fmt(p.price)}</span>}

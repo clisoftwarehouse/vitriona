@@ -146,6 +146,7 @@ export function CatalogSections({ slug, currency, catalogs, showWatermark = fals
 
                     <button
                       onClick={(e) => handleAddToCart(e, product)}
+                      aria-label={`Añadir ${product.name} al carrito`}
                       className='absolute right-2 bottom-2 flex size-8 items-center justify-center text-white opacity-0 shadow-lg transition-all group-hover:opacity-100'
                       style={{ backgroundColor: 'var(--sf-primary, #000)', borderRadius: 'var(--sf-radius, 0.75rem)' }}
                     >
@@ -157,7 +158,7 @@ export function CatalogSections({ slug, currency, catalogs, showWatermark = fals
                     {product.brandName && (
                       <span
                         className='mb-0.5 block text-[11px] font-semibold tracking-wide uppercase'
-                        style={{ color: 'var(--sf-primary, #000)', opacity: 0.6 }}
+                        style={{ color: 'var(--sf-primary, #000)', opacity: 0.75 }}
                       >
                         {product.brandName}
                       </span>
@@ -168,7 +169,7 @@ export function CatalogSections({ slug, currency, catalogs, showWatermark = fals
                         {formatPrice(product.price, currency)}
                       </span>
                       {hasDiscount(product) && (
-                        <span className='text-xs line-through opacity-40'>
+                        <span className='text-xs line-through opacity-60'>
                           {formatPrice(product.compareAtPrice!, currency)}
                         </span>
                       )}
