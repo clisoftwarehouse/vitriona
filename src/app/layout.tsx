@@ -9,7 +9,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Vitriona | Crea tu tienda online con IA y WhatsApp — Ecommerce todo-en-uno',
+    default: 'Vitriona | Crea tu tienda online con IA y WhatsApp',
     template: '%s | Vitriona',
   },
   description:
