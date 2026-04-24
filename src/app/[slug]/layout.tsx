@@ -169,7 +169,8 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
               {business.logoUrl ? (
                 <Image
                   src={business.logoUrl}
-                  alt={business.name}
+                  alt={settings?.headerTitle ? '' : business.name}
+                  aria-hidden={settings?.headerTitle ? true : undefined}
                   width={logoSize}
                   height={logoSize}
                   className='object-contain'
@@ -266,7 +267,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
 
               {/* Contact column */}
               <div>
-                <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Contacto</h4>
+                <h3 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-70'>Contacto</h3>
                 <div className='flex flex-col gap-2.5 text-sm opacity-70'>
                   {business.phone && (
                     <a href={`tel:${business.phone}`} className='flex items-center gap-2 hover:opacity-100'>
@@ -291,7 +292,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
 
               {/* Quick links */}
               <div>
-                <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Tienda</h4>
+                <h3 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-70'>Tienda</h3>
                 <div className='flex flex-col gap-2 text-sm opacity-70'>
                   <Link href={`/${slug}`} className='hover:opacity-100'>
                     Todos los productos
@@ -315,7 +316,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
               {/* Social links */}
               {hasSocials && (
                 <div>
-                  <h4 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-40'>Redes sociales</h4>
+                  <h3 className='mb-3 text-sm font-semibold tracking-wider uppercase opacity-70'>Redes sociales</h3>
                   <div className='flex flex-wrap gap-3'>
                     {socialLinks?.instagram && (
                       <a

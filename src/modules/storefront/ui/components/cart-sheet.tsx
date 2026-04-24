@@ -55,6 +55,11 @@ export function CartSheet({ slug, currency }: CartSheetProps) {
         <button
           className='relative inline-flex items-center justify-center rounded-full p-2 transition-opacity hover:opacity-70'
           style={{ color: 'var(--sf-text, #111827)' }}
+          aria-label={
+            itemCount > 0
+              ? `Abrir carrito (${itemCount} ${itemCount === 1 ? 'producto' : 'productos'})`
+              : 'Abrir carrito'
+          }
         >
           <ShoppingBag className='size-5' />
           {itemCount > 0 && (
