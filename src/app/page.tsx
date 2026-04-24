@@ -8,6 +8,7 @@ import { Pricing } from './_components/pricing';
 import { AIAddOn } from './_components/ai-addon';
 import { Features } from './_components/features';
 import { HowItWorks } from './_components/how-it-works';
+import { LinkBioFeature } from './_components/link-bio-feature';
 import { SiteBuilderFeature } from './_components/site-builder-feature';
 
 export default function Home() {
@@ -19,6 +20,7 @@ export default function Home() {
         <Hero />
         <Features />
         <SiteBuilderFeature />
+        <LinkBioFeature />
         <HowItWorks />
         <Pricing />
         <AIAddOn />
