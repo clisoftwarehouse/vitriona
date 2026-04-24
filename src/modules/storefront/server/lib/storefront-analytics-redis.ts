@@ -49,6 +49,17 @@ function normalizeText(value?: string | null) {
   return normalized ? normalized : null;
 }
 
+function safeDecodeText(value?: string | null) {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return null;
+  if (!trimmed.includes('%')) return trimmed;
+  try {
+    return normalizeText(decodeURIComponent(trimmed));
+  } catch {
+    return trimmed;
+  }
+}
+
 function serializeLocalityMember(location?: GeoLocationInput) {
   const countryCode = normalizeText(location?.countryCode)?.toUpperCase() ?? null;
   const region = normalizeText(location?.region);
@@ -71,8 +82,8 @@ export function parseLocalityMember(member: string) {
 
     return {
       countryCode: normalizeText(parsed.countryCode)?.toUpperCase() ?? null,
-      region: normalizeText(parsed.region),
-      city: normalizeText(parsed.city),
+      region: safeDecodeText(parsed.region),
+      city: safeDecodeText(parsed.city),
     };
   } catch {
     return {

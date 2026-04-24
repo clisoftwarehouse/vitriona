@@ -22,6 +22,15 @@ function normalizeText(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function decodeHeaderText(value: string | null | undefined) {
+  if (value == null) return null;
+  try {
+    return normalizeText(decodeURIComponent(value));
+  } catch {
+    return normalizeText(value);
+  }
+}
+
 export function normalizeCountryCode(countryCode: string | null | undefined) {
   const normalizedCode = countryCode?.trim().toUpperCase();
 
@@ -75,13 +84,14 @@ export function getGeoLocationFromHeaders(request: Request): GeoLocation {
   return {
     countryCode,
     country:
-      normalizeText(request.headers.get('x-vercel-ip-country-name')) ??
-      normalizeText(request.headers.get('x-country-name')) ??
+      decodeHeaderText(request.headers.get('x-vercel-ip-country-name')) ??
+      decodeHeaderText(request.headers.get('x-country-name')) ??
       getCountryNameFromCode(countryCode),
     region:
-      normalizeText(request.headers.get('x-vercel-ip-country-region')) ??
-      normalizeText(request.headers.get('x-region-name')),
-    city: normalizeText(request.headers.get('x-vercel-ip-city')) ?? normalizeText(request.headers.get('x-city-name')),
+      decodeHeaderText(request.headers.get('x-vercel-ip-country-region')) ??
+      decodeHeaderText(request.headers.get('x-region-name')),
+    city:
+      decodeHeaderText(request.headers.get('x-vercel-ip-city')) ?? decodeHeaderText(request.headers.get('x-city-name')),
   };
 }
 
