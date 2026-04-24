@@ -29,7 +29,7 @@ export default async function BusinessLinksPage({ params }: Props) {
         <div>
           <h2 className='text-xl font-semibold tracking-tight'>Página de Links</h2>
           <p className='text-muted-foreground mt-0.5 text-sm'>
-            Tu link bio tipo Linktree para <strong>{business.name}</strong>.
+            Tu bio link personalizable para <strong>{business.name}</strong>.
           </p>
         </div>
       </div>

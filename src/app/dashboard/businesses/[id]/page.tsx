@@ -149,7 +149,7 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
               <div>
                 <h3 className='font-semibold'>Página de Links</h3>
                 <p className='text-muted-foreground text-sm'>
-                  Tu link bio tipo Linktree con todos tus links y redes sociales.
+                  Agrupa todas tus redes sociales y enlaces importantes en una sola URL personalizable.
                 </p>
               </div>
             </div>

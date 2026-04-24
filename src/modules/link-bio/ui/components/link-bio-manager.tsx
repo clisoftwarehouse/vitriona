@@ -1,10 +1,14 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useTransition } from 'react';
 import {
+  X,
   Eye,
   Plus,
+  Check,
   Store,
+  Pencil,
   Trash2,
   EyeOff,
   Palette,
@@ -15,32 +19,38 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 
+import { IconPicker } from './icon-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { LinkBrandIcon } from './link-brand-icon';
 import { Separator } from '@/components/ui/separator';
 import type { linkPages, linkPageLinks } from '@/db/schema';
 import type { LinkType } from '../schemas/link-bio.schemas';
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from '@/components/ui/select';
 import {
-  FONTS,
-  LINK_TYPES,
-  FONT_LABELS,
-  BUTTON_STYLES,
-  LINK_TYPE_LABELS,
-  BUTTON_STYLE_LABELS,
-  LINK_TYPE_DEFAULT_ICONS,
-} from '../schemas/link-bio.schemas';
-import {
   addLinkAction,
   deleteLinkAction,
+  updateLinkAction,
   reorderLinksAction,
   seedSocialLinksAction,
   toggleLinkActiveAction,
   updateLinkPageSettingsAction,
 } from '../../server/actions/link-bio.actions';
+import {
+  FONTS,
+  LINK_TYPES,
+  FONT_LABELS,
+  BUTTON_STYLES,
+  linkItemSchema,
+  LINK_TYPE_LABELS,
+  displayUrlForType,
+  BUTTON_STYLE_LABELS,
+  normalizeUrlForType,
+  getUrlInputPropsForType,
+} from '../schemas/link-bio.schemas';
 
 type LinkPage = typeof linkPages.$inferSelect;
 type LinkItem = typeof linkPageLinks.$inferSelect;
@@ -138,12 +148,107 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
   const [newEmoji, setNewEmoji] = useState('');
   const [newIconImageUrl, setNewIconImageUrl] = useState('');
 
+  // Validation errors
+  const [addUrlError, setAddUrlError] = useState<string | null>(null);
+  const [editUrlError, setEditUrlError] = useState<string | null>(null);
+
+  // ── Inline edit state (per-link) ──────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [editType, setEditType] = useState<LinkType>('custom');
+  const [editEmoji, setEditEmoji] = useState('');
+  const [editIconImageUrl, setEditIconImageUrl] = useState('');
+
+  function getZodUrlError(result: ReturnType<typeof linkItemSchema.safeParse>): string | null {
+    if (result.success) return null;
+    const urlIssue = result.error.issues.find((i) => i.path[0] === 'url');
+    if (urlIssue) return urlIssue.message;
+    return result.error.issues[0]?.message ?? 'Datos inválidos';
+  }
+
+  function resetNewLinkForm() {
+    setNewTitle('');
+    setNewUrl('');
+    setNewType('custom');
+    setNewEmoji('');
+    setNewIconImageUrl('');
+    setAddUrlError(null);
+  }
+
+  function startEdit(link: LinkItem) {
+    const type = link.linkType as LinkType;
+    setEditingId(link.id);
+    setEditTitle(link.title);
+    setEditUrl(displayUrlForType(link.url, type));
+    setEditType(type);
+    setEditEmoji(link.iconEmoji ?? '');
+    setEditIconImageUrl(link.iconImageUrl ?? '');
+    setEditUrlError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditUrlError(null);
+  }
+
+  function handleSaveEdit(linkId: string) {
+    if (!editTitle.trim() || !editUrl.trim()) return;
+    const normalizedUrl = normalizeUrlForType(editUrl, editType);
+    const payload = {
+      title: editTitle.trim(),
+      url: normalizedUrl,
+      linkType: editType,
+      iconEmoji: editEmoji || undefined,
+      iconImageUrl: editIconImageUrl || undefined,
+      isActive: true,
+      sortOrder: 0,
+    };
+    const parsed = linkItemSchema.safeParse(payload);
+    if (!parsed.success) {
+      setEditUrlError(getZodUrlError(parsed));
+      return;
+    }
+    setEditUrlError(null);
+    startTransition(async () => {
+      const result = await updateLinkAction(businessId, linkId, {
+        title: editTitle.trim(),
+        url: normalizedUrl,
+        linkType: editType,
+        iconEmoji: editEmoji || '',
+        iconImageUrl: editIconImageUrl || '',
+      });
+      if (!result.success) {
+        setEditUrlError(result.error);
+        return;
+      }
+      setLinks((prev) =>
+        prev.map((l) =>
+          l.id === linkId
+            ? {
+                ...l,
+                title: editTitle.trim(),
+                url: normalizedUrl,
+                linkType: editType,
+                iconEmoji: editEmoji || null,
+                iconImageUrl: editIconImageUrl || null,
+              }
+            : l
+        )
+      );
+      setEditingId(null);
+    });
+  }
+
   const publicUrl = `/${businessSlug}/links`;
   const isGradientBtn = buttonStyle === 'gradient';
 
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   function handleSaveSettings() {
+    setSettingsError(null);
     startTransition(async () => {
-      await updateLinkPageSettingsAction(businessId, {
+      const result = await updateLinkPageSettingsAction(businessId, {
         title,
         bio,
         isActive,
@@ -167,30 +272,37 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
         storefrontLinkTitle,
         storefrontLinkEnabled,
       });
+      if (!result.success) setSettingsError(result.error);
     });
   }
 
   function handleAddLink() {
     if (!newTitle.trim() || !newUrl.trim()) return;
+    const normalizedUrl = normalizeUrlForType(newUrl, newType);
+    const payload = {
+      title: newTitle.trim(),
+      url: normalizedUrl,
+      linkType: newType,
+      iconEmoji: newEmoji || undefined,
+      iconImageUrl: newIconImageUrl || undefined,
+      isActive: true,
+      sortOrder: links.length,
+    };
+    const parsed = linkItemSchema.safeParse(payload);
+    if (!parsed.success) {
+      setAddUrlError(getZodUrlError(parsed));
+      return;
+    }
+    setAddUrlError(null);
     startTransition(async () => {
-      const result = await addLinkAction(businessId, {
-        title: newTitle.trim(),
-        url: newUrl.trim(),
-        linkType: newType,
-        iconEmoji: newEmoji || LINK_TYPE_DEFAULT_ICONS[newType],
-        iconImageUrl: newIconImageUrl || undefined,
-        isActive: true,
-        sortOrder: links.length,
-      });
-      if (result.success && result.link) {
-        setLinks((prev) => [...prev, result.link!]);
-        setNewTitle('');
-        setNewUrl('');
-        setNewType('custom');
-        setNewEmoji('');
-        setNewIconImageUrl('');
-        setShowAddForm(false);
+      const result = await addLinkAction(businessId, payload);
+      if (!result.success) {
+        setAddUrlError(result.error);
+        return;
       }
+      setLinks((prev) => [...prev, result.data]);
+      resetNewLinkForm();
+      setShowAddForm(false);
     });
   }
 
@@ -271,49 +383,32 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
             <div className='bg-muted/40 rounded-lg border p-4'>
               <p className='mb-3 text-sm font-medium'>Nuevo link</p>
               <div className='flex flex-col gap-3'>
-                <div className='grid grid-cols-2 gap-3'>
-                  <div className='flex flex-col gap-1.5'>
-                    <Label className='text-xs'>Tipo</Label>
-                    <Select
-                      value={newType}
-                      onValueChange={(v) => {
-                        setNewType(v as LinkType);
-                        if (!newEmoji) setNewEmoji(LINK_TYPE_DEFAULT_ICONS[v as LinkType]);
-                      }}
-                    >
-                      <SelectTrigger className='h-8 text-xs'>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LINK_TYPES.map((t) => (
-                          <SelectItem key={t} value={t} className='text-xs'>
-                            {LINK_TYPE_DEFAULT_ICONS[t]} {LINK_TYPE_LABELS[t]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className='flex flex-col gap-1.5'>
-                    <Label className='text-xs'>Emoji del icono</Label>
-                    <Input
-                      value={newEmoji}
-                      onChange={(e) => setNewEmoji(e.target.value)}
-                      placeholder={LINK_TYPE_DEFAULT_ICONS[newType]}
-                      className='h-8 text-xs'
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
                 <div className='flex flex-col gap-1.5'>
-                  <Label className='text-xs'>URL de icono personalizado (opcional)</Label>
-                  <Input
-                    value={newIconImageUrl}
-                    onChange={(e) => setNewIconImageUrl(e.target.value)}
-                    placeholder='https://... (reemplaza el emoji)'
-                    className='h-8 text-xs'
-                    type='url'
-                  />
+                  <Label className='text-xs'>Tipo</Label>
+                  <Select value={newType} onValueChange={(v) => setNewType(v as LinkType)}>
+                    <SelectTrigger className='h-8 text-xs'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LINK_TYPES.map((t) => (
+                        <SelectItem key={t} value={t} className='text-xs'>
+                          <span className='inline-flex items-center gap-2'>
+                            <LinkBrandIcon linkType={t} className='size-3.5' />
+                            {LINK_TYPE_LABELS[t]}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                <IconPicker
+                  linkType={newType}
+                  emoji={newEmoji}
+                  imageUrl={newIconImageUrl}
+                  onEmojiChange={setNewEmoji}
+                  onImageUrlChange={setNewIconImageUrl}
+                  disabled={isPending}
+                />
                 <div className='flex flex-col gap-1.5'>
                   <Label className='text-xs'>Título</Label>
                   <Input
@@ -324,20 +419,44 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
                   />
                 </div>
                 <div className='flex flex-col gap-1.5'>
-                  <Label className='text-xs'>URL</Label>
-                  <Input
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder='https://'
-                    className='h-8 text-xs'
-                    type='url'
-                  />
+                  {(() => {
+                    const props = getUrlInputPropsForType(newType);
+                    return (
+                      <>
+                        <Label className='text-xs'>{props.label}</Label>
+                        <Input
+                          value={newUrl}
+                          onChange={(e) => {
+                            setNewUrl(e.target.value);
+                            if (addUrlError) setAddUrlError(null);
+                          }}
+                          placeholder={props.placeholder}
+                          className={`h-8 text-xs ${addUrlError ? 'border-destructive focus-visible:ring-destructive/30' : ''}`}
+                          type={props.inputType}
+                          aria-invalid={addUrlError ? true : undefined}
+                          aria-describedby={addUrlError ? 'add-url-error' : undefined}
+                        />
+                      </>
+                    );
+                  })()}
+                  {addUrlError && (
+                    <p id='add-url-error' className='text-destructive text-[11px]'>
+                      {addUrlError}
+                    </p>
+                  )}
                 </div>
                 <div className='flex gap-2'>
                   <Button size='sm' onClick={handleAddLink} disabled={isPending || !newTitle.trim() || !newUrl.trim()}>
                     Agregar
                   </Button>
-                  <Button size='sm' variant='ghost' onClick={() => setShowAddForm(false)}>
+                  <Button
+                    size='sm'
+                    variant='ghost'
+                    onClick={() => {
+                      setShowAddForm(false);
+                      resetNewLinkForm();
+                    }}
+                  >
                     Cancelar
                   </Button>
                 </div>
@@ -354,63 +473,172 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
             </div>
           ) : (
             <div className='flex flex-col gap-2'>
-              {links.map((link, index) => (
-                <div
-                  key={link.id}
-                  className={`bg-card flex items-center gap-3 rounded-lg border p-3 transition-opacity ${!link.isActive ? 'opacity-50' : ''}`}
-                >
-                  <div className='flex flex-col gap-0.5'>
-                    <button
-                      onClick={() => move(index, -1)}
-                      disabled={index === 0 || isPending}
-                      className='text-muted-foreground hover:text-foreground disabled:opacity-20'
-                    >
-                      <ChevronUp className='size-3.5' />
-                    </button>
-                    <button
-                      onClick={() => move(index, 1)}
-                      disabled={index === links.length - 1 || isPending}
-                      className='text-muted-foreground hover:text-foreground disabled:opacity-20'
-                    >
-                      <ChevronDown className='size-3.5' />
-                    </button>
+              {links.map((link, index) => {
+                const isEditing = editingId === link.id;
+                return (
+                  <div
+                    key={link.id}
+                    className={`bg-card flex flex-col gap-3 rounded-lg border p-3 transition-opacity ${!link.isActive && !isEditing ? 'opacity-50' : ''}`}
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='flex flex-col gap-0.5'>
+                        <button
+                          onClick={() => move(index, -1)}
+                          disabled={index === 0 || isPending || isEditing}
+                          className='text-muted-foreground hover:text-foreground disabled:opacity-20'
+                          aria-label='Mover arriba'
+                        >
+                          <ChevronUp className='size-3.5' />
+                        </button>
+                        <button
+                          onClick={() => move(index, 1)}
+                          disabled={index === links.length - 1 || isPending || isEditing}
+                          className='text-muted-foreground hover:text-foreground disabled:opacity-20'
+                          aria-label='Mover abajo'
+                        >
+                          <ChevronDown className='size-3.5' />
+                        </button>
+                      </div>
+                      <div className='bg-muted flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full'>
+                        {link.iconImageUrl ? (
+                          <Image
+                            src={link.iconImageUrl}
+                            alt=''
+                            width={32}
+                            height={32}
+                            className='size-full object-cover'
+                          />
+                        ) : link.iconEmoji ? (
+                          <span className='text-base leading-none'>{link.iconEmoji}</span>
+                        ) : (
+                          <LinkBrandIcon linkType={link.linkType as LinkType} className='size-4' />
+                        )}
+                      </div>
+                      <div className='min-w-0 flex-1'>
+                        <p className='truncate text-sm font-medium'>{link.title}</p>
+                        <p className='text-muted-foreground truncate text-xs'>{link.url}</p>
+                      </div>
+                      <Badge variant='outline' className='hidden shrink-0 text-xs sm:flex'>
+                        {LINK_TYPE_LABELS[link.linkType as LinkType] ?? link.linkType}
+                      </Badge>
+                      <div className='flex shrink-0 items-center gap-1'>
+                        <button
+                          onClick={() => (isEditing ? cancelEdit() : startEdit(link))}
+                          disabled={isPending}
+                          className={`${isEditing ? 'text-foreground' : 'text-muted-foreground'} hover:text-foreground`}
+                          aria-label={isEditing ? 'Cancelar edición' : 'Editar link'}
+                        >
+                          {isEditing ? <X className='size-4' /> : <Pencil className='size-4' />}
+                        </button>
+                        <button
+                          onClick={() => handleToggle(link.id, link.isActive)}
+                          disabled={isPending || isEditing}
+                          className='text-muted-foreground hover:text-foreground'
+                          aria-label={link.isActive ? 'Ocultar' : 'Mostrar'}
+                        >
+                          {link.isActive ? <Eye className='size-4' /> : <EyeOff className='size-4' />}
+                        </button>
+                        <a
+                          href={link.url}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='text-muted-foreground hover:text-foreground'
+                          aria-label='Abrir link'
+                        >
+                          <ExternalLink className='size-4' />
+                        </a>
+                        <button
+                          onClick={() => handleDelete(link.id)}
+                          disabled={isPending || isEditing}
+                          className='text-muted-foreground hover:text-destructive'
+                          aria-label='Eliminar link'
+                        >
+                          <Trash2 className='size-4' />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditing && (
+                      <div className='bg-muted/40 mt-1 flex flex-col gap-3 rounded-md border p-3'>
+                        <div className='flex flex-col gap-1.5'>
+                          <Label className='text-xs'>Tipo</Label>
+                          <Select value={editType} onValueChange={(v) => setEditType(v as LinkType)}>
+                            <SelectTrigger className='h-8 text-xs'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {LINK_TYPES.map((t) => (
+                                <SelectItem key={t} value={t} className='text-xs'>
+                                  <span className='inline-flex items-center gap-2'>
+                                    <LinkBrandIcon linkType={t} className='size-3.5' />
+                                    {LINK_TYPE_LABELS[t]}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <IconPicker
+                          linkType={editType}
+                          emoji={editEmoji}
+                          imageUrl={editIconImageUrl}
+                          onEmojiChange={setEditEmoji}
+                          onImageUrlChange={setEditIconImageUrl}
+                          disabled={isPending}
+                        />
+                        <div className='flex flex-col gap-1.5'>
+                          <Label className='text-xs'>Título</Label>
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className='h-8 text-xs'
+                          />
+                        </div>
+                        <div className='flex flex-col gap-1.5'>
+                          {(() => {
+                            const props = getUrlInputPropsForType(editType);
+                            return (
+                              <>
+                                <Label className='text-xs'>{props.label}</Label>
+                                <Input
+                                  value={editUrl}
+                                  onChange={(e) => {
+                                    setEditUrl(e.target.value);
+                                    if (editUrlError) setEditUrlError(null);
+                                  }}
+                                  placeholder={props.placeholder}
+                                  className={`h-8 text-xs ${editUrlError ? 'border-destructive focus-visible:ring-destructive/30' : ''}`}
+                                  type={props.inputType}
+                                  aria-invalid={editUrlError ? true : undefined}
+                                  aria-describedby={editUrlError ? `edit-url-error-${link.id}` : undefined}
+                                />
+                              </>
+                            );
+                          })()}
+                          {editUrlError && (
+                            <p id={`edit-url-error-${link.id}`} className='text-destructive text-[11px]'>
+                              {editUrlError}
+                            </p>
+                          )}
+                        </div>
+                        <div className='flex gap-2'>
+                          <Button
+                            size='sm'
+                            onClick={() => handleSaveEdit(link.id)}
+                            disabled={isPending || !editTitle.trim() || !editUrl.trim()}
+                          >
+                            <Check className='mr-1.5 size-3.5' />
+                            Guardar
+                          </Button>
+                          <Button size='sm' variant='ghost' onClick={cancelEdit} disabled={isPending}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className='text-lg leading-none'>
-                    {link.iconEmoji || LINK_TYPE_DEFAULT_ICONS[link.linkType as LinkType] || '🔗'}
-                  </span>
-                  <div className='min-w-0 flex-1'>
-                    <p className='truncate text-sm font-medium'>{link.title}</p>
-                    <p className='text-muted-foreground truncate text-xs'>{link.url}</p>
-                  </div>
-                  <Badge variant='outline' className='hidden shrink-0 text-xs sm:flex'>
-                    {LINK_TYPE_LABELS[link.linkType as LinkType] ?? link.linkType}
-                  </Badge>
-                  <div className='flex shrink-0 items-center gap-1'>
-                    <button
-                      onClick={() => handleToggle(link.id, link.isActive)}
-                      disabled={isPending}
-                      className='text-muted-foreground hover:text-foreground'
-                    >
-                      {link.isActive ? <Eye className='size-4' /> : <EyeOff className='size-4' />}
-                    </button>
-                    <a
-                      href={link.url}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className='text-muted-foreground hover:text-foreground'
-                    >
-                      <ExternalLink className='size-4' />
-                    </a>
-                    <button
-                      onClick={() => handleDelete(link.id)}
-                      disabled={isPending}
-                      className='text-muted-foreground hover:text-destructive'
-                    >
-                      <Trash2 className='size-4' />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Storefront link preview */}
               {storefrontLinkEnabled && (
@@ -663,6 +891,7 @@ export function LinkBioManager({ businessId, businessSlug, page, links: initialL
               <Button size='sm' onClick={handleSaveSettings} disabled={isPending} className='w-full'>
                 {isPending ? 'Guardando...' : 'Guardar cambios'}
               </Button>
+              {settingsError && <p className='text-destructive text-center text-xs'>{settingsError}</p>}
             </div>
           </div>
         </div>

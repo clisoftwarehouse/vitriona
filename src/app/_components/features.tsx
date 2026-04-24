@@ -12,6 +12,7 @@ import {
   Truck,
   MapPin,
   QrCode,
+  Share2,
   Shield,
   Receipt,
   Package,
@@ -39,6 +40,12 @@ const FEATURES = [
     icon: Palette,
     title: 'Site Builder visual',
     description: 'Personaliza colores, tipografías, secciones y layout sin escribir una sola línea de código.',
+  },
+  {
+    icon: Share2,
+    title: 'Página de Links (bio link)',
+    description:
+      'Una URL corta para tu bio de Instagram o TikTok. Agrupa tus redes, tu tienda y tu contacto en un solo lugar totalmente personalizable.',
   },
   {
     icon: Bot,

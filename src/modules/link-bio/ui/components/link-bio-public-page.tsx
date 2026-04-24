@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import { Store, ExternalLink } from 'lucide-react';
 
+import { LinkBrandIcon } from './link-brand-icon';
 import type { LinkType } from '../schemas/link-bio.schemas';
-import { LINK_TYPE_DEFAULT_ICONS } from '../schemas/link-bio.schemas';
 import type { linkPages, businesses, linkPageLinks } from '@/db/schema';
+import { isLightColor, safeRingColor, contrastRatio, pickReadableColor, getEffectivePageBg } from '../lib/contrast';
 
 type Business = typeof businesses.$inferSelect;
 type LinkPage = typeof linkPages.$inferSelect;
@@ -41,8 +42,16 @@ interface BtnStyleProps {
   gradientAngle: number;
   radius: number;
   style: string;
+  pageBg: string;
 }
 
+/**
+ * Builds a button style with contrast safeguards:
+ *  - Solid/gradient fills: auto-pick text color if user's pick fails WCAG AA vs the fill.
+ *  - Outlined / link / glass: auto-pick text & border color vs the page background so the button
+ *    never disappears when someone configures a white button on a white page.
+ *  - Glass/soft: always carry a page-aware ring so the edge is visible on any background.
+ */
 function getButtonStyle({
   btnColor,
   btnTextColor,
@@ -51,44 +60,90 @@ function getButtonStyle({
   gradientAngle,
   radius,
   style,
+  pageBg,
 }: BtnStyleProps): React.CSSProperties {
   const r = `${radius}px`;
+  const ring = safeRingColor(pageBg, 0.15);
+  const strongRing = safeRingColor(pageBg, 0.28);
+
+  // If the user's "button color" barely contrasts with the page, swap to a high-contrast
+  // fallback for outlined / ghost-style variants so those buttons remain visible.
+  const accentOnPage = contrastRatio(pageBg, btnColor) >= 3 ? btnColor : isLightColor(pageBg) ? '#111111' : '#ffffff';
+
   switch (style) {
     case 'outlined':
-      return { background: 'transparent', color: btnColor, borderRadius: r, border: `2px solid ${btnColor}` };
-    case 'soft':
-      return { background: `${btnColor}28`, color: btnColor, borderRadius: r, border: `1px solid ${btnColor}40` };
-    case 'glass':
       return {
-        background: 'rgba(255,255,255,0.08)',
-        color: btnTextColor,
+        background: 'transparent',
+        color: accentOnPage,
         borderRadius: r,
-        border: '1px solid rgba(255,255,255,0.18)',
+        border: `2px solid ${accentOnPage}`,
+        boxShadow: `0 0 0 1px ${ring}`,
+      };
+    case 'soft': {
+      const softBg = `${accentOnPage}22`;
+      return {
+        background: softBg,
+        color: accentOnPage,
+        borderRadius: r,
+        border: `1px solid ${accentOnPage}40`,
+        boxShadow: `0 0 0 1px ${ring}`,
+      };
+    }
+    case 'glass': {
+      const lightBg = isLightColor(pageBg);
+      return {
+        background: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)',
+        color: pickReadableColor(pageBg, btnTextColor),
+        borderRadius: r,
+        border: `1px solid ${strongRing}`,
+        boxShadow: `0 2px 12px ${ring}`,
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       };
-    case 'gradient':
+    }
+    case 'gradient': {
+      // Approximate gradient midpoint for contrast check by blending both stops.
+      const midpoint = gradientFrom;
       return {
         background: `linear-gradient(${gradientAngle}deg, ${gradientFrom}, ${gradientTo})`,
-        color: btnTextColor,
+        color: pickReadableColor(midpoint, btnTextColor),
         borderRadius: r,
         border: 'none',
       };
+    }
     case 'pill-filled':
-      return { background: btnColor, color: btnTextColor, borderRadius: '9999px', border: 'none' };
+      return {
+        background: btnColor,
+        color: pickReadableColor(btnColor, btnTextColor),
+        borderRadius: '9999px',
+        border: 'none',
+        boxShadow: `0 0 0 1px ${ring}`,
+      };
     case 'pill-outlined':
-      return { background: 'transparent', color: btnColor, borderRadius: '9999px', border: `2px solid ${btnColor}` };
+      return {
+        background: 'transparent',
+        color: accentOnPage,
+        borderRadius: '9999px',
+        border: `2px solid ${accentOnPage}`,
+        boxShadow: `0 0 0 1px ${ring}`,
+      };
     case 'link':
       return {
         background: 'transparent',
-        color: btnTextColor,
+        color: pickReadableColor(pageBg, btnTextColor),
         border: 'none',
         textDecoration: 'underline',
         borderRadius: r,
       };
     case 'filled':
     default:
-      return { background: btnColor, color: btnTextColor, borderRadius: r, border: 'none' };
+      return {
+        background: btnColor,
+        color: pickReadableColor(btnColor, btnTextColor),
+        borderRadius: r,
+        border: 'none',
+        boxShadow: `0 0 0 1px ${ring}`,
+      };
   }
 }
 
@@ -100,8 +155,10 @@ function LinkItemIcon({ link }: { link: LinkItem }) {
       </div>
     );
   }
-  const emoji = link.iconEmoji || LINK_TYPE_DEFAULT_ICONS[link.linkType as LinkType] || '🔗';
-  return <span className='shrink-0 text-base leading-none'>{emoji}</span>;
+  if (link.iconEmoji) {
+    return <span className='shrink-0 text-base leading-none'>{link.iconEmoji}</span>;
+  }
+  return <LinkBrandIcon linkType={link.linkType as LinkType} className='size-5 shrink-0' />;
 }
 
 export function LinkBioPublicPage({ business, page, links, storefrontTheme }: LinkBioPublicPageProps) {
@@ -125,6 +182,14 @@ export function LinkBioPublicPage({ business, page, links, storefrontTheme }: Li
   const showStorefrontLink = page.storefrontLinkEnabled !== false;
   const storefrontLinkTitle = page.storefrontLinkTitle ?? 'Ver nuestra tienda';
 
+  const effectivePageBg = getEffectivePageBg({
+    backgroundType: useStorefront ? 'color' : (page.backgroundType ?? 'color'),
+    backgroundColor: bgColor,
+    backgroundGradient: useStorefront ? null : page.backgroundGradient,
+    backgroundOverlay: !useStorefront && (page.backgroundOverlay ?? false),
+    backgroundOverlayColor: page.backgroundOverlayColor,
+  });
+
   const btnProps: BtnStyleProps = {
     btnColor,
     btnTextColor,
@@ -133,6 +198,7 @@ export function LinkBioPublicPage({ business, page, links, storefrontTheme }: Li
     gradientAngle,
     radius: btnRadius,
     style: buttonStyle,
+    pageBg: effectivePageBg,
   };
 
   const hasImageBg = page.backgroundType === 'image' && page.backgroundImageUrl && !useStorefront;

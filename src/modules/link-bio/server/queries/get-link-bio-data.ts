@@ -1,6 +1,6 @@
 import { cache } from 'react';
-import { eq, asc, and } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
+import { eq, asc, and, isNull } from 'drizzle-orm';
 
 import { db } from '@/db/drizzle';
 import { linkPages, businesses, linkPageLinks } from '@/db/schema';
@@ -15,7 +15,7 @@ export const getLinkPageBySlug = cache((slug: string) =>
       const [business] = await db
         .select()
         .from(businesses)
-        .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true)))
+        .where(and(eq(businesses.slug, slug), eq(businesses.isActive, true), isNull(businesses.deletedAt)))
         .limit(1);
 
       if (!business) return null;
@@ -23,7 +23,7 @@ export const getLinkPageBySlug = cache((slug: string) =>
       const [page] = await db
         .select()
         .from(linkPages)
-        .where(and(eq(linkPages.businessId, business.id), eq(linkPages.isActive, true)))
+        .where(and(eq(linkPages.businessId, business.id), eq(linkPages.isActive, true), isNull(linkPages.deletedAt)))
         .limit(1);
 
       if (!page) return null;
@@ -31,7 +31,9 @@ export const getLinkPageBySlug = cache((slug: string) =>
       const links = await db
         .select()
         .from(linkPageLinks)
-        .where(and(eq(linkPageLinks.linkPageId, page.id), eq(linkPageLinks.isActive, true)))
+        .where(
+          and(eq(linkPageLinks.linkPageId, page.id), eq(linkPageLinks.isActive, true), isNull(linkPageLinks.deletedAt))
+        )
         .orderBy(asc(linkPageLinks.sortOrder));
 
       return { business, page, links };
@@ -45,14 +47,18 @@ export const getLinkPageBySlug = cache((slug: string) =>
 export const getLinkPageByBusinessId = cache((businessId: string) =>
   unstable_cache(
     async () => {
-      const [page] = await db.select().from(linkPages).where(eq(linkPages.businessId, businessId)).limit(1);
+      const [page] = await db
+        .select()
+        .from(linkPages)
+        .where(and(eq(linkPages.businessId, businessId), isNull(linkPages.deletedAt)))
+        .limit(1);
 
       if (!page) return null;
 
       const links = await db
         .select()
         .from(linkPageLinks)
-        .where(eq(linkPageLinks.linkPageId, page.id))
+        .where(and(eq(linkPageLinks.linkPageId, page.id), isNull(linkPageLinks.deletedAt)))
         .orderBy(asc(linkPageLinks.sortOrder));
 
       return { page, links };

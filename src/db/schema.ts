@@ -3,6 +3,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
 import {
   text,
+  index,
   jsonb,
   integer,
   boolean,
@@ -1025,96 +1026,111 @@ export const chatbotActivationRequests = pgTable('chatbot_activation_requests', 
 
 // ── Link Bio Pages ──
 
-export const linkPages = pgTable('link_pages', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  businessId: text('business_id')
-    .notNull()
-    .unique()
-    .references(() => businesses.id, { onDelete: 'cascade' }),
+export const linkPages = pgTable(
+  'link_pages',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: text('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
 
-  // ── Content ──
-  title: text('title'),
-  bio: text('bio'),
-  avatarUrl: text('avatar_url'),
+    // ── Content ──
+    title: text('title'),
+    bio: text('bio'),
+    avatarUrl: text('avatar_url'),
 
-  // ── Theme ──
-  useStorefrontTheme: boolean('use_storefront_theme').notNull().default(false),
-  backgroundType: text('background_type', { enum: ['color', 'gradient', 'image'] })
-    .notNull()
-    .default('color'),
-  backgroundColor: text('background_color').default('#0f0f0f'),
-  backgroundGradient: text('background_gradient').default('linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%)'),
-  backgroundImageUrl: text('background_image_url'),
-  backgroundOverlay: boolean('background_overlay').notNull().default(false),
-  backgroundOverlayColor: text('background_overlay_color').default('#000000'),
-  backgroundOverlayOpacity: integer('background_overlay_opacity').default(50),
-  textColor: text('text_color').default('#ffffff'),
-  buttonStyle: text('button_style', {
-    enum: ['filled', 'outlined', 'soft', 'glass', 'gradient', 'pill-filled', 'pill-outlined', 'link'],
-  })
-    .notNull()
-    .default('pill-filled'),
-  buttonColor: text('button_color').default('#8b1a1a'),
-  buttonTextColor: text('button_text_color').default('#ffffff'),
-  buttonRadius: integer('button_radius').default(999),
-  buttonGradientFrom: text('button_gradient_from').default('#6366f1'),
-  buttonGradientTo: text('button_gradient_to').default('#a855f7'),
-  buttonGradientAngle: integer('button_gradient_angle').default(135),
-  font: text('font', {
-    enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto', 'space-grotesk', 'outfit'],
-  }).default('inter'),
+    // ── Theme ──
+    useStorefrontTheme: boolean('use_storefront_theme').notNull().default(false),
+    backgroundType: text('background_type', { enum: ['color', 'gradient', 'image'] })
+      .notNull()
+      .default('color'),
+    backgroundColor: text('background_color').default('#0f0f0f'),
+    backgroundGradient: text('background_gradient').default('linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%)'),
+    backgroundImageUrl: text('background_image_url'),
+    backgroundOverlay: boolean('background_overlay').notNull().default(false),
+    backgroundOverlayColor: text('background_overlay_color').default('#000000'),
+    backgroundOverlayOpacity: integer('background_overlay_opacity').default(50),
+    textColor: text('text_color').default('#ffffff'),
+    buttonStyle: text('button_style', {
+      enum: ['filled', 'outlined', 'soft', 'glass', 'gradient', 'pill-filled', 'pill-outlined', 'link'],
+    })
+      .notNull()
+      .default('pill-filled'),
+    buttonColor: text('button_color').default('#8b1a1a'),
+    buttonTextColor: text('button_text_color').default('#ffffff'),
+    buttonRadius: integer('button_radius').default(999),
+    buttonGradientFrom: text('button_gradient_from').default('#6366f1'),
+    buttonGradientTo: text('button_gradient_to').default('#a855f7'),
+    buttonGradientAngle: integer('button_gradient_angle').default(135),
+    font: text('font', {
+      enum: ['inter', 'playfair', 'dm-sans', 'poppins', 'roboto', 'space-grotesk', 'outfit'],
+    }).default('inter'),
 
-  // ── Storefront default link ──
-  storefrontLinkTitle: text('storefront_link_title').default('Ver nuestra tienda'),
-  storefrontLinkEnabled: boolean('storefront_link_enabled').notNull().default(true),
+    // ── Storefront default link ──
+    storefrontLinkTitle: text('storefront_link_title').default('Ver nuestra tienda'),
+    storefrontLinkEnabled: boolean('storefront_link_enabled').notNull().default(true),
 
-  // ── SEO ──
-  seoTitle: text('seo_title'),
-  seoDescription: text('seo_description'),
+    // ── SEO ──
+    seoTitle: text('seo_title'),
+    seoDescription: text('seo_description'),
 
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
-});
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+    deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('link_pages_business_id_active_unique')
+      .on(table.businessId)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
 
-export const linkPageLinks = pgTable('link_page_links', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  linkPageId: text('link_page_id')
-    .notNull()
-    .references(() => linkPages.id, { onDelete: 'cascade' }),
+export const linkPageLinks = pgTable(
+  'link_page_links',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    linkPageId: text('link_page_id')
+      .notNull()
+      .references(() => linkPages.id, { onDelete: 'cascade' }),
 
-  title: text('title').notNull(),
-  url: text('url').notNull(),
-  linkType: text('link_type', {
-    enum: [
-      'custom',
-      'instagram',
-      'facebook',
-      'whatsapp',
-      'tiktok',
-      'youtube',
-      'twitter',
-      'website',
-      'menu',
-      'location',
-      'phone',
-      'email',
-    ],
-  })
-    .notNull()
-    .default('custom'),
-  iconEmoji: text('icon_emoji'),
-  iconImageUrl: text('icon_image_url'),
-  thumbnailUrl: text('thumbnail_url'),
-  isActive: boolean('is_active').notNull().default(true),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
-});
+    title: text('title').notNull(),
+    url: text('url').notNull(),
+    linkType: text('link_type', {
+      enum: [
+        'custom',
+        'instagram',
+        'facebook',
+        'whatsapp',
+        'tiktok',
+        'youtube',
+        'twitter',
+        'website',
+        'menu',
+        'location',
+        'phone',
+        'email',
+      ],
+    })
+      .notNull()
+      .default('custom'),
+    iconEmoji: text('icon_emoji'),
+    iconImageUrl: text('icon_image_url'),
+    thumbnailUrl: text('thumbnail_url'),
+    isActive: boolean('is_active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+    deletedBy: text('deleted_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [index('link_page_links_link_page_id_idx').on(table.linkPageId)]
+);
 
 // ── Upgrade Requests ──
 
