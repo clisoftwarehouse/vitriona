@@ -43,7 +43,7 @@ export function BuilderTour() {
             popover: {
               title: 'Secciones del builder',
               description:
-                'Navega entre las secciones: Tema (colores y fuentes), Hero (banner principal), Secciones (categorías y productos), Anuncio (barra superior) y SEO.',
+                'Navega entre las secciones: Tema (colores y fuentes), Cabecera (logo y barra de anuncio), Hero (banner principal), Catálogo (productos y categorías), Contacto (redes y botón flotante) y SEO.',
               side: 'bottom',
               align: 'center',
             },
