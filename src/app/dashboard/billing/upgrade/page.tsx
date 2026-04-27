@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
@@ -51,6 +51,9 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
   // Get billing info for proration calculation
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId) ?? businesses[0];
   const billing = activeBusiness ? await getBillingInfo(activeBusiness.id) : null;
+
+  // If there's already a pending request for this business, redirect to billing page
+  if (billing?.pendingRequest && tab !== 'chatbot') redirect('/dashboard/billing');
 
   const PLAN_PRICES: Record<string, number> = { pro: 15, business: 30 };
 

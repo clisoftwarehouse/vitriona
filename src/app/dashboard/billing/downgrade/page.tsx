@@ -2,16 +2,16 @@ import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { getEurRate } from '@/lib/get-exchange-rate';
-import { RenewalCheckout } from '@/modules/upgrade/ui/components/renewal-checkout';
 import { getBillingInfo } from '@/modules/dashboard/server/queries/get-billing-info';
+import { DowngradeCheckout } from '@/modules/upgrade/ui/components/downgrade-checkout';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
 import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-active-business.action';
 
 export const metadata = {
-  title: 'Renovar Suscripción — Vitriona',
+  title: 'Bajar de Plan — Vitriona',
 };
 
-export default async function RenewalPage() {
+export default async function DowngradePage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/login');
 
@@ -23,19 +23,20 @@ export default async function RenewalPage() {
 
   const [billing, eurRate] = await Promise.all([getBillingInfo(activeBusiness.id), getEurRate()]);
 
-  // Only paid plans can renew
-  if (!billing || billing.plan === 'free') redirect('/dashboard/billing');
+  // Only `business` plan can downgrade (to pro). Free plans go up; pro can only cancel.
+  if (!billing || billing.plan !== 'business') redirect('/dashboard/billing');
 
-  // Block if there's already a pending request
-  if (billing.pendingRequest) redirect('/dashboard/billing');
+  // If a change is already scheduled or there's a pending request, redirect to billing page
+  if (billing.scheduledPlan || billing.pendingRequest) redirect('/dashboard/billing');
 
   return (
-    <RenewalCheckout
+    <DowngradeCheckout
       businessId={billing.businessId}
       businessName={billing.businessName}
       currentPlan={billing.plan}
       currentBillingCycle={billing.billingCycle}
       billingCycleEnd={billing.billingCycleEnd?.toISOString() ?? null}
+      targetPlan='pro'
       userEmail={session.user.email ?? ''}
       eurRate={eurRate}
     />

@@ -1,6 +1,7 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
@@ -31,11 +32,12 @@ export async function cancelPlanSubscriptionAction(businessId: string) {
     if (business.userId !== session.user.id) return { error: 'No autorizado' };
     if (business.plan === 'free') return { error: 'Tu negocio ya está en el plan gratuito.' };
 
-    // Schedule downgrade to free at end of billing cycle
+    // Schedule downgrade to free at end of billing cycle (also clear any scheduled paid downgrade)
     await db
       .update(businesses)
       .set({
         scheduledPlan: 'free',
+        scheduledBillingCycle: null,
         updatedAt: new Date(),
       })
       .where(eq(businesses.id, businessId));
@@ -48,6 +50,8 @@ export async function cancelPlanSubscriptionAction(businessId: string) {
         })
       : 'el fin del ciclo actual';
 
+    revalidatePath('/dashboard/billing');
+
     return {
       success: true,
       message: `Tu suscripción ha sido cancelada. Seguirás disfrutando de las funciones del plan actual hasta ${endFormatted}.`,
@@ -55,6 +59,56 @@ export async function cancelPlanSubscriptionAction(businessId: string) {
   } catch (error) {
     console.error('Error cancelling plan subscription:', error);
     return { error: 'Error al cancelar la suscripción. Intenta de nuevo.' };
+  }
+}
+
+/**
+ * Reverse a scheduled plan change (cancel-cancellation, or cancel a scheduled downgrade).
+ * Clears scheduledPlan and scheduledBillingCycle so the current plan continues normally.
+ */
+export async function clearScheduledPlanChangeAction(businessId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    const [business] = await db
+      .select({
+        id: businesses.id,
+        userId: businesses.userId,
+        scheduledPlan: businesses.scheduledPlan,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    if (!business) return { error: 'Negocio no encontrado' };
+    if (business.userId !== session.user.id) return { error: 'No autorizado' };
+    if (!business.scheduledPlan) return { error: 'No hay un cambio programado.' };
+
+    // Only allow reverting cancellations (scheduledPlan = 'free'). Paid downgrades involve
+    // a prepaid cycle and need manual support handling for refund.
+    if (business.scheduledPlan !== 'free') {
+      return {
+        error:
+          'Para revertir un cambio de plan ya pagado, contacta a soporte. Solo puedes revertir cancelaciones desde aquí.',
+      };
+    }
+
+    await db
+      .update(businesses)
+      .set({
+        scheduledPlan: null,
+        scheduledBillingCycle: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(businesses.id, businessId));
+
+    revalidatePath('/dashboard/billing');
+
+    return { success: true, message: 'Tu cancelación ha sido revertida. Tu plan continuará renovándose.' };
+  } catch (error) {
+    console.error('Error clearing scheduled plan change:', error);
+    return { error: 'Error al revertir el cambio programado. Intenta de nuevo.' };
   }
 }
 

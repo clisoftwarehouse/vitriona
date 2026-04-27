@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useState, useTransition } from 'react';
-import { Check, Crown, Loader2, FileText, ArrowLeft, RefreshCw, ArrowRight, CreditCard } from 'lucide-react';
+import { Check, Loader2, FileText, ArrowLeft, ArrowDown, ArrowRight, CreditCard } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,8 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { PaymentMethodDetails } from '@/modules/upgrade/ui/components/payment-method-details';
 import { submitUpgradeRequestAction } from '@/modules/upgrade/server/actions/submit-upgrade-request.action';
-
-// ── Constants ──
 
 const ANNUAL_DISCOUNT = 0.15;
 
@@ -36,8 +34,6 @@ const PAYMENT_METHODS: { key: PaymentMethod; label: string; description: string 
   { key: 'binance', label: 'Binance', description: 'Pago con criptomonedas vía Binance Pay' },
 ];
 
-// ── Helpers ──
-
 function getPrice(monthlyPrice: number, cycle: BillingCycle) {
   if (cycle === 'annual') {
     const discounted = monthlyPrice * (1 - ANNUAL_DISCOUNT);
@@ -50,39 +46,36 @@ function formatEur(amount: number) {
   return `€${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
 }
 
-// ── Component ──
-
-interface RenewalCheckoutProps {
+interface DowngradeCheckoutProps {
   businessId: string;
   businessName: string;
   currentPlan: string;
   currentBillingCycle: string | null;
-  billingCycleEnd: string | null; // ISO string
+  billingCycleEnd: string | null;
+  targetPlan: 'pro';
   userEmail: string;
   eurRate?: number | null;
 }
 
-type Step = 'payment' | 'invoice';
+type Step = 'config' | 'payment' | 'invoice';
 
-export function RenewalCheckout({
+export function DowngradeCheckout({
   businessId,
   businessName,
   currentPlan,
   currentBillingCycle,
   billingCycleEnd,
+  targetPlan,
   userEmail,
   eurRate,
-}: RenewalCheckoutProps) {
-  const [step, setStep] = useState<Step>('payment');
+}: DowngradeCheckoutProps) {
+  const [step, setStep] = useState<Step>('config');
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
 
-  // Renewal locks the billing cycle to the current one. To change cycles, the user
-  // must downgrade or upgrade (which schedules a fresh cycle correctly).
-  const billingCycle: BillingCycle = (currentBillingCycle as BillingCycle) ?? 'monthly';
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>((currentBillingCycle as BillingCycle) ?? 'monthly');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
-  // Invoice form
   const [referenceId, setReferenceId] = useState('');
   const [fullName, setFullName] = useState('');
   const [idNumber, setIdNumber] = useState('');
@@ -90,7 +83,7 @@ export function RenewalCheckout({
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
 
-  const monthlyPrice = PLAN_PRICES[currentPlan] ?? 15;
+  const monthlyPrice = PLAN_PRICES[targetPlan];
   const pricing = getPrice(monthlyPrice, billingCycle);
   const paymentAmount = billingCycle === 'annual' ? pricing.total : pricing.monthly;
 
@@ -109,7 +102,7 @@ export function RenewalCheckout({
       const isVesMethod = paymentMethod === 'bank_transfer' || paymentMethod === 'pago_movil';
       const result = await submitUpgradeRequestAction({
         businessId,
-        plan: currentPlan as 'pro' | 'business',
+        plan: targetPlan,
         billingCycle,
         paymentMethod,
         referenceId,
@@ -129,7 +122,7 @@ export function RenewalCheckout({
       }
 
       setSubmitted(true);
-      toast.success('Solicitud de renovación enviada correctamente');
+      toast.success('Solicitud de cambio de plan enviada');
     });
   };
 
@@ -140,12 +133,11 @@ export function RenewalCheckout({
           <div className='flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30'>
             <Check className='size-8 text-green-600 dark:text-green-400' />
           </div>
-          <h2 className='mt-6 text-xl font-semibold'>Solicitud de renovación enviada</h2>
+          <h2 className='mt-6 text-xl font-semibold'>Solicitud enviada</h2>
           <p className='text-muted-foreground mt-2 max-w-sm text-sm'>
-            Hemos recibido tu solicitud de renovación del plan{' '}
-            <strong>{PLAN_LABELS[currentPlan] ?? currentPlan}</strong> para <strong>{businessName}</strong>.
-            Verificaremos tu pago y extenderemos tu suscripción lo antes posible. Te notificaremos por correo
-            electrónico.
+            Recibimos tu solicitud para cambiar a <strong>{PLAN_LABELS[targetPlan]}</strong> en{' '}
+            <strong>{businessName}</strong>. Verificaremos tu pago y, una vez aprobado, el cambio se aplicará al
+            terminar tu ciclo actual{formattedExpiry ? ` (${formattedExpiry})` : ''}.
           </p>
           <Button className='mt-8' asChild>
             <Link href='/dashboard/billing'>Volver a Facturación</Link>
@@ -158,9 +150,10 @@ export function RenewalCheckout({
   return (
     <div className='mx-auto flex max-w-2xl flex-col gap-6 py-2'>
       <div className='text-center'>
-        <h1 className='text-2xl font-bold tracking-tight'>Renovar Suscripción</h1>
+        <h1 className='text-2xl font-bold tracking-tight'>Bajar de Plan</h1>
         <p className='text-muted-foreground mt-1 text-sm'>
-          Renueva tu plan actual para seguir disfrutando de todas las funcionalidades.
+          El cambio se aplicará al finalizar tu ciclo actual. Mientras tanto, sigues con todas las funciones de tu plan
+          actual.
         </p>
       </div>
 
@@ -168,17 +161,19 @@ export function RenewalCheckout({
       <Card>
         <CardContent className='pt-6'>
           <div className='flex items-center gap-4'>
-            <div className='bg-primary/10 flex size-12 items-center justify-center rounded-full'>
-              <Crown className='text-primary size-6' />
+            <div className='bg-muted flex size-12 items-center justify-center rounded-full'>
+              <ArrowDown className='text-muted-foreground size-6' />
             </div>
             <div className='flex-1'>
-              <p className='text-lg font-semibold'>Plan {PLAN_LABELS[currentPlan] ?? currentPlan}</p>
-              <p className='text-muted-foreground text-sm'>{businessName}</p>
-              {formattedExpiry && <p className='text-muted-foreground mt-0.5 text-xs'>Vence el {formattedExpiry}</p>}
-            </div>
-            <div className='text-right'>
-              <RefreshCw className='text-primary mx-auto mb-1 size-5' />
-              <p className='text-xs font-medium text-emerald-600 dark:text-emerald-400'>Renovación</p>
+              <p className='text-sm font-medium'>
+                <span className='text-muted-foreground'>{PLAN_LABELS[currentPlan] ?? currentPlan}</span>
+                <span className='mx-2'>→</span>
+                <span className='font-semibold'>{PLAN_LABELS[targetPlan]}</span>
+              </p>
+              <p className='text-muted-foreground text-xs'>{businessName}</p>
+              {formattedExpiry && (
+                <p className='text-muted-foreground mt-0.5 text-xs'>Cambio efectivo el {formattedExpiry}</p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -186,12 +181,13 @@ export function RenewalCheckout({
 
       {/* Steps indicator */}
       <div className='flex items-center justify-center gap-2'>
-        {(['payment', 'invoice'] as Step[]).map((s, i) => {
-          const labels = ['Pago', 'Facturación'];
-          const icons = [CreditCard, FileText];
+        {(['config', 'payment', 'invoice'] as Step[]).map((s, i) => {
+          const labels = ['Configuración', 'Pago', 'Facturación'];
+          const icons = [ArrowDown, CreditCard, FileText];
           const Icon = icons[i];
           const isActive = s === step;
-          const isDone = s === 'payment' && step === 'invoice';
+          const isDone =
+            (s === 'config' && (step === 'payment' || step === 'invoice')) || (s === 'payment' && step === 'invoice');
 
           return (
             <div key={s} className='flex items-center gap-2'>
@@ -217,37 +213,52 @@ export function RenewalCheckout({
         })}
       </div>
 
-      {/* Step 1: Payment method */}
-      {step === 'payment' && (
+      {/* Step 1: Config (cycle) */}
+      {step === 'config' && (
         <div className='space-y-6'>
-          {/* Billing cycle (locked to current) */}
           <div>
-            <Label className='mb-2 block text-base font-semibold'>Ciclo de facturación</Label>
-            <div className='bg-muted/50 flex items-center justify-between gap-3 rounded-lg border px-4 py-3'>
-              <div>
-                <p className='text-sm font-semibold'>{billingCycle === 'annual' ? 'Anual' : 'Mensual'}</p>
-                <p className='text-muted-foreground text-xs'>
-                  Para cambiar de ciclo, usa la opción de cambiar de plan en facturación.
-                </p>
+            <Label className='mb-3 block text-base font-semibold'>Ciclo de facturación del nuevo plan</Label>
+            <div className='flex justify-center'>
+              <div className='bg-muted inline-flex items-center gap-1 rounded-full p-1'>
+                <button
+                  type='button'
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    billingCycle === 'monthly'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Mensual
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setBillingCycle('annual')}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    billingCycle === 'annual'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Anual
+                  <span className='bg-primary/12 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold'>
+                    -15%
+                  </span>
+                </button>
               </div>
-              {billingCycle === 'annual' && (
-                <span className='bg-primary/12 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold'>
-                  -15%
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Price summary */}
           <Card>
             <CardContent className='pt-6'>
               <div className='flex items-center justify-between'>
                 <div>
                   <p className='text-sm font-semibold'>
-                    <RefreshCw className='text-primary mr-1.5 inline size-4' />
-                    Renovación — Plan {PLAN_LABELS[currentPlan] ?? currentPlan}
+                    Plan {PLAN_LABELS[targetPlan]} · {billingCycle === 'annual' ? 'Anual' : 'Mensual'}
                   </p>
-                  <p className='text-muted-foreground text-xs'>{billingCycle === 'annual' ? 'Anual' : 'Mensual'}</p>
+                  <p className='text-muted-foreground text-xs'>
+                    Cobro al inicio del próximo ciclo{formattedExpiry ? ` (${formattedExpiry})` : ''}
+                  </p>
                 </div>
                 <div className='text-right'>
                   <p className='text-2xl font-bold'>{formatEur(paymentAmount)}</p>
@@ -257,7 +268,31 @@ export function RenewalCheckout({
             </CardContent>
           </Card>
 
-          {/* Payment methods */}
+          <div className='rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30'>
+            <p className='text-xs text-amber-800 dark:text-amber-300'>
+              <strong>Importante:</strong> el pago se acepta ahora pero el cambio se hará efectivo al final de tu ciclo
+              actual. Hasta entonces conservas todas las funciones de tu plan {PLAN_LABELS[currentPlan]}.
+            </p>
+          </div>
+
+          <div className='flex justify-between'>
+            <Button variant='outline' asChild>
+              <Link href='/dashboard/billing'>
+                <ArrowLeft className='mr-2 size-4' />
+                Volver
+              </Link>
+            </Button>
+            <Button onClick={() => setStep('payment')}>
+              Continuar
+              <ArrowRight className='ml-2 size-4' />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Payment */}
+      {step === 'payment' && (
+        <div className='space-y-6'>
           <div>
             <Label className='mb-4 block text-base font-semibold'>Selecciona el método de pago</Label>
             <div className='grid gap-4 sm:grid-cols-2'>
@@ -283,11 +318,9 @@ export function RenewalCheckout({
           </div>
 
           <div className='flex justify-between'>
-            <Button variant='outline' asChild>
-              <Link href='/dashboard/billing'>
-                <ArrowLeft className='mr-2 size-4' />
-                Volver
-              </Link>
+            <Button variant='outline' onClick={() => setStep('config')}>
+              <ArrowLeft className='mr-2 size-4' />
+              Atrás
             </Button>
             <Button onClick={() => setStep('invoice')} disabled={!canProceedPayment}>
               Continuar
@@ -297,7 +330,7 @@ export function RenewalCheckout({
         </div>
       )}
 
-      {/* Step 2: Invoice info & reference */}
+      {/* Step 3: Invoice */}
       {step === 'invoice' && (
         <div className='space-y-6'>
           <Card>
@@ -305,8 +338,7 @@ export function RenewalCheckout({
               <div className='flex items-center justify-between'>
                 <div>
                   <p className='text-sm font-semibold'>
-                    Renovación — Plan {PLAN_LABELS[currentPlan] ?? currentPlan} ·{' '}
-                    {billingCycle === 'annual' ? 'Anual' : 'Mensual'}
+                    Cambio a {PLAN_LABELS[targetPlan]} · {billingCycle === 'annual' ? 'Anual' : 'Mensual'}
                   </p>
                   <p className='text-muted-foreground text-xs'>
                     {PAYMENT_METHODS.find((m) => m.key === paymentMethod)?.label}
@@ -401,7 +433,7 @@ export function RenewalCheckout({
                 </>
               ) : (
                 <>
-                  Enviar solicitud de renovación
+                  Programar cambio de plan
                   <ArrowRight className='ml-2 size-4' />
                 </>
               )}

@@ -1,6 +1,16 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Bot, Plus, Crown, Calendar, Sparkles, ArrowUpCircle, AlertTriangle } from 'lucide-react';
+import {
+  Bot,
+  Plus,
+  Clock,
+  Crown,
+  Calendar,
+  Sparkles,
+  ArrowUpCircle,
+  AlertTriangle,
+  ArrowDownCircle,
+} from 'lucide-react';
 
 import { auth } from '@/auth';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +20,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { UsageOverview } from '@/modules/dashboard/ui/components/usage-overview';
 import { getUsageStats } from '@/modules/dashboard/server/queries/get-usage-stats';
 import { getBillingInfo } from '@/modules/dashboard/server/queries/get-billing-info';
+import { SubscriptionActions } from '@/modules/upgrade/ui/components/subscription-actions';
 import { getBusinessesAction } from '@/modules/businesses/server/actions/get-businesses.action';
 import { getActiveBusinessId } from '@/modules/businesses/server/actions/set-active-business.action';
 
@@ -163,36 +174,103 @@ export default async function BillingPage() {
                 </div>
               </div>
 
-              {billing.scheduledPlan && (
+              {billing.pendingRequest && (
+                <>
+                  <Separator />
+                  <div className='flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700 dark:bg-amber-950/30'>
+                    <Clock className='mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400' />
+                    <div className='text-xs text-amber-800 dark:text-amber-300'>
+                      <p className='font-medium'>Solicitud pendiente de revisión</p>
+                      <p className='mt-0.5'>
+                        Recibimos tu{' '}
+                        {billing.pendingRequest.requestType === 'renewal'
+                          ? 'renovación'
+                          : billing.pendingRequest.requestType === 'upgrade'
+                            ? 'upgrade'
+                            : billing.pendingRequest.requestType === 'downgrade'
+                              ? 'cambio de plan'
+                              : 'solicitud'}{' '}
+                        a <strong>{PLAN_LABELS[billing.pendingRequest.plan] ?? billing.pendingRequest.plan}</strong> (
+                        {BILLING_CYCLE_LABELS[billing.pendingRequest.billingCycle] ??
+                          billing.pendingRequest.billingCycle}
+                        ). El proceso de verificación tarda entre 24 y 48 horas hábiles. Te notificaremos por correo.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {billing.scheduledPlan && !billing.pendingRequest && (
                 <>
                   <Separator />
                   <div className='flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-950/30'>
-                    <Sparkles className='size-4 text-blue-600 dark:text-blue-400' />
+                    <Sparkles className='size-4 shrink-0 text-blue-600 dark:text-blue-400' />
                     <p className='text-xs text-blue-700 dark:text-blue-300'>
-                      Al renovar, tu plan cambiará a{' '}
-                      <strong>{PLAN_LABELS[billing.scheduledPlan] ?? billing.scheduledPlan}</strong>.
+                      {billing.scheduledPlan === 'free' ? (
+                        <>
+                          Cancelación programada. Tu plan pasará a <strong>Gratis</strong> el{' '}
+                          <strong>{formatDate(billing.billingCycleEnd)}</strong>.
+                        </>
+                      ) : (
+                        <>
+                          Cambio programado al plan{' '}
+                          <strong>{PLAN_LABELS[billing.scheduledPlan] ?? billing.scheduledPlan}</strong>
+                          {billing.scheduledBillingCycle && (
+                            <>
+                              {' '}
+                              ({BILLING_CYCLE_LABELS[billing.scheduledBillingCycle] ?? billing.scheduledBillingCycle})
+                            </>
+                          )}{' '}
+                          a partir del <strong>{formatDate(billing.billingCycleEnd)}</strong>.
+                        </>
+                      )}
                     </p>
                   </div>
                 </>
               )}
 
-              {(!isHighestPlan || (!isFree && daysLeft !== null && daysLeft <= 15)) && (
+              {!isFree && !billing.pendingRequest && (
                 <>
                   <Separator />
                   <div className='flex flex-wrap gap-2'>
-                    {!isHighestPlan && (
+                    {!isHighestPlan && !billing.scheduledPlan && (
                       <Button size='sm' asChild>
                         <Link href='/dashboard/billing/upgrade'>
                           <ArrowUpCircle className='mr-2 size-3.5' />
-                          {isFree ? 'Mejorar plan' : 'Cambiar de plan'}
+                          Cambiar de plan
                         </Link>
                       </Button>
                     )}
-                    {!isFree && daysLeft !== null && daysLeft <= 15 && (
+                    {isHighestPlan && !billing.scheduledPlan && (
                       <Button size='sm' variant='outline' asChild>
-                        <Link href='/dashboard/billing/renew'>Renovar suscripción</Link>
+                        <Link href='/dashboard/billing/downgrade'>
+                          <ArrowDownCircle className='mr-2 size-3.5' />
+                          Bajar de plan
+                        </Link>
                       </Button>
                     )}
+                    <Button size='sm' variant='outline' asChild>
+                      <Link href='/dashboard/billing/renew'>Renovar suscripción</Link>
+                    </Button>
+                    <SubscriptionActions
+                      businessId={billing.businessId}
+                      scheduledPlan={billing.scheduledPlan}
+                      billingCycleEndFormatted={billing.billingCycleEnd ? formatDate(billing.billingCycleEnd) : null}
+                    />
+                  </div>
+                </>
+              )}
+
+              {isFree && !billing.pendingRequest && (
+                <>
+                  <Separator />
+                  <div className='flex flex-wrap gap-2'>
+                    <Button size='sm' asChild>
+                      <Link href='/dashboard/billing/upgrade'>
+                        <ArrowUpCircle className='mr-2 size-3.5' />
+                        Mejorar plan
+                      </Link>
+                    </Button>
                   </div>
                 </>
               )}

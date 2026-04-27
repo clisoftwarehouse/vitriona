@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
         id: businesses.id,
         plan: businesses.plan,
         scheduledPlan: businesses.scheduledPlan,
+        scheduledBillingCycle: businesses.scheduledBillingCycle,
+        billingCycle: businesses.billingCycle,
         billingCycleEnd: businesses.billingCycleEnd,
       })
       .from(businesses)
@@ -60,16 +62,43 @@ export async function GET(request: NextRequest) {
       try {
         const newPlan = biz.scheduledPlan ?? 'free';
 
-        await db
-          .update(businesses)
-          .set({
-            plan: newPlan,
-            billingCycle: newPlan === 'free' ? null : undefined,
-            billingCycleEnd: newPlan === 'free' ? null : undefined,
-            scheduledPlan: null,
-            updatedAt: now,
-          })
-          .where(eq(businesses.id, biz.id));
+        if (newPlan === 'free') {
+          // Drop to free, clear billing fields
+          await db
+            .update(businesses)
+            .set({
+              plan: 'free',
+              billingCycle: null,
+              billingCycleEnd: null,
+              scheduledPlan: null,
+              scheduledBillingCycle: null,
+              updatedAt: now,
+            })
+            .where(eq(businesses.id, biz.id));
+        } else {
+          // Scheduled paid downgrade (e.g. business → pro). User prepaid for the new cycle.
+          // New cycle starts at the previous billingCycleEnd (the contractual switch-over moment),
+          // not at "now", so the user gets a full cycle of the new plan.
+          const newCycle = biz.scheduledBillingCycle ?? biz.billingCycle ?? 'monthly';
+          const newEnd = new Date(biz.billingCycleEnd!);
+          if (newCycle === 'annual') {
+            newEnd.setFullYear(newEnd.getFullYear() + 1);
+          } else {
+            newEnd.setMonth(newEnd.getMonth() + 1);
+          }
+
+          await db
+            .update(businesses)
+            .set({
+              plan: newPlan,
+              billingCycle: newCycle,
+              billingCycleEnd: newEnd,
+              scheduledPlan: null,
+              scheduledBillingCycle: null,
+              updatedAt: now,
+            })
+            .where(eq(businesses.id, biz.id));
+        }
 
         results.plansExpired++;
       } catch (err) {

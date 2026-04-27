@@ -200,6 +200,7 @@ export const businesses = pgTable(
     billingCycle: text('billing_cycle', { enum: ['monthly', 'annual'] }),
     billingCycleEnd: timestamp('billing_cycle_end', { mode: 'date' }),
     scheduledPlan: text('scheduled_plan', { enum: ['free', 'pro', 'business'] }),
+    scheduledBillingCycle: text('scheduled_billing_cycle', { enum: ['monthly', 'annual'] }),
 
     // ── Custom plan overrides (negotiated exceptions on top of base plan) ──
     // NULL = use base plan limit. -1 = unlimited.
@@ -1144,7 +1145,7 @@ export const upgradeRequests = pgTable('upgrade_requests', {
   businessId: text('business_id')
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
-  requestType: text('request_type', { enum: ['new', 'renewal', 'upgrade'] })
+  requestType: text('request_type', { enum: ['new', 'renewal', 'upgrade', 'downgrade'] })
     .notNull()
     .default('new'),
   plan: text('plan', { enum: ['pro', 'business'] }).notNull(),

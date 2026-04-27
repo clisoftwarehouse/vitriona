@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
@@ -8,6 +8,7 @@ import { signUpgradeToken } from '@/lib/upgrade-token';
 import { users, businesses, upgradeRequests } from '@/db/schema';
 import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
 import { upgradeRequestEmailTemplate } from '@/modules/auth/server/email/templates/upgrade-request.template';
+import { upgradeConfirmationEmailTemplate } from '@/modules/auth/server/email/templates/upgrade-confirmation.template';
 
 const ADMIN_EMAIL = 'info@clisoftwarehouse.com';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
@@ -50,23 +51,43 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
 
     if (!business) return { error: 'Negocio no encontrado' };
 
+    // Block duplicate pending request for the same business
+    const [pending] = await db
+      .select({ id: upgradeRequests.id })
+      .from(upgradeRequests)
+      .where(and(eq(upgradeRequests.businessId, input.businessId), eq(upgradeRequests.status, 'pending')))
+      .limit(1);
+
+    if (pending) {
+      return {
+        error: 'Ya tienes una solicitud pendiente para este negocio. Espera a que sea procesada antes de enviar otra.',
+      };
+    }
+
     // Determine request type
     const currentLevel = PLAN_HIERARCHY[business.plan] ?? 0;
     const targetLevel = PLAN_HIERARCHY[input.plan] ?? 0;
 
-    let requestType: 'new' | 'renewal' | 'upgrade';
+    let requestType: 'new' | 'renewal' | 'upgrade' | 'downgrade';
 
     if (business.plan === 'free') {
       // Coming from free → new subscription
       requestType = 'new';
     } else if (input.plan === business.plan) {
-      // Same plan → renewal
+      // Same plan → must keep the same billing cycle
+      if (business.billingCycle && input.billingCycle !== business.billingCycle) {
+        return {
+          error:
+            'No puedes cambiar el ciclo de facturación al renovar. Si quieres cambiarlo, espera a que termine tu ciclo actual.',
+        };
+      }
       requestType = 'renewal';
     } else if (targetLevel > currentLevel) {
-      // Higher tier → upgrade
+      // Higher tier → immediate upgrade
       requestType = 'upgrade';
     } else {
-      return { error: 'No puedes cambiar a un plan inferior desde aquí. Usa la opción de cancelar.' };
+      // Lower paid tier → scheduled downgrade
+      requestType = 'downgrade';
     }
 
     // Get user info
@@ -109,9 +130,10 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
       new: 'Nueva suscripción',
       renewal: 'Renovación',
       upgrade: 'Upgrade',
+      downgrade: 'Downgrade',
     };
 
-    // Send notification email
+    // Send notification email to admin
     await resend.emails.send({
       from: EMAIL_FROM,
       to: ADMIN_EMAIL,
@@ -136,6 +158,28 @@ export async function submitUpgradeRequestAction(input: SubmitUpgradeRequestInpu
         rejectUrl,
       }),
     });
+
+    // Send confirmation email to user (don't fail the request if this errors)
+    try {
+      await resend.emails.send({
+        from: EMAIL_FROM,
+        to: user.email,
+        subject: `Recibimos tu solicitud — ${REQUEST_TYPE_LABELS[requestType]} para ${business.name}`,
+        html: upgradeConfirmationEmailTemplate({
+          userName: user.name ?? 'Hola',
+          businessName: business.name,
+          requestType,
+          plan: input.plan,
+          billingCycle: input.billingCycle,
+          paymentMethod: input.paymentMethod,
+          referenceId: input.referenceId.trim(),
+          amount: input.amount,
+          amountVes: input.amountVes || null,
+        }),
+      });
+    } catch (mailError) {
+      console.error('Error sending user confirmation email:', mailError);
+    }
 
     return { success: true, requestId, requestType };
   } catch (error) {

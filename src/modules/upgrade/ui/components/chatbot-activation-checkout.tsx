@@ -64,7 +64,6 @@ const AI_PLANS: AiPlan[] = [
 const PAYMENT_METHODS: { key: PaymentMethod; label: string; description: string }[] = [
   { key: 'bank_transfer', label: 'Transferencia Bancaria', description: 'Transferencia directa a nuestra cuenta' },
   { key: 'pago_movil', label: 'Pago Móvil', description: 'Pago instantáneo desde tu banco' },
-  { key: 'zelle', label: 'Zelle', description: 'Transferencia vía Zelle' },
   { key: 'binance', label: 'Binance', description: 'Pago con criptomonedas vía Binance Pay' },
 ];
 

@@ -3,7 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { db } from '@/db/drizzle';
 import { verifyUpgradeToken } from '@/lib/upgrade-token';
-import { businesses, upgradeRequests } from '@/db/schema';
+import { users, businesses, upgradeRequests } from '@/db/schema';
+import { resend, EMAIL_FROM } from '@/modules/auth/server/email/resend';
+import { upgradeDecisionEmailTemplate } from '@/modules/auth/server/email/templates/upgrade-decision.template';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vitriona.app';
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  new: 'Nueva suscripcion',
+  renewal: 'Renovacion',
+  upgrade: 'Upgrade',
+  downgrade: 'Downgrade',
+};
 
 const PLAN_LABELS: Record<string, string> = {
   pro: 'Emprendedor',
@@ -90,6 +101,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return htmlResponse('Solicitud ya procesada', `Esta solicitud ya fue ${statusLabel} anteriormente.`, false);
   }
 
+  // Fetch user + business name for the user-facing email
+  const [requester] = await db
+    .select({
+      userName: users.name,
+      userEmail: users.email,
+      businessName: businesses.name,
+    })
+    .from(upgradeRequests)
+    .innerJoin(users, eq(users.id, upgradeRequests.userId))
+    .innerJoin(businesses, eq(businesses.id, upgradeRequests.businessId))
+    .where(eq(upgradeRequests.id, id))
+    .limit(1);
+
   if (action === 'approve') {
     // Fetch current business billing info
     const [business] = await db
@@ -102,9 +126,66 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .where(eq(businesses.id, upgradeRequest.businessId))
       .limit(1);
 
+    const planLabel = PLAN_LABELS[upgradeRequest.plan] ?? upgradeRequest.plan;
+    const now = new Date();
+
+    // ── Downgrade: schedule for end of current cycle, do not touch active plan ──
+    if (upgradeRequest.requestType === 'downgrade') {
+      await db.update(upgradeRequests).set({ status: 'approved', updatedAt: now }).where(eq(upgradeRequests.id, id));
+
+      await db
+        .update(businesses)
+        .set({
+          scheduledPlan: upgradeRequest.plan,
+          scheduledBillingCycle: upgradeRequest.billingCycle,
+          updatedAt: now,
+        })
+        .where(eq(businesses.id, upgradeRequest.businessId));
+
+      const endFormatted = business?.billingCycleEnd
+        ? business.billingCycleEnd.toLocaleDateString('es', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : 'la fecha de tu próximo ciclo';
+
+      if (requester) {
+        try {
+          await resend.emails.send({
+            from: EMAIL_FROM,
+            to: requester.userEmail,
+            subject: `Cambio de plan programado — ${requester.businessName}`,
+            html: upgradeDecisionEmailTemplate({
+              userName: requester.userName ?? 'Hola',
+              businessName: requester.businessName,
+              requestType: 'downgrade',
+              plan: upgradeRequest.plan,
+              billingCycle: upgradeRequest.billingCycle,
+              amount: upgradeRequest.amount,
+              referenceId: upgradeRequest.referenceId,
+              decision: 'approved',
+              billingCycleEnd: endFormatted,
+              dashboardUrl: `${APP_URL}/dashboard/billing`,
+            }),
+          });
+        } catch (mailError) {
+          console.error('Error sending user downgrade approval email:', mailError);
+        }
+      }
+
+      return htmlResponse(
+        'Cambio de plan programado',
+        `El cambio al plan <strong>${planLabel}</strong> se aplicará automáticamente al final del ciclo actual (<strong>${endFormatted}</strong>).`,
+        true
+      );
+    }
+
+    // ── New / renewal / upgrade: apply immediately ──
+
     // Determine billing cycle end date based on upgrade type
     const isUpgradeMidCycle =
-      upgradeRequest.requestType === 'upgrade' && business?.billingCycleEnd && business.billingCycleEnd > new Date();
+      upgradeRequest.requestType === 'upgrade' && business?.billingCycleEnd && business.billingCycleEnd > now;
     const isCycleChange = isUpgradeMidCycle && business.billingCycle !== upgradeRequest.billingCycle;
 
     let newBillingCycleEnd: Date;
@@ -113,7 +194,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       newBillingCycleEnd = business.billingCycleEnd!;
     } else if (isCycleChange) {
       // Cycle change during upgrade: start a fresh cycle from now
-      const now = new Date();
       const end = new Date(now);
       if (upgradeRequest.billingCycle === 'annual') {
         end.setFullYear(end.getFullYear() + 1);
@@ -127,10 +207,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Update request status
-    await db
-      .update(upgradeRequests)
-      .set({ status: 'approved', updatedAt: new Date() })
-      .where(eq(upgradeRequests.id, id));
+    await db.update(upgradeRequests).set({ status: 'approved', updatedAt: now }).where(eq(upgradeRequests.id, id));
 
     // Update business plan + billing info
     await db
@@ -139,12 +216,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         plan: upgradeRequest.plan,
         billingCycle: upgradeRequest.billingCycle,
         billingCycleEnd: newBillingCycleEnd,
-        scheduledPlan: null, // Clear any scheduled downgrade
-        updatedAt: new Date(),
+        scheduledPlan: null,
+        scheduledBillingCycle: null,
+        updatedAt: now,
       })
       .where(eq(businesses.id, upgradeRequest.businessId));
 
-    const planLabel = PLAN_LABELS[upgradeRequest.plan] ?? upgradeRequest.plan;
     const endFormatted = newBillingCycleEnd.toLocaleDateString('es', {
       year: 'numeric',
       month: 'long',
@@ -158,6 +235,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           ? 'actualizado'
           : 'activado';
 
+    // Notify user (don't fail the response if mail fails)
+    if (requester) {
+      try {
+        await resend.emails.send({
+          from: EMAIL_FROM,
+          to: requester.userEmail,
+          subject: `Tu plan ${planLabel} esta activo — ${requester.businessName}`,
+          html: upgradeDecisionEmailTemplate({
+            userName: requester.userName ?? 'Hola',
+            businessName: requester.businessName,
+            requestType: upgradeRequest.requestType as 'new' | 'renewal' | 'upgrade' | 'downgrade',
+            plan: upgradeRequest.plan,
+            billingCycle: upgradeRequest.billingCycle,
+            amount: upgradeRequest.amount,
+            referenceId: upgradeRequest.referenceId,
+            decision: 'approved',
+            billingCycleEnd: endFormatted,
+            dashboardUrl: `${APP_URL}/dashboard/billing`,
+          }),
+        });
+      } catch (mailError) {
+        console.error('Error sending user approval email:', mailError);
+      }
+    }
+
     return htmlResponse(
       'Plan aprobado',
       `El plan del negocio ha sido ${requestTypeLabel} a <strong>${planLabel}</strong>. Vigente hasta <strong>${endFormatted}</strong>.`,
@@ -167,6 +269,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Reject
   await db.update(upgradeRequests).set({ status: 'rejected', updatedAt: new Date() }).where(eq(upgradeRequests.id, id));
+
+  // Notify user
+  if (requester) {
+    try {
+      await resend.emails.send({
+        from: EMAIL_FROM,
+        to: requester.userEmail,
+        subject: `${REQUEST_TYPE_LABELS[upgradeRequest.requestType] ?? 'Solicitud'} rechazada — ${requester.businessName}`,
+        html: upgradeDecisionEmailTemplate({
+          userName: requester.userName ?? 'Hola',
+          businessName: requester.businessName,
+          requestType: upgradeRequest.requestType as 'new' | 'renewal' | 'upgrade' | 'downgrade',
+          plan: upgradeRequest.plan,
+          billingCycle: upgradeRequest.billingCycle,
+          amount: upgradeRequest.amount,
+          referenceId: upgradeRequest.referenceId,
+          decision: 'rejected',
+          dashboardUrl: `${APP_URL}/dashboard/billing`,
+        }),
+      });
+    } catch (mailError) {
+      console.error('Error sending user rejection email:', mailError);
+    }
+  }
 
   return htmlResponse('Solicitud rechazada', 'La solicitud de upgrade ha sido rechazada.', false);
 }

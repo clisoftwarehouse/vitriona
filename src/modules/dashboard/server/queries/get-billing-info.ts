@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { db } from '@/db/drizzle';
 import { notDeletedBusiness } from '@/db/soft-delete';
-import { businesses, businessAiQuotas } from '@/db/schema';
+import { businesses, upgradeRequests, businessAiQuotas } from '@/db/schema';
 
 export interface BillingInfo {
   businessId: string;
@@ -14,6 +14,13 @@ export interface BillingInfo {
   billingCycle: string | null;
   billingCycleEnd: Date | null;
   scheduledPlan: string | null;
+  scheduledBillingCycle: string | null;
+  pendingRequest: {
+    requestType: string;
+    plan: string;
+    billingCycle: string;
+    createdAt: Date;
+  } | null;
   aiPlanType: string | null;
   aiBillingCycle: string | null;
   aiBillingCycleEnd: Date | null;
@@ -35,6 +42,7 @@ export async function getBillingInfo(businessId: string): Promise<BillingInfo | 
       billingCycle: businesses.billingCycle,
       billingCycleEnd: businesses.billingCycleEnd,
       scheduledPlan: businesses.scheduledPlan,
+      scheduledBillingCycle: businesses.scheduledBillingCycle,
       createdAt: businesses.createdAt,
     })
     .from(businesses)
@@ -49,6 +57,17 @@ export async function getBillingInfo(businessId: string): Promise<BillingInfo | 
     .where(eq(businessAiQuotas.businessId, businessId))
     .limit(1);
 
+  const [pending] = await db
+    .select({
+      requestType: upgradeRequests.requestType,
+      plan: upgradeRequests.plan,
+      billingCycle: upgradeRequests.billingCycle,
+      createdAt: upgradeRequests.createdAt,
+    })
+    .from(upgradeRequests)
+    .where(and(eq(upgradeRequests.businessId, businessId), eq(upgradeRequests.status, 'pending')))
+    .limit(1);
+
   return {
     businessId: biz.id,
     businessName: biz.name,
@@ -56,6 +75,8 @@ export async function getBillingInfo(businessId: string): Promise<BillingInfo | 
     billingCycle: biz.billingCycle,
     billingCycleEnd: biz.billingCycleEnd,
     scheduledPlan: biz.scheduledPlan,
+    scheduledBillingCycle: biz.scheduledBillingCycle,
+    pendingRequest: pending ?? null,
     aiPlanType: aiQuota?.aiPlanType ?? null,
     aiBillingCycle: aiQuota?.billingCycle ?? null,
     aiBillingCycleEnd: aiQuota?.billingCycleEnd ?? null,

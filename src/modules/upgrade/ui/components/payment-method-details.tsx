@@ -9,17 +9,17 @@ const PAYMENT_DETAILS: Record<
   bank_transfer: {
     label: 'Transferencia Bancaria',
     fields: [
-      { icon: Hash, label: 'Número de cuenta', value: '0102-0123-4567-8901-2345' },
-      { icon: Landmark, label: 'Banco', value: 'Banco de Venezuela' },
-      { icon: Building2, label: 'RIF', value: 'J-12345678-9' },
+      { icon: Hash, label: 'Número de cuenta', value: '0138-0036-76-0360092004' },
+      { icon: Landmark, label: 'Banco', value: 'Banco Plaza' },
+      { icon: Building2, label: 'RIF', value: 'J-50812478-2' },
     ],
   },
   pago_movil: {
     label: 'Pago Móvil',
     fields: [
-      { icon: Phone, label: 'Número de teléfono', value: '0412-1234567' },
-      { icon: Building2, label: 'RIF', value: 'J-12345678-9' },
-      { icon: Landmark, label: 'Entidad bancaria', value: 'Banco de Venezuela (0102)' },
+      { icon: Phone, label: 'Número de teléfono', value: '0414-6927460' },
+      { icon: Building2, label: 'RIF', value: 'J-50812478-2' },
+      { icon: Landmark, label: 'Entidad bancaria', value: 'Banco Plaza (0138)' },
     ],
   },
   zelle: {
@@ -31,10 +31,7 @@ const PAYMENT_DETAILS: Record<
   },
   binance: {
     label: 'Binance',
-    fields: [
-      { icon: Hash, label: 'Pay ID', value: '123456789' },
-      { icon: Mail, label: 'Correo electrónico', value: 'pagos@vitriona.com' },
-    ],
+    fields: [{ icon: Mail, label: 'Correo electrónico', value: 'info@clisoftwarehouse.com' }],
   },
 };
 
