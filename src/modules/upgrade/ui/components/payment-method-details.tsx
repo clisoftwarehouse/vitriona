@@ -41,6 +41,10 @@ function formatBs(amount: number) {
   return `Bs. ${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatUsdt(amount: number) {
+  return `${amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+}
+
 interface PaymentMethodDetailsProps {
   method: PaymentMethod;
   eurAmount?: number;
@@ -50,6 +54,7 @@ interface PaymentMethodDetailsProps {
 export function PaymentMethodDetails({ method, eurAmount, eurRate }: PaymentMethodDetailsProps) {
   const details = PAYMENT_DETAILS[method];
   const showBsAmount = VES_METHODS.includes(method) && eurAmount && eurRate && eurRate > 0;
+  const showUsdtAmount = method === 'binance' && eurAmount;
 
   return (
     <div className='mt-4 rounded-xl border bg-blue-50/50 p-4 dark:bg-blue-950/20'>
@@ -73,6 +78,12 @@ export function PaymentMethodDetails({ method, eurAmount, eurRate }: PaymentMeth
             €{eurAmount % 1 === 0 ? eurAmount.toFixed(0) : eurAmount.toFixed(2)} × {eurRate.toFixed(2)} Bs/EUR · Tasa
             BCV del día
           </p>
+        </div>
+      )}
+      {showUsdtAmount && (
+        <div className='bg-primary/5 border-primary/20 mt-4 rounded-xl border p-4'>
+          <p className='text-muted-foreground text-xs font-medium'>Monto a transferir</p>
+          <p className='text-primary mt-1 text-2xl font-bold'>{formatUsdt(eurAmount)}</p>
         </div>
       )}
     </div>

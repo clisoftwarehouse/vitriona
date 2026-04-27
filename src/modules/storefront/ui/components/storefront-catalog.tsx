@@ -285,8 +285,11 @@ export function StorefrontCatalog({
     toast.success(`${product.name} agregado al carrito`);
   };
 
-  // User can toggle between grid/list; fallback to admin-configured layout
-  const effectiveLayout = userViewMode ?? layout;
+  // User can toggle between grid/list; fallback to admin-configured layout.
+  // 'products' viewMode (Tienda) is always rendered as a clean grid — the configured
+  // layout (magazine/list/etc.) only applies to the default mode.
+  const baseLayout = viewMode === 'products' ? 'grid' : layout;
+  const effectiveLayout = userViewMode ?? baseLayout;
 
   const gridClass =
     effectiveLayout === 'list'
