@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import {
   Eye,
-  Type,
   Check,
   Globe,
   Laptop,
@@ -33,8 +32,11 @@ import {
   ArrowLeft,
   ImageIcon,
   PanelLeft,
+  LayoutGrid,
   Smartphone,
   ChevronDown,
+  MessageCircle,
+  LayoutTemplate,
 } from 'lucide-react';
 
 import { BuilderTour } from './builder-tour';
@@ -213,7 +215,7 @@ const CAT_STYLES: { value: CategoriesStyleOption; label: string }[] = [
   { value: 'cards', label: 'Cards' },
 ];
 
-type Section = 'theme' | 'hero' | 'sections' | 'announcement' | 'seo';
+type Section = 'theme' | 'header' | 'hero' | 'catalog' | 'contact' | 'seo';
 
 const LAYOUT_OPTIONS: { value: LayoutOption; label: string }[] = [
   { value: 'grid', label: 'Grilla' },
@@ -495,9 +497,10 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
 
   const sections: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: 'theme', label: 'Tema', icon: <Palette className='size-4' /> },
+    { id: 'header', label: 'Cabecera', icon: <LayoutTemplate className='size-4' /> },
     { id: 'hero', label: 'Hero', icon: <Monitor className='size-4' /> },
-    { id: 'sections', label: 'Secciones', icon: <Type className='size-4' /> },
-    { id: 'announcement', label: 'Anuncio', icon: <Eye className='size-4' /> },
+    { id: 'catalog', label: 'Catálogo', icon: <LayoutGrid className='size-4' /> },
+    { id: 'contact', label: 'Contacto', icon: <MessageCircle className='size-4' /> },
     { id: 'seo', label: 'SEO', icon: <Globe className='size-4' /> },
   ];
 
@@ -588,11 +591,12 @@ export function SiteBuilder({ businessId, catalogId, businessSlug, initialSettin
           {/* Settings panels */}
           <div id='builder-settings-panel' className='flex-1 space-y-1 p-4'>
             {activeSection === 'theme' && <ThemePanel settings={settings} update={update} />}
-            {activeSection === 'hero' && <HeroPanel settings={settings} update={update} />}
-            {activeSection === 'sections' && <SectionsPanel settings={settings} update={update} />}
-            {activeSection === 'announcement' && (
-              <AnnouncementPanel settings={settings} update={update} businessName={previewData.business.name} />
+            {activeSection === 'header' && (
+              <HeaderPanel settings={settings} update={update} businessName={previewData.business.name} />
             )}
+            {activeSection === 'hero' && <HeroPanel settings={settings} update={update} />}
+            {activeSection === 'catalog' && <CatalogPanel settings={settings} update={update} />}
+            {activeSection === 'contact' && <ContactPanel settings={settings} update={update} />}
             {activeSection === 'seo' && <SeoPanel settings={settings} update={update} />}
           </div>
         </aside>
@@ -966,24 +970,6 @@ function ThemePanel({ settings, update }: PanelProps) {
         options={CARD_STYLES}
         onChange={(v) => update('cardStyle', v)}
       />
-
-      <SectionDivider title='Modo de visualización' />
-      <div className='space-y-2'>
-        {VIEW_MODE_OPTIONS.map((mode) => (
-          <button
-            key={mode.value}
-            onClick={() => update('viewMode', mode.value)}
-            className={`flex w-full flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
-              settings.viewMode === mode.value
-                ? 'border-gray-900 bg-gray-100 dark:border-white dark:bg-neutral-800'
-                : 'border-gray-200 hover:border-gray-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-            }`}
-          >
-            <span className='text-sm font-medium'>{mode.label}</span>
-            <span className='text-xs opacity-60'>{mode.description}</span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1098,11 +1084,29 @@ function HeroPanel({ settings, update }: PanelProps) {
   );
 }
 
-/* ── Sections Panel ── */
+/* ── Catalog Panel ── */
 
-function SectionsPanel({ settings, update }: PanelProps) {
+function CatalogPanel({ settings, update }: PanelProps) {
   return (
     <div className='space-y-4'>
+      <SectionDivider title='Modo de visualización' />
+      <div className='space-y-2'>
+        {VIEW_MODE_OPTIONS.map((mode) => (
+          <button
+            key={mode.value}
+            onClick={() => update('viewMode', mode.value)}
+            className={`flex w-full flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+              settings.viewMode === mode.value
+                ? 'border-gray-900 bg-gray-100 dark:border-white dark:bg-neutral-800'
+                : 'border-gray-200 hover:border-gray-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+            }`}
+          >
+            <span className='text-sm font-medium'>{mode.label}</span>
+            <span className='text-xs opacity-60'>{mode.description}</span>
+          </button>
+        ))}
+      </div>
+
       <SectionDivider title='Layout de productos' />
       <SelectField
         label='Disposición'
@@ -1183,9 +1187,9 @@ function SectionsPanel({ settings, update }: PanelProps) {
   );
 }
 
-/* ── Announcement Panel ── */
+/* ── Header Panel ── */
 
-function AnnouncementPanel({ settings, update, businessName }: PanelProps & { businessName: string }) {
+function HeaderPanel({ settings, update, businessName }: PanelProps & { businessName: string }) {
   return (
     <div className='space-y-4'>
       <FieldGroup label='Nombre en el header'>
@@ -1321,7 +1325,15 @@ function SeoPanel({ settings, update }: PanelProps) {
           placeholder='G-XXXXXXXXXX'
         />
       </FieldGroup>
+    </div>
+  );
+}
 
+/* ── Contact Panel ── */
+
+function ContactPanel({ settings, update }: PanelProps) {
+  return (
+    <div className='space-y-4'>
       <SectionDivider title='Redes sociales' />
       <FieldGroup label='Instagram'>
         <Input
