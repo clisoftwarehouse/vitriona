@@ -251,7 +251,7 @@ export default async function EditBusinessPage({ params }: EditBusinessPageProps
                 </div>
               </div>
               <Button asChild variant='outline'>
-                <Link href='/#ai-addon'>Ver planes de IA</Link>
+                <Link href='/dashboard/billing/upgrade?tab=chatbot'>Ver planes de IA</Link>
               </Button>
             </CardContent>
           </Card>
