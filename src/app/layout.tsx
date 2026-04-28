@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
@@ -94,6 +95,7 @@ const RootLayout = ({
           {children}
           <Toaster richColors position='bottom-right' />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
